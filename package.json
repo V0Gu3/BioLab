@@ -1,0 +1,22 @@
+{
+  "name": "bio-operaciones",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bio: control operativo, inventario y trazabilidad",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/server.js",
+    "dev": "node --env-file-if-exists=.env --watch server/server.js",
+    "test": "node --test tests/*.test.js",
+    "migrate:sqlite": "node scripts/migrate-sqlite-to-postgres.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.14"
+  }
+}

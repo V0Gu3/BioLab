@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: bio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bio
+      POSTGRES_USER: bio
+      POSTGRES_PASSWORD: ${BIO_POSTGRES_PASSWORD:-bio_local_seguro}
+    ports:
+      - "5432:5432"
+    volumes:
+      - bio_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bio -d bio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bio_postgres_data:

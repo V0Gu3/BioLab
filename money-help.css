@@ -1,0 +1,37 @@
+.bio-money-active {
+  cursor: help !important;
+  text-decoration: underline dotted var(--bio-primary);
+  text-underline-offset: 3px;
+}
+.bio-money-tooltip {
+  position: fixed;
+  z-index: 100000;
+  width: min(330px, calc(100vw - 20px));
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 42%, var(--bio-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bio-primary) 7%, var(--bio-surface-raised));
+  color: var(--bio-text);
+  box-shadow: 0 18px 45px rgba(5, 11, 20, .32), 0 0 0 1px color-mix(in srgb, var(--bio-primary) 10%, transparent);
+  backdrop-filter: blur(14px);
+  pointer-events: none;
+  animation: bio-money-in .14s ease;
+}
+.bio-money-tooltip[hidden] { display: none; }
+.bio-money-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding-bottom: 9px; border-bottom: 1px solid var(--bio-border); }
+.bio-money-title > span { font-size: 13px; font-weight: 800; }
+.bio-money-title small { color: var(--bio-text-muted); font: 600 6px 'DM Mono', monospace; text-transform: uppercase; }
+.bio-money-grid { display: grid; gap: 6px; margin-top: 9px; }
+.bio-money-grid > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 8px; border: 1px solid color-mix(in srgb, var(--bio-primary) 10%, var(--bio-border)); border-radius: 7px; background: color-mix(in srgb, var(--bio-primary) 6%, var(--bio-surface)); }
+.bio-money-grid > div > span:first-child { color: var(--bio-primary-readable); font: 700 7px 'DM Mono', monospace; }
+.bio-money-result { color: var(--bio-text); text-align: right; }
+.bio-money-result strong, .bio-money-result small { display: block; }
+.bio-money-result strong { font-size: 9px; }
+.bio-money-result small { margin-top: 2px; color: var(--bio-text-muted); font: 600 6px 'DM Mono', monospace; }
+.bio-money-tooltip footer { margin-top: 9px; color: var(--bio-text-muted); font-size: 6px; line-height: 1.4; }
+.bio-money-unavailable strong, .bio-money-unavailable span { display: block; }
+.bio-money-unavailable strong { font-size: 10px; }
+.bio-money-unavailable span { margin-top: 4px; color: var(--bio-text-muted); font-size: 8px; }
+.bio-money-unavailable:before { content: '!'; float: left; width: 28px; height: 28px; display: grid; place-items: center; margin-right: 9px; border-radius: 8px; background: #fff1df; color: #a86834; font-weight: 800; }
+@keyframes bio-money-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media(max-width: 560px) { .bio-money-tooltip { width: min(300px, calc(100vw - 20px)); } }

@@ -1,0 +1,110 @@
+(function () {
+  'use strict';
+  const access = window.BioAccess;
+  if (!access) return;
+  const q = selector => document.querySelector(selector);
+  const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  const toast = message => typeof window.showToast === 'function' ? window.showToast(message) : alert(message);
+  const initials = name => String(name || 'U').split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+  let activeSettingsSection = 'overview';
+  const viewPermissions = {
+    inventarioView: 'inventory_view', movimientosView: 'inventory_view', conteosView: 'inventory_manage', reportesView: 'reports',
+    productosView: 'catalog_view', proveedoresView: 'supplier_view', preciosView: 'supplier_manage', quotationSummaryView: 'quotation_view', cotizacionesView: 'quotation_view', newQuotationView: 'quotation_manage',
+    salesOrdersView: 'client_order_view', ordersView: 'client_order_view', supplierOrdersView: 'supplier_order_view', auditView: 'audit', sandboxView: 'sandbox'
+  };
+  const actionPermissions = [
+    ['#newProduct, #newCatalogProduct, [data-open="entrada"], [data-open="salida"], [data-open="traspaso"], [data-open="merma"], #applyCount', 'inventory_manage'],
+    ['#newSupplier', 'supplier_manage'], ['#selectPriceFile, #applyPrices, #skipSelectedPrices, #deleteSelectedPrices', 'supplier_manage'],
+    ['#newQuotation, #emitQuotation, #cancelQuotation, [data-quotation-product]', 'quotation_manage'], ['[data-convert-quotation]', 'client_order_manage'],
+    ['[data-activate-commercial-order]', 'client_order_activate'], ['[data-continue-commercial-order]', 'supplier_order_view'], ['[data-confirm-supplier-order]', 'supplier_order_manage'], ['#newSystemUser, [data-edit-system-user]', 'user_manage'], ['#refreshFxRates, #openManualFx, #saveFxProtection, #saveFxBanxicoToken', 'system_config']
+  ];
+  const formPermissions = { movementForm: 'inventory_manage', newProductForm: 'catalog_manage', catalogProductForm: 'catalog_manage', supplierForm: 'supplier_manage', quotationForm: 'quotation_manage', systemUserForm: 'user_manage', manualFxForm: 'system_config' };
+
+  function applyNavigationAccess() {
+    Object.entries(viewPermissions).forEach(([view, permission]) => document.querySelectorAll(`[data-view="${view}"]`).forEach(link => { link.hidden = !access.can(permission); }));
+    document.querySelectorAll('.nav-group').forEach(group => { group.hidden = ![...group.querySelectorAll('[data-view]')].some(link => !link.hidden); });
+    const active = document.querySelector('.nav-item.active[data-view], .nav-subitem.active[data-view]');
+    if (active?.hidden) document.querySelector('[data-view="panel"]')?.click();
+  }
+
+  function updateSidebarProfile() {
+    const user = access.currentUser(), role = access.role(user?.role);
+    q('#sidebarProfileName').textContent = user?.name || 'Sin usuario'; q('#sidebarProfileRole').textContent = role?.name || 'Sin perfil'; q('#sidebarProfileAvatar').textContent = initials(user?.name);
+  }
+
+  function setSettingsSection(section) {
+    const administrator = access.currentUser()?.role === 'administrator';
+    const allowed = candidate => candidate === 'themes' || (['users', 'permissions'].includes(candidate) ? administrator : access.can('system_config'));
+    document.querySelectorAll('[data-settings-section]').forEach(button => { button.hidden = !allowed(button.dataset.settingsSection); });
+    const requested = q(`[data-settings-panel="${section}"]`) ? section : (access.can('system_config') ? 'overview' : 'themes');
+    const target = allowed(requested) ? requested : 'themes';
+    activeSettingsSection = target;
+    document.querySelectorAll('[data-settings-section]').forEach(button => {
+      const active = button.dataset.settingsSection === target;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+    document.querySelectorAll('[data-settings-panel]').forEach(panel => {
+      const active = panel.dataset.settingsPanel === target;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    q('#newSystemUser').hidden = target !== 'users' || !access.can('user_manage');
+    window.lucide?.createIcons();
+  }
+
+  function renderSettings() {
+    const state = access.getState(), current = access.currentUser(), canManage = current?.role === 'administrator' && access.can('user_manage');
+    q('#newSystemUser').hidden = !canManage || activeSettingsSection !== 'users';
+    q('#accessUserCount').textContent = state.users.length; q('#accessActiveCount').textContent = state.users.filter(user => user.status === 'active').length; q('#accessCurrentRole').textContent = access.role(current?.role)?.name || '—';
+    const sessionOptions = state.users.filter(user => user.status === 'active').map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} · ${escapeHtml(access.role(user.role)?.name)}</option>`).join('');
+    q('#accessCurrentUser').innerHTML = sessionOptions; q('#accessCurrentUser').value = current?.id || '';
+    q('#themeSessionUser').innerHTML = sessionOptions; q('#themeSessionUser').value = current?.id || '';
+    q('#accessUserList').innerHTML = state.users.map(user => `<article class="access-user-row"><div class="access-user-identity"><span>${escapeHtml(initials(user.name))}</span><div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email)} · ${escapeHtml(user.id)}</small></div></div><span class="access-role-pill ${escapeHtml(user.role)}">${escapeHtml(access.role(user.role)?.name || user.role)}</span><span class="access-user-status ${user.status}"><i></i>${user.status === 'active' ? 'Activo' : 'Inactivo'}</span><small>${user.updatedAt ? new Date(user.updatedAt).toLocaleString('es-MX') : 'Registro inicial'}</small><button data-edit-system-user="${escapeHtml(user.id)}" ${canManage ? '' : 'hidden'} title="Editar usuario"><i data-lucide="pencil"></i></button></article>`).join('');
+    q('#accessRoleCards').innerHTML = Object.values(access.ROLES).map(role => { const permissions = access.rolePermissions(role.id); return `<article class="access-role-card ${role.id}"><div><span><i data-lucide="${role.id === 'administrator' ? 'crown' : role.id === 'auditor' ? 'scan-eye' : role.id === 'supervisor' ? 'shield-check' : 'briefcase-business'}"></i></span><div><strong>${escapeHtml(role.name)}</strong><small>${permissions.length} permisos en la plantilla</small></div></div><p>${escapeHtml(role.description)}</p><ul>${permissions.slice(0, 6).map(permission => `<li><i data-lucide="check"></i>${escapeHtml(access.PERMISSIONS[permission])}</li>`).join('')}${permissions.length > 6 ? `<li class="more">+ ${permissions.length - 6} permisos adicionales</li>` : ''}</ul></article>`; }).join('');
+    q('#accessPermissionMatrix').innerHTML = Object.entries(access.PERMISSIONS).map(([permission, label]) => `<tr><td>${escapeHtml(label)}</td>${['administrator', 'auditor', 'supervisor', 'seller'].map(role => { const allowed = access.rolePermissions(role).includes(permission), locked = permission === 'user_manage'; return `<td><label class="role-permission-toggle ${allowed ? 'allowed' : 'denied'} ${locked ? 'locked' : ''}" title="${locked ? 'Reservado al Administrador' : 'Modificar plantilla del perfil'}"><input type="checkbox" data-role-permission="${role}" value="${permission}" ${allowed ? 'checked' : ''} ${locked ? 'disabled' : ''} /><i data-lucide="${allowed ? 'check' : 'minus'}"></i></label></td>`; }).join('')}</tr>`).join('');
+    q('.access-matrix-card .card-top > small').textContent = 'Los cambios ajustan la plantilla del perfil y quedan auditados.';
+    window.lucide?.createIcons();
+  }
+
+  function renderUserPermissionEditor(user = null) {
+    const roleId = q('#systemUserRole').value || 'seller', baseline = new Set(access.rolePermissions(roleId)), grants = new Set(user?.permissionGrants || []), denials = new Set(user?.permissionDenials || []);
+    q('#systemUserPermissions').innerHTML = Object.entries(access.PERMISSIONS).map(([permission, label]) => {
+      const base = baseline.has(permission), checked = denials.has(permission) ? false : grants.has(permission) || base, locked = permission === 'user_manage';
+      return `<label class="user-permission-option ${base ? 'baseline' : 'optional'} ${locked ? 'locked' : ''}"><input type="checkbox" value="${escapeHtml(permission)}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span><strong>${escapeHtml(label)}</strong><small>${locked ? 'Reservado al perfil Administrador' : base ? 'Incluido por el perfil' : 'Permiso especial opcional'}</small></span></label>`;
+    }).join('');
+  }
+
+  function openUserDialog(userId) {
+    if (!access.can('user_manage')) return toast('Solo el administrador puede modificar usuarios y perfiles.');
+    const user = access.getState().users.find(item => item.id === userId);
+    q('#systemUserForm').reset(); q('#systemUserId').value = user?.id || ''; q('#systemUserDialogTitle').textContent = user ? 'Editar usuario' : 'Nuevo usuario';
+    q('#systemUserName').value = user?.name || ''; q('#systemUserEmail').value = user?.email || ''; q('#systemUserRole').value = user?.role || 'seller'; q('#systemUserStatus').value = user?.status || 'active'; renderUserPermissionEditor(user); q('#systemUserDialog').showModal();
+  }
+
+  document.addEventListener('click', event => {
+    const viewLink = event.target.closest('[data-view]');
+    if (viewLink && viewPermissions[viewLink.dataset.view] && !access.can(viewPermissions[viewLink.dataset.view])) {
+      event.preventDefault(); event.stopImmediatePropagation(); toast('Este módulo está restringido para tu perfil.'); return;
+    }
+    const sectionButton = event.target.closest('[data-settings-section], [data-settings-target]');
+    if (sectionButton) setSettingsSection(sectionButton.dataset.settingsSection || sectionButton.dataset.settingsTarget);
+    for (const [selector, permission] of actionPermissions) {
+      if (event.target.closest(selector) && !access.can(permission)) { event.preventDefault(); event.stopImmediatePropagation(); toast(`Tu perfil de ${access.role(access.currentUser()?.role)?.name || 'usuario'} no tiene permiso para esta acción.`); return; }
+    }
+  }, true);
+  document.addEventListener('submit', event => {
+    const permission = formPermissions[event.target.id];
+    if (permission && !access.can(permission)) { event.preventDefault(); event.stopImmediatePropagation(); toast('Tu perfil no tiene permiso para guardar esta operación.'); }
+  }, true);
+  q('#newSystemUser').addEventListener('click', () => openUserDialog());
+  q('#accessUserList').addEventListener('click', event => { const button = event.target.closest('[data-edit-system-user]'); if (button) openUserDialog(button.dataset.editSystemUser); });
+  q('#accessPermissionMatrix').addEventListener('change', event => { const input = event.target.closest('[data-role-permission]'); if (!input) return; const role = input.dataset.rolePermission, selected = [...q('#accessPermissionMatrix').querySelectorAll(`[data-role-permission="${role}"]:checked`)].map(item => item.value), result = access.saveRolePermissions(role, selected); if (!result.ok) return toast(result.message); toast(`Plantilla de ${access.role(role).name} actualizada.`); });
+  q('#accessCurrentUser').addEventListener('change', event => { if (access.setCurrentUser(event.target.value)) toast(`Sesión local cambiada a ${access.currentUser().name}.`); });
+  q('#themeSessionUser').addEventListener('change', event => { if (access.setCurrentUser(event.target.value)) { setSettingsSection('themes'); toast(`Perfil de prueba cambiado a ${access.currentUser().name}.`); } });
+  q('#systemUserRole').addEventListener('change', () => renderUserPermissionEditor());
+  q('#systemUserForm').addEventListener('submit', event => { event.preventDefault(); const role = q('#systemUserRole').value, baseline = new Set(access.rolePermissions(role)), checked = new Set([...q('#systemUserPermissions').querySelectorAll('input:checked')].map(input => input.value)), permissionGrants = [...checked].filter(permission => !baseline.has(permission)), permissionDenials = [...baseline].filter(permission => !checked.has(permission)); const result = access.saveUser({ id: q('#systemUserId').value || null, name: q('#systemUserName').value, email: q('#systemUserEmail').value, role, status: q('#systemUserStatus').value, permissionGrants, permissionDenials }); if (!result.ok) return toast(result.message); q('#systemUserDialog').close(); toast('Usuario, perfil y permisos especiales actualizados.'); });
+  document.querySelectorAll('.access-dialog-close').forEach(button => button.addEventListener('click', () => q('#systemUserDialog').close()));
+  window.addEventListener('bio:access-changed', () => { updateSidebarProfile(); applyNavigationAccess(); renderSettings(); setSettingsSection(activeSettingsSection); });
+  updateSidebarProfile(); applyNavigationAccess(); renderSettings(); setSettingsSection(activeSettingsSection);
+})();
