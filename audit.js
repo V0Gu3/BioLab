@@ -1,5 +1,6 @@
 (function (root) {
   'use strict';
+  const BRAND = root.PROBIOLAB_BRAND || { filePrefix: 'probiolab' };
   const q = selector => root.document?.querySelector(selector);
   const read = (key, fallback) => { try { return JSON.parse(root.localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
   const text = value => String(value ?? '').trim();
@@ -83,7 +84,7 @@
   function exportCsv() {
     if (!root.BioAccess?.can('audit')) return;
     const quote = value => `"${text(value).replaceAll('"', '""')}"`, body = [['ID', 'Categoría', 'Registro', 'Origen', 'Referencia', 'Usuario', 'Fecha', 'Detalle'], ...visible.map(item => [item.id, labels[item.category], item.title, item.origin, item.reference, item.user, item.at, item.detail])].map(row => row.map(quote).join(',')).join('\r\n');
-    const link = root.document.createElement('a'); link.href = URL.createObjectURL(new Blob([`\uFEFF${body}`], { type: 'text/csv;charset=utf-8' })); link.download = `auditoria-bio-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href);
+    const link = root.document.createElement('a'); link.href = URL.createObjectURL(new Blob([`\uFEFF${body}`], { type: 'text/csv;charset=utf-8' })); link.download = `auditoria-${BRAND.filePrefix}-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href);
   }
 
   q('#auditList')?.addEventListener('click', event => { const button = event.target.closest('[data-audit-download]'); if (button) download(visible.find(item => item.id === button.dataset.auditDownload)); });

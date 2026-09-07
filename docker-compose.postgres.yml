@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: bio-postgres
+    container_name: probiolab-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: bio
-      POSTGRES_USER: bio
-      POSTGRES_PASSWORD: ${BIO_POSTGRES_PASSWORD:-bio_local_seguro}
+      POSTGRES_DB: probiolab
+      POSTGRES_USER: probiolab
+      POSTGRES_PASSWORD: ${PROBIOLAB_POSTGRES_PASSWORD:-probiolab_local_seguro}
     ports:
       - "5432:5432"
     volumes:
-      - bio_postgres_data:/var/lib/postgresql/data
+      - probiolab_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bio -d bio"]
+      test: ["CMD-SHELL", "pg_isready -U probiolab -d probiolab"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  bio_postgres_data:
+  probiolab_postgres_data:

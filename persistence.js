@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const KEYS = ['nexo-access-v1', 'nexo-products', 'nexo-suppliers', 'nexo-movements', 'nexo-price-loads', 'nexo-purchase-orders', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-quotation-sequences', 'nexo-order-operations-v1', 'nexo-fx-v1'];
-  const enabled = /^https?:$/.test(root.location.protocol), nativeSet = Storage.prototype.setItem, nativeRemove = Storage.prototype.removeItem;
+  const enabled = /^https?:$/.test(root.location.protocol) && !root.__BIO_TRAINING__, nativeSet = Storage.prototype.setItem, nativeRemove = Storage.prototype.removeItem;
   const status = { connected: false, hydrated: false, migrating: false, lastSync: null, error: null };
   const pending = new Map(); let timer = null;
   const parse = value => { try { return JSON.parse(value); } catch { return null; } };
@@ -19,11 +19,11 @@
     element.title = status.error || (status.lastSync ? `Última sincronización: ${new Date(status.lastSync).toLocaleString('es-MX')}` : 'Datos guardados en este navegador');
   };
   const notify = () => { renderStatus(); root.dispatchEvent?.(new CustomEvent('bio:persistence-changed', { detail: { ...status } })); };
-  const actor = () => root.BioAccess?.currentUser()?.name || 'Cliente Bio';
+  const actor = () => root.BioAccess?.currentUser()?.name || 'Cliente PROBIOLAB';
 
   function requestSync(method, url, payload) {
     const xhr = new XMLHttpRequest(); xhr.open(method, url, false); xhr.setRequestHeader('Content-Type', 'application/json'); xhr.setRequestHeader('X-Bio-User', actor()); xhr.send(payload == null ? null : JSON.stringify(payload));
-    if (xhr.status < 200 || xhr.status >= 300) throw new Error(`API Bio respondió ${xhr.status}.`);
+    if (xhr.status < 200 || xhr.status >= 300) throw new Error(`API PROBIOLAB respondió ${xhr.status}.`);
     return JSON.parse(xhr.responseText || '{}');
   }
 

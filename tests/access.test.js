@@ -60,3 +60,17 @@ test('el administrador modifica la plantilla del perfil antes de aplicar excepci
   assert.equal(access.can('user_manage'), false);
   assert.equal(access.getState().audit.some(item => item.type === 'role_permissions_updated' && item.entityId === 'seller'), true);
 });
+
+test('el espacio de pruebas se habilita por administrador y respeta el permiso del usuario', () => {
+  const access = loadAccess();
+  assert.equal(access.workspace().mode, 'operational');
+  assert.equal(access.workspace().sandboxEnabled, true);
+  assert.equal(access.setWorkspaceMode('training').ok, true);
+  assert.equal(access.workspace().mode, 'training');
+  assert.equal(access.setSandboxEnabled(false).ok, true);
+  assert.equal(access.workspace().sandboxEnabled, false);
+  assert.equal(access.workspace().mode, 'operational');
+  assert.equal(access.getState().audit.some(item => item.type === 'workspace_training_changed'), true);
+  access.setCurrentUser('USR-003');
+  assert.equal(access.setWorkspaceMode('training').ok, false);
+});

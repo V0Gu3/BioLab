@@ -4,14 +4,21 @@
   const STORAGE_KEY = 'nexo-theme-v3';
   const LEGACY_KEY = 'nexo-theme-v2';
   const OLDER_KEY = 'nexo-theme-v1';
-  const DEFAULTS = Object.freeze({ mode: 'light', primaryColor: '#52715b', fontScale: 1.1 });
+  const DEFAULTS = Object.freeze({ mode: 'light', primaryColor: '#359bd3', fontScale: 1.1 });
   const FONT_SCALES = Object.freeze([1, 1.1, 1.2, 1.3]);
   const CONTENT_TEXT_BASE = 1.2;
   const PRESETS = Object.freeze([
-    { color: '#52715b', name: 'Bosque' },
-    { color: '#3157a4', name: 'Océano' },
-    { color: '#6d4bb5', name: 'Amatista' },
-    { color: '#a45b32', name: 'Terracota' }
+    { color: '#359bd3', secondary: '#9bc53d', name: 'Institucional' },
+    { color: '#52715b', secondary: '#a2c94b', name: 'Bosque' },
+    { color: '#3157a4', secondary: '#55b9d9', name: 'Océano' },
+    { color: '#6d4bb5', secondary: '#b67ad5', name: 'Amatista' },
+    { color: '#a45b32', secondary: '#d8a445', name: 'Terracota' },
+    { color: '#0f8c86', secondary: '#78c98e', name: 'Laguna' },
+    { color: '#c64f78', secondary: '#e69b63', name: 'Frambuesa' },
+    { color: '#169a72', secondary: '#9bc53d', name: 'Esmeralda' },
+    { color: '#d55659', secondary: '#ed9b66', name: 'Coral' },
+    { color: '#d48a22', secondary: '#efd05c', name: 'Ámbar' },
+    { color: '#596579', secondary: '#93bad0', name: 'Grafito' }
   ]);
 
   const currentUserId = () => root.BioAccess?.currentUser?.()?.id || 'local';
@@ -37,7 +44,9 @@
     for (let step = 0; step < 16 && contrastRatio(adjusted, background) < minimum; step += 1) adjusted = mix(adjusted, target, .14);
     return adjusted;
   };
+  const pairedAccent = primary => PRESETS.find(item => item.color === primary.toLowerCase())?.secondary || mix(primary, '#9bc53d', .34);
   const derivePalette = (primary, mode = 'light') => {
+    const secondary = pairedAccent(primary);
     const sidebar = ensureContrast(primary, '#ffffff', '#07101d', 8);
     const sidebarRaised = ensureContrast(mix(sidebar, primary, .12), '#ffffff', '#07101d', 7);
     const readableBackground = mode === 'dark' ? '#171a20' : '#ffffff';
@@ -50,7 +59,9 @@
       sidebarMuted: ensureContrast(mix('#ffffff', primary, .22), sidebarRaised, '#ffffff', 4.5),
       primaryStrong: ensureContrast(primary, '#ffffff', '#101827', 5),
       primaryReadable: ensureContrast(primary, readableBackground, readableTarget, 4.5),
-      onPrimary: contrast(primary)
+      onPrimary: contrast(primary),
+      secondary,
+      secondaryReadable: ensureContrast(secondary, readableBackground, readableTarget, 4.5)
     };
   };
 
@@ -66,7 +77,7 @@
   function load() {
     try {
       const stored = localStorage.getItem(storageKey());
-      if (stored) return normalize({ ...DEFAULTS, ...JSON.parse(stored) });
+      if (stored) { const parsed = JSON.parse(stored); return normalize({ ...DEFAULTS, ...parsed, primaryColor: String(parsed.primaryColor || '').toLowerCase() === '#52715b' ? DEFAULTS.primaryColor : parsed.primaryColor }); }
       const legacy = JSON.parse(localStorage.getItem(storageKey(LEGACY_KEY)) || localStorage.getItem(storageKey(OLDER_KEY)) || '{}');
       const previousScale = Number(legacy.fontScale);
       const migratedScale = Number.isFinite(previousScale) ? Math.min(1.3, Math.round((previousScale + .1) * 10) / 10) : DEFAULTS.fontScale;
@@ -109,6 +120,9 @@
     element.style.setProperty('--bio-primary-readable', palette.primaryReadable);
     element.style.setProperty('--bio-primary-soft', rgba(primary, state.mode === 'dark' ? .18 : .11));
     element.style.setProperty('--bio-primary-glow', rgba(primary, .25));
+    element.style.setProperty('--bio-secondary', palette.secondary);
+    element.style.setProperty('--bio-secondary-readable', palette.secondaryReadable);
+    element.style.setProperty('--bio-secondary-soft', rgba(palette.secondary, state.mode === 'dark' ? .19 : .13));
     element.style.setProperty('--bio-on-primary', palette.onPrimary);
     element.style.setProperty('--bio-sidebar', palette.sidebar);
     element.style.setProperty('--bio-sidebar-elevated', palette.sidebarRaised);

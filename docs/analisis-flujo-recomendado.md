@@ -4,7 +4,7 @@ Fecha de revisión: 2026-09-01.
 
 ## Diagnóstico
 
-Bio ya contaba con cotizaciones con precios congelados, moneda, IVA, tipo de cambio y vigencia; OC de cliente; partidas operativas; OC a proveedor; recepciones y entregas parciales; kardex; remisiones; facturas; permisos; documentos PDF y auditoría. La estructura `supplierOrderLines` ya permitía relacionar una compra con una partida, pero la generación automática creaba una OC distinta por pedido y no aprovechaba esa relación para consolidar varios clientes.
+PROBIOLAB ya contaba con cotizaciones con precios congelados, moneda, IVA, tipo de cambio y vigencia; OC de cliente; partidas operativas; OC a proveedor; recepciones y entregas parciales; kardex; remisiones; facturas; permisos; documentos PDF y auditoría. La estructura `supplierOrderLines` ya permitía relacionar una compra con una partida, pero la generación automática creaba una OC distinta por pedido y no aprovechaba esa relación para consolidar varios clientes.
 
 Las brechas de mayor riesgo eran:
 
@@ -41,7 +41,7 @@ Los nuevos campos viven dentro del `payload_json` que ya persiste PostgreSQL, po
 - Registro específico de factura del proveedor y tablero detallado de diferencias de precio, IVA y cantidad.
 - Devoluciones, reposiciones y notas de crédito.
 - Cierre logístico y cierre administrativo separados.
-- Cobranza, únicamente si Bio incorporará finanzas.
+- Cobranza, únicamente si PROBIOLAB incorporará finanzas.
 - Autenticación y autorización obligatoria en servidor antes del uso multiusuario en producción.
 
 Estos pendientes no bloquean el flujo actual cotización → aceptación → pedido → propuesta consolidada → OC proveedor → recepción → inventario → remisión, pero deben implementarse antes de considerar completo el ciclo administrativo y de devoluciones.

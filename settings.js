@@ -9,19 +9,19 @@
   let activeSettingsSection = 'overview';
   const viewPermissions = {
     inventarioView: 'inventory_view', movimientosView: 'inventory_view', conteosView: 'inventory_manage', reportesView: 'reports',
-    productosView: 'catalog_view', proveedoresView: 'supplier_view', preciosView: 'supplier_manage', quotationSummaryView: 'quotation_view', cotizacionesView: 'quotation_view', newQuotationView: 'quotation_manage',
+    productosView: 'catalog_view', proveedoresView: 'supplier_view', preciosView: 'supplier_manage', clientesView: 'client_view', quotationSummaryView: 'quotation_view', cotizacionesView: 'quotation_view', newQuotationView: 'quotation_manage',
     salesOrdersView: 'client_order_view', ordersView: 'client_order_view', supplierOrdersView: 'supplier_order_view', auditView: 'audit', sandboxView: 'sandbox'
   };
   const actionPermissions = [
     ['#newProduct, #newCatalogProduct, [data-open="entrada"], [data-open="salida"], [data-open="traspaso"], [data-open="merma"], #applyCount', 'inventory_manage'],
     ['#newSupplier', 'supplier_manage'], ['#selectPriceFile, #applyPrices, #skipSelectedPrices, #deleteSelectedPrices', 'supplier_manage'],
-    ['#newQuotation, #emitQuotation, #cancelQuotation, [data-quotation-product]', 'quotation_manage'], ['[data-convert-quotation]', 'client_order_manage'],
+    ['#newQuotation, #emitQuotation, #cancelQuotation, [data-quotation-product], [data-edit-quotation], [data-delete-quotation]', 'quotation_manage'], ['#newClient, [data-toggle-client-block], [data-edit-client], [data-retire-client], [data-add-advance]', 'client_manage'], ['[data-convert-quotation]', 'client_order_manage'],
     ['[data-activate-commercial-order]', 'client_order_activate'], ['[data-continue-commercial-order]', 'supplier_order_view'], ['[data-confirm-supplier-order]', 'supplier_order_manage'], ['#newSystemUser, [data-edit-system-user]', 'user_manage'], ['#refreshFxRates, #openManualFx, #saveFxProtection, #saveFxBanxicoToken', 'system_config']
   ];
-  const formPermissions = { movementForm: 'inventory_manage', newProductForm: 'catalog_manage', catalogProductForm: 'catalog_manage', supplierForm: 'supplier_manage', quotationForm: 'quotation_manage', systemUserForm: 'user_manage', manualFxForm: 'system_config' };
+  const formPermissions = { movementForm: 'inventory_manage', newProductForm: 'catalog_manage', catalogProductForm: 'catalog_manage', supplierForm: 'supplier_manage', quotationForm: 'quotation_manage', clientEditorForm: 'client_manage', clientAdvanceForm: 'client_manage', systemUserForm: 'user_manage', manualFxForm: 'system_config' };
 
   function applyNavigationAccess() {
-    Object.entries(viewPermissions).forEach(([view, permission]) => document.querySelectorAll(`[data-view="${view}"]`).forEach(link => { link.hidden = !access.can(permission); }));
+    Object.entries(viewPermissions).forEach(([view, permission]) => document.querySelectorAll(`[data-view="${view}"]`).forEach(link => { link.hidden = !access.can(permission) || (view === 'sandboxView' && !access.isSandboxEnabled?.()); }));
     document.querySelectorAll('.nav-group').forEach(group => { group.hidden = ![...group.querySelectorAll('[data-view]')].some(link => !link.hidden); });
     const active = document.querySelector('.nav-item.active[data-view], .nav-subitem.active[data-view]');
     if (active?.hidden) document.querySelector('[data-view="panel"]')?.click();
@@ -84,7 +84,7 @@
 
   document.addEventListener('click', event => {
     const viewLink = event.target.closest('[data-view]');
-    if (viewLink && viewPermissions[viewLink.dataset.view] && !access.can(viewPermissions[viewLink.dataset.view])) {
+    if (viewLink && viewPermissions[viewLink.dataset.view] && (!access.can(viewPermissions[viewLink.dataset.view]) || (viewLink.dataset.view === 'sandboxView' && !access.isSandboxEnabled?.()))) {
       event.preventDefault(); event.stopImmediatePropagation(); toast('Este módulo está restringido para tu perfil.'); return;
     }
     const sectionButton = event.target.closest('[data-settings-section], [data-settings-target]');

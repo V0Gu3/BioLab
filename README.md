@@ -1,10 +1,10 @@
-# Bio
+# PROBIOLAB
 
 Sistema web para control comercial, compras, almacenes, documentos y trazabilidad.
 
 ## Iniciar el sistema
 
-En Windows puedes ejecutar `INICIAR-BIO.cmd`. También puedes iniciarlo desde una terminal:
+En Windows puedes ejecutar `INICIAR-PROBIOLAB.cmd`. También puedes iniciarlo desde una terminal:
 
 ```powershell
 npm start
@@ -16,7 +16,7 @@ No abras `index.html` directamente para trabajo operativo: ese modo conserva com
 
 ## Base de datos
 
-Bio utiliza PostgreSQL. Copia `.env.example` como `.env` y configura `DATABASE_URL` con el usuario, contraseña, servidor y base de datos de Bio.
+PROBIOLAB utiliza PostgreSQL. Copia `.env.example` como `.env` y configura `DATABASE_URL` con el usuario, contraseña, servidor y base de datos de PROBIOLAB.
 
 Si Docker está disponible, `docker-compose.postgres.yml` contiene una instancia preparada para desarrollo. También puedes utilizar PostgreSQL instalado o un servicio administrado.
 

@@ -1,11 +1,12 @@
 {
-  "name": "bio-operaciones",
+  "name": "probiolab-operaciones",
   "version": "1.0.0",
   "private": true,
-  "description": "Bio: control operativo, inventario y trazabilidad",
+  "description": "PROBIOLAB: control operativo, inventario y trazabilidad",
   "type": "commonjs",
   "scripts": {
     "start": "node --env-file-if-exists=.env server/server.js",
+    "start:local": "node server/local-preview.js",
     "dev": "node --env-file-if-exists=.env --watch server/server.js",
     "test": "node --test tests/*.test.js",
     "migrate:sqlite": "node scripts/migrate-sqlite-to-postgres.js"

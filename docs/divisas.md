@@ -1,13 +1,13 @@
 # Consulta diaria de divisas
 
-Bio consulta una vez por fecha local y vuelve a revisar periódicamente mientras la aplicación permanece abierta.
+PROBIOLAB consulta una vez por fecha local y vuelve a revisar periódicamente mientras la aplicación permanece abierta.
 
 1. Fuente oficial principal: API SIE de Banco de México. Se consultan las series oportunas SF43718 (dólar estadounidense FIX), SF60632 (dólar canadiense) y SF46410 (euro), expresadas en MXN.
 2. Fuente oficial secundaria: API del Banco Central Europeo, series diarias USD, CAD y MXN contra EUR.
 3. Tercera fuente: API pública Frankfurter, base EUR y cotizaciones USD, CAD y MXN.
 4. Último recurso: captura manual exclusiva del Administrador, con motivo obligatorio.
 
-La consulta SIE requiere que el Administrador registre un token válido de Banco de México en Configuración > Divisas. El token se muestra siempre enmascarado y nunca se copia a los registros cambiarios ni a la bitácora. Si no está configurado o la consulta falla, Bio registra el intento y continúa automáticamente con la fuente siguiente.
+La consulta SIE requiere que el Administrador registre un token válido de Banco de México en Configuración > Divisas. El token se muestra siempre enmascarado y nunca se copia a los registros cambiarios ni a la bitácora. Si no está configurado o la consulta falla, PROBIOLAB registra el intento y continúa automáticamente con la fuente siguiente.
 
 Las tasas se normalizan como pesos mexicanos por una unidad: MXN = 1, USD = MXN/EUR ÷ USD/EUR, CAD = MXN/EUR ÷ CAD/EUR y EUR = MXN/EUR.
 

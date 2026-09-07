@@ -1,8 +1,8 @@
-# Flujo operativo de pedidos en Bio
+# Flujo operativo de pedidos en PROBIOLAB
 
 ## 1. Arquitectura encontrada
 
-Bio es una aplicación web de una sola página construida con HTML, CSS y JavaScript sin framework. La interfaz conserva un modo local en `localStorage` e IndexedDB, y el proyecto ya incluye una API REST y persistencia PostgreSQL preparada para ejecución local. SheetJS procesa archivos Excel y jsPDF genera comprobantes. La autorización actual se aplica en interfaz; la autenticación de servidor sigue siendo una etapa pendiente antes de producción.
+PROBIOLAB es una aplicación web de una sola página construida con HTML, CSS y JavaScript sin framework. La interfaz conserva un modo local en `localStorage` e IndexedDB, y el proyecto ya incluye una API REST y persistencia PostgreSQL preparada para ejecución local. SheetJS procesa archivos Excel y jsPDF genera comprobantes. La autorización actual se aplica en interfaz; la autenticación de servidor sigue siendo una etapa pendiente antes de producción.
 
 Se reutilizaron:
 
@@ -69,7 +69,7 @@ Transformaciones relevantes:
 - Cada fila conserva contenido original, hoja, número de fila, huella del archivo y huella de fila.
 - Filas repetidas dentro del mismo archivo o en una importación posterior se marcan duplicadas.
 
-Resultado de la simulación real, sin guardar en Bio:
+Resultado de la simulación real, sin guardar en PROBIOLAB:
 
 - 867 filas analizadas.
 - 512 listas.
@@ -86,7 +86,7 @@ Resultado de la simulación real, sin guardar en Bio:
 
 Los estados son valores controlados en código: borrador, confirmado, en compra, parcial o totalmente comprado/recibido/entregado/facturado, reservado, listo para entregar, cerrado y cancelado.
 
-Se implementó una matriz mínima de permisos para consulta, captura, compras, recepción, inventario, facturación, entregas, cancelación y administración. Como Bio no tiene autenticación, el usuario actual continúa siendo el usuario fijo de la interfaz. La seguridad real requiere backend.
+Se implementó una matriz mínima de permisos para consulta, captura, compras, recepción, inventario, facturación, entregas, cancelación y administración. Como PROBIOLAB no tiene autenticación, el usuario actual continúa siendo el usuario fijo de la interfaz. La seguridad real requiere backend.
 
 ## 6. Base de datos, migraciones y API
 

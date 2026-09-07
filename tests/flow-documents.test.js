@@ -33,3 +33,34 @@ test('la identidad visual de los PDF no depende del tema personal', () => {
   assert.match(sources, /setFillColor\(23,\s*34,\s*29\)/);
   assert.match(sources, /setTextColor\(255,\s*255,\s*255\)/);
 });
+
+test('la moneda documental se deriva de los importes estructurados y nunca del texto libre', () => {
+  const usd = docs.monetaryProfile({
+    currency: 'MXN',
+    totalsByCurrency: [{ currency: 'USD', subtotal: 8500, taxAmount: 1360, total: 9860 }],
+    items: [{ description: 'Reactivo con texto USD', currency: 'USD', quantity: 1, unitPrice: 8500, lineTotal: 8500 }]
+  });
+  const multi = docs.monetaryProfile({ items: [{ currency: 'MXN', quantity: 1, unitPrice: 100 }, { currency: 'USD', quantity: 1, unitPrice: 20 }] });
+  assert.equal(usd.currency, 'USD');
+  assert.equal(usd.totals[0].total, 9860);
+  assert.equal(multi.currency, 'MULTI');
+  assert.match(docs.moneyWithCode(1250, 'USD'), /^USD\s/);
+});
+
+test('la OC muestra ISO en cabecera, partidas y total cuando el campo heredado es contradictorio', () => {
+  class PdfCapture {
+    constructor() { this.texts = []; }
+    setFillColor() {} rect() {} setTextColor() {} setFont() {} setFontSize() {} roundedRect() {} setDrawColor() {} line() {} addPage() {} setPage() {}
+    getNumberOfPages() { return 1; }
+    splitTextToSize(text) { return [String(text)]; }
+    text(text) { this.texts.push(Array.isArray(text) ? text.join(' ') : String(text)); }
+  }
+  const doc = docs.create('client_order', {
+    id: 'OC-260830-0001', currency: 'MXN', total: 9860, subtotal: 8500, tax: 1360,
+    totalsByCurrency: [{ currency: 'USD', subtotal: 8500, taxAmount: 1360, total: 9860 }],
+    items: [{ catalog: '100001', description: 'Reactivo comercial', quantity: 2, unitPrice: 4250, total: 8500, currency: 'USD' }]
+  }, PdfCapture);
+  assert.ok(doc.texts.includes('USD'));
+  assert.ok(doc.texts.includes('TOTAL USD'));
+  assert.ok(doc.texts.some(text => /^USD\s/.test(text)));
+});

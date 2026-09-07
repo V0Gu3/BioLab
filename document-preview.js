@@ -8,7 +8,7 @@
     if (!item || !root.BioFlowDocs) return;
     const type = item.type === 'entrada' ? 'inventory_entry' : 'inventory_exit';
     const evidence = item.evidence || [], evidenceDetail = evidence.length ? ` Evidencias: ${evidence.length}; huellas SHA-256: ${evidence.map(file => String(file.hash || '').slice(0, 16)).filter(Boolean).join(', ')}.` : '';
-    return root.BioFlowDocs.preview(type, { id: item.id, date: item.createdAt, status: 'Registrado', warehouse: 'Inventario Bio', origin: item.title, reference: item.purchaseOrderId || item.detail, related: item.quotationNumber, items: [{ catalog: item.sku || 'Movimiento', description: item.detail || item.title, quantity: Math.abs(Number(String(item.qty || 1).replace(/[^0-9.-]/g, ''))) || 1 }], notes: `${item.note || 'Movimiento registrado con trazabilidad operativa.'}${evidenceDetail}`, auditId: item.id }, { filename: `comprobante-${item.id}.pdf` });
+    return root.BioFlowDocs.preview(type, { id: item.id, date: item.createdAt, status: 'Registrado', warehouse: 'Inventario PROBIOLAB', origin: item.title, reference: item.purchaseOrderId || item.detail, related: item.quotationNumber, items: [{ catalog: item.sku || 'Movimiento', description: item.detail || item.title, quantity: Math.abs(Number(String(item.qty || 1).replace(/[^0-9.-]/g, ''))) || 1 }], notes: `${item.note || 'Movimiento registrado con trazabilidad operativa.'}${evidenceDetail}`, auditId: item.id }, { filename: `comprobante-${item.id}.pdf` });
   }
 
   function previewPurchaseOrder(order) {

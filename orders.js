@@ -4,6 +4,7 @@
   if (!core) return;
   const q = selector => document.querySelector(selector);
   const qa = selector => [...document.querySelectorAll(selector)];
+  const BRAND = window.PROBIOLAB_BRAND || { name: 'PROBIOLAB', documentName: 'PROBIOLAB' };
   const STORAGE_KEY = 'nexo-order-operations-v1';
   let actor = window.BioAccess?.currentUser() || { id: 'USR-001', name: 'José Velasco', role: 'administrator' };
   const can = permission => core.hasPermission(actor.role, permission);
@@ -191,7 +192,7 @@
   };
   const applyCatalogStockAdjustments = adjustments => {
     if (!adjustments.length) return true;
-    const products = catalogProducts(), staged = JSON.parse(JSON.stringify(products));
+    const catalog = catalogProducts(), staged = JSON.parse(JSON.stringify(catalog));
     for (const adjustment of adjustments) {
       const product = staged.find(item => String(item.id) === String(adjustment.productId));
       if (!product) return false;
@@ -200,6 +201,7 @@
       product[field] = nextValue;
     }
     localStorage.setItem('nexo-products', JSON.stringify(staged));
+    if(typeof products!=='undefined'&&Array.isArray(products))products.splice(0,products.length,...staged);
     adjustments.forEach(adjustment => window.dispatchEvent(new CustomEvent('bio:inventory-stock-changed', { detail: adjustment })));
     return true;
   };
@@ -260,21 +262,21 @@
     q('#supplierOrderSupplierCount').textContent = suppliers.size;
     q('#supplierOrderMissingCount').textContent = missing.length;
     q('#supplierOrderIssues').hidden = !missing.length;
-    q('#supplierOrderIssues').innerHTML = missing.length ? `<i data-lucide="circle-alert"></i><div><strong>${missing.length} artículo${missing.length === 1 ? '' : 's'} sin proveedor relacionado</strong><span>${missing.slice(0, 5).map(item => `${escapeHtml(item.line.catalog || 'Sin catálogo')} · ${escapeHtml(item.line.description)} (${escapeHtml(item.request.id)})`).join('<br>')}${missing.length > 5 ? `<br>y ${missing.length - 5} más…` : ''}</span><small>Relaciona estos productos con un proveedor desde el catálogo para que Bio genere sus OC.</small></div>` : '';
-    const matches = store.supplierOrders.filter(order => {
+    q('#supplierOrderIssues').innerHTML = missing.length ? `<i data-lucide="circle-alert"></i><div><strong>${missing.length} artículo${missing.length === 1 ? '' : 's'} sin proveedor relacionado</strong><span>${missing.slice(0, 5).map(item => `${escapeHtml(item.line.catalog || 'Sin catálogo')} · ${escapeHtml(item.line.description)} (${escapeHtml(item.request.id)})`).join('<br>')}${missing.length > 5 ? `<br>y ${missing.length - 5} más…` : ''}</span><small>Relaciona estos productos con un proveedor desde el catálogo para que ${BRAND.name} genere sus OC.</small></div>` : '';
+    const validSupplierOrders=store.supplierOrders.filter(order=>order.supplierId&&order.supplierName),matches = validSupplierOrders.filter(order => {
       const links = store.supplierOrderLines.filter(link => link.supplierOrderId === order.id), lines = links.map(link => store.orderLines.find(line => line.id === link.orderLineId)).filter(Boolean);
       const requests = store.requisitions.filter(item => order.requisitionIds?.includes(item.id));
       const text = [order.id, order.supplierName, order.clientOrderId, ...(order.clientOrderIds || []), order.quotationId, ...(order.quotationIds || []), ...requests.flatMap(request => [request.id, request.customerName]), ...lines.flatMap(line => [line.catalog, line.description, line.brandName])].map(searchKey).join(' ');
       return (!search || text.includes(search)) && (!status || order.status === status);
     });
-    q('#supplierOrderResultCount').textContent = `${matches.length} de ${store.supplierOrders.length}`;
+    q('#supplierOrderResultCount').textContent = `${matches.length} de ${validSupplierOrders.length}`;
     q('#supplierOrderList').innerHTML = matches.map(order => {
       const links = store.supplierOrderLines.filter(link => link.supplierOrderId === order.id), lines = links.map(link => ({ link, line: store.orderLines.find(line => line.id === link.orderLineId) })).filter(item => item.line);
       const statusLabel = { draft: 'Propuesta', confirmed: 'Confirmada', partially_received: 'Recepción parcial', received: 'Recibida', cancelled: 'Cancelada' }[order.status] || order.status, reconciliation = core.reconcileSupplierPurchase({ order, links: store.supplierOrderLines, receipts: store.receipts, invoices: store.supplierInvoices }), reconciliationLabel = { matched: '3 vías conciliadas', review: 'Diferencia por revisar', pending: reconciliation.invoiceStatus === 'pending_invoice' ? 'Factura pendiente' : 'Conciliación pendiente', missing_order: 'Sin OC' }[reconciliation.status] || 'Conciliación pendiente';
       const items = lines.map(({ link, line }) => { const request = store.requisitions.find(item => item.id === link.requisitionId); return `<li><b>${escapeHtml(line.catalog || 'Sin catálogo')}</b><span>${escapeHtml(line.description)}<small>${escapeHtml(link.allocationType === 'stock' ? 'Stock general' : request?.clientOrderId || request?.id || 'Sin pedido')} · asignadas ${link.quantity}</small></span><em>${link.quantity} ${escapeHtml(line.unit || 'uds.')} · ${supplierOrderMoney(link.unitPrice, link.currency)}</em></li>`; }).join('');
       const originLabel = order.requisitionIds?.length > 1 ? `${order.requisitionIds.length} pedidos consolidados` : order.clientOrderId || order.requisitionIds?.[0] || 'Stock general';
       return `<article class="supplier-order-row"><div class="supplier-order-origin"><strong>${escapeHtml(order.id)} · v${order.version || 1}</strong><small>Origen: ${escapeHtml(originLabel)}</small><small>${order.locked || order.status !== 'draft' ? 'Documento bloqueado' : 'Propuesta por autorizar'}</small></div><div><strong>${escapeHtml(order.supplierName || 'Proveedor pendiente')}</strong><small>${escapeHtml(order.currency || 'MXN')} · ${formatDate(order.createdAt)} · A${escapeHtml(order.warehouseId || '1')}</small></div><ul class="supplier-order-items">${items}</ul><div class="supplier-order-money"><strong class="supplier-order-total">${supplierOrderMoney(order.total, order.currency)}</strong><small class="reconciliation-state ${reconciliation.status}">${escapeHtml(reconciliationLabel)}</small></div><span class="order-status-badge ${order.status === 'draft' ? 'warning' : 'active'}">${escapeHtml(statusLabel)}</span><div class="supplier-order-actions">${order.status === 'draft' ? `<button data-confirm-supplier-order="${escapeHtml(order.id)}"><i data-lucide="shield-check"></i>Autorizar y emitir</button>` : ''}<button data-download-supplier-order="${escapeHtml(order.id)}"><i data-lucide="download"></i>PDF</button></div></article>`;
-    }).join('') || '<div class="order-tracking-empty"><i data-lucide="shopping-bag"></i><strong>No hay OC a proveedor para este filtro</strong><span>Al activar una OC de cliente, Bio preparará las órdenes según el proveedor de cada artículo.</span></div>';
+    }).join('') || '<div class="order-tracking-empty"><i data-lucide="shopping-bag"></i><strong>No hay OC a proveedor para este filtro</strong><span>Al activar una OC de cliente, ${BRAND.name} preparará las órdenes según el proveedor de cada artículo.</span></div>';
     window.lucide?.createIcons();
   }
 
@@ -310,8 +312,8 @@
     if (window.BioFlowDocs) return window.BioFlowDocs[preview ? 'preview' : 'download']('supplier_order', { id: order.id, date: order.confirmedAt || order.createdAt, status: `${order.status} · v${order.version || 1}${order.locked ? ' · BLOQUEADA' : ''}`, supplier: order.supplierName, client: (order.clientOrderIds || [order.clientOrderId]).filter(Boolean).join(', ') || 'Stock general', currency: order.currency, reference: `Cotizaciones ${(order.quotationIds || [order.quotationId]).filter(Boolean).join(', ') || 'sin vínculo'}`, related: `Pedidos ${(order.requisitionIds || []).join(', ')}`, items: links.map(link => { const line = store.orderLines.find(item => item.id === link.orderLineId), request = store.requisitions.find(item => item.id === link.requisitionId); return { catalog: line?.catalog, description: `${line?.description || 'Artículo'} · Asignación: ${link.allocationType === 'stock' ? 'Stock general' : request?.clientOrderId || request?.id}`, quantity: link.quantity, unitPrice: link.unitPrice, total: link.quantity * link.unitPrice }; }), subtotal: order.subtotal, total: order.total, auditId: `AUD-${order.id}`, notes: `OC consolidada por proveedor, moneda, destino y fecha requerida. ${links.length} asignaciones preservan la huella de cada pedido.` }, { filename: `${order.id}.pdf` });
     const doc = new PDF({ unit: 'mm', format: 'a4' });
     doc.setFillColor(23, 34, 29); doc.rect(0, 0, 210, 44, 'F'); doc.setFillColor(185, 250, 129); doc.roundedRect(16, 13, 16, 16, 3, 3, 'F');
-    doc.setTextColor(18, 30, 23); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('N', 24, 23.7, { align: 'center' });
-    doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.text('NEXO', 38, 20); doc.setFontSize(11); doc.text('ORDEN DE COMPRA A PROVEEDOR', 194, 20, { align: 'right' });
+    doc.setTextColor(18, 30, 23); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('P', 24, 23.7, { align: 'center' });
+    doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.text(BRAND.documentName, 38, 20); doc.setFontSize(11); doc.text('ORDEN DE COMPRA A PROVEEDOR', 194, 20, { align: 'right' });
     doc.setTextColor(164, 179, 168); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(`Estado: ${order.status === 'draft' ? 'BORRADOR' : 'CONFIRMADA'}`, 194, 27, { align: 'right' });
     const field = (label, value, x, y) => { doc.setTextColor(125, 137, 128); doc.setFontSize(7); doc.text(label, x, y); doc.setTextColor(30, 43, 34); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(String(value || '—'), x, y + 6); doc.setFont('helvetica', 'normal'); };
     field('FOLIO', order.id, 17, 57); field('FECHA', order.createdAt, 78, 57); field('MONEDA', order.currency, 136, 57); field('PROVEEDOR', order.supplierName, 17, 78); field('OC DEL CLIENTE', order.clientOrderId, 17, 99); field('COTIZACION ORIGEN', order.quotationId, 108, 99);
@@ -479,7 +481,7 @@
     if (!request || !PDF) return notify('No fue posible generar el expediente PDF.');
     const lines = requestLines(request.id), audits = store.auditLog.filter(entry => entry.entityId === request.id || lines.some(line => line.id === entry.entityId)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
     const doc = new PDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const header = () => { doc.setFillColor(23, 34, 29); doc.rect(0, 0, 210, 38, 'F'); doc.setFillColor(185, 250, 129); doc.roundedRect(16, 11, 15, 15, 3, 3, 'F'); doc.setTextColor(19, 32, 25); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('N', 23.5, 20.5, { align: 'center' }); doc.setTextColor(255, 255, 255); doc.setFontSize(15); doc.text('BIO · EXPEDIENTE OPERATIVO', 38, 18); doc.setTextColor(166, 181, 171); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text('PEDIDOS, COMPRAS, RECEPCIONES, FACTURACIÓN Y ENTREGAS', 38, 25); };
+    const header = () => { doc.setFillColor(23, 34, 29); doc.rect(0, 0, 210, 38, 'F'); doc.setFillColor(185, 250, 129); doc.roundedRect(16, 11, 15, 15, 3, 3, 'F'); doc.setTextColor(19, 32, 25); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('P', 23.5, 20.5, { align: 'center' }); doc.setTextColor(255, 255, 255); doc.setFontSize(15); doc.text(`${BRAND.name} · EXPEDIENTE OPERATIVO`, 38, 18); doc.setTextColor(166, 181, 171); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text('PEDIDOS, COMPRAS, RECEPCIONES, FACTURACIÓN Y ENTREGAS', 38, 25); };
     header();
     doc.setFillColor(247, 249, 246); doc.roundedRect(16, 47, 178, 34, 3, 3, 'F'); doc.setTextColor(35, 49, 39); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(request.id, 22, 58); doc.setFontSize(9); doc.text(doc.splitTextToSize(request.customerName || 'Abastecimiento interno de stock', 100), 22, 67); doc.setTextColor(112, 126, 116); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text(`Estado: ${core.STATUS_LABELS[request.status] || request.status}`, 142, 57); doc.text(`Solicitud: ${formatDate(request.requestDate)}`, 142, 65); doc.text(`Responsable: ${request.responsible || 'Sin asignar'}`, 142, 73);
     let y = 94;
@@ -496,14 +498,14 @@
 
   const progressGrid = q('#orderProgressForm .order-progress-grid');
   progressGrid?.insertAdjacentHTML('beforeend', `<section id="receiptExtraFields" class="receipt-extra-fields wide"><div class="receipt-extra-heading"><strong>Datos de recepción física</strong><small>La factura del proveedor es opcional y se conciliará cuando sea registrada.</small></div><div class="receipt-extra-grid"><label class="field"><span>Documento de llegada</span><select id="receiptDocumentType"><option value="supplier_remission">Remisión del proveedor</option><option value="supplier_invoice">Factura del proveedor</option><option value="other">Otro documento</option></select></label><label class="field"><span>Almacén receptor</span><select id="receiptWarehouse"><option value="1">Almacén 01</option><option value="2">Almacén 02</option></select></label><label class="field"><span>Cantidad rechazada</span><input id="receiptRejectedQuantity" type="number" min="0" step="1" value="0" /></label><label class="field"><span>Estado de calidad</span><select id="receiptQualityStatus"><option value="released">Liberada / disponible</option><option value="quarantine">Inspección / cuarentena</option><option value="rejected">Rechazada</option></select></label><label class="field"><span>Lote</span><input id="receiptLot" placeholder="Opcional" /></label><label class="field"><span>Serie</span><input id="receiptSerial" placeholder="Opcional" /></label><label class="field"><span>Caducidad</span><input id="receiptExpiry" type="date" /></label><label class="field"><span>Evidencia</span><input id="receiptEvidence" type="file" accept="image/*,.pdf" multiple /></label></div></section>`);
-  const toggleReceiptFields = () => { const receipt = q('#orderProgressType').value === 'receipt'; q('#receiptExtraFields').hidden = !receipt; q('#orderProgressReference').placeholder = receipt ? 'Folio de remisión, OC o documento de llegada' : 'Factura, remisión, OC o referencia MC'; };
+  const toggleReceiptFields = () => { const type = q('#orderProgressType').value, receipt = type === 'receipt', supplier = type === 'receipt'; q('#receiptExtraFields').hidden = !receipt; q('#orderProgressSupplierField').hidden = !supplier;q('#orderProgressReferenceLabel').textContent=({receipt:'Documento de llegada',delivery:'Folio de remisión',invoice:'Folio de factura',reserve:'Referencia de reserva',account_charge:'Referencia de cuenta',cancel:'Motivo / referencia'})[type]||'Documento / referencia';q('#orderProgressReference').placeholder = receipt ? 'Remisión, OC o documento de llegada' : type==='delivery'?'Ej. REM-2026-001':'Folio o referencia';const line=store.orderLines.find(item=>item.id===q('#orderProgressLineId').value);if(line){const remaining=type==='receipt'?Math.max(0,core.numberValue(line.quantityPurchased)-core.numberValue(line.quantityReceived)):type==='delivery'?Math.max(0,core.numberValue(line.quantityRequested)-core.numberValue(line.quantityCancelled)-core.numberValue(line.quantityDelivered)):type==='invoice'?Math.max(0,core.numberValue(line.quantityRequested)-core.numberValue(line.quantityInvoiced)):Math.max(0,core.numberValue(line.quantityRequested)-core.numberValue(line.quantityCancelled));q('#orderProgressQuantity').max=Math.max(1,remaining);q('#orderProgressQuantity').value=Math.max(1,remaining);q('#orderProgressRemaining').textContent=`Pendiente sugerido: ${remaining} uds.`} };
 
   function openProgress(lineId) {
     const line = store.orderLines.find(item => item.id === lineId), request = line && store.requisitions.find(item => item.id === line.requisitionId);
     if (!line || !request) return;
     q('#orderProgressLineId').value = line.id;
     q('#orderProgressContext').innerHTML = `<strong>${escapeHtml(line.catalog || 'Sin catálogo')} · ${escapeHtml(line.description)}</strong><br>${escapeHtml(request.id)} · Solicitadas ${line.quantityRequested} · Recibidas ${line.quantityReceived} · Entregadas ${line.quantityDelivered}`;
-    q('#orderProgressType').value = 'receipt'; q('#orderProgressQuantity').value = 1; q('#orderProgressSupplier').value = line.supplierName || ''; q('#orderProgressReference').value = ''; q('#orderProgressNotes').value = ''; q('#orderProgressOverride').checked = false;q('#receiptDocumentType').value='supplier_remission';q('#receiptWarehouse').value=line.deliveryWarehouse||'1';q('#receiptRejectedQuantity').value=0;q('#receiptQualityStatus').value='released';q('#receiptLot').value='';q('#receiptSerial').value='';q('#receiptExpiry').value='';q('#receiptEvidence').value='';toggleReceiptFields();
+    const receiptPending=core.numberValue(line.quantityReceived)<core.numberValue(line.quantityPurchased),deliveryPending=core.numberValue(line.quantityDelivered)<core.numberValue(line.quantityRequested)-core.numberValue(line.quantityCancelled);q('#orderProgressType').value = receiptPending?'receipt':deliveryPending?'delivery':'invoice'; q('#orderProgressQuantity').value = 1; q('#orderProgressSupplier').value = line.supplierName || ''; q('#orderProgressReference').value = ''; q('#orderProgressNotes').value = ''; q('#orderProgressOverride').checked = false;q('#receiptDocumentType').value='supplier_remission';q('#receiptWarehouse').value=line.deliveryWarehouse||'1';q('#receiptRejectedQuantity').value=0;q('#receiptQualityStatus').value='released';q('#receiptLot').value='';q('#receiptSerial').value='';q('#receiptExpiry').value='';q('#receiptEvidence').value='';toggleReceiptFields();
     let supplierCatalog = [];
     try { supplierCatalog = JSON.parse(localStorage.getItem('nexo-suppliers') || '[]'); } catch {}
     q('#orderSupplierOptions').innerHTML = supplierCatalog.map(supplier => `<option value="${escapeHtml(supplier.name)}"></option>`).join('');
@@ -525,6 +527,16 @@
     if (type === 'account_charge' && !reference) return notify('El cargo requiere una referencia de manejo de cuenta.');
     if (type === 'receipt' && !reference) return notify('La recepción requiere la OC, remisión u otro documento de llegada; la factura puede registrarse después.');
     if (type === 'delivery' && !reference) return notify('La entrega requiere un folio de remisión.');
+    if (type === 'delivery' && !request.deliveryReleasedAt) {
+      const requestLinesForRelease = next.orderLines.filter(item => item.requisitionId === request.id && core.numberValue(item.quantityRequested) > core.numberValue(item.quantityCancelled));
+      const pendingForRelease = requestLinesForRelease.filter(item => {
+        const required = Math.max(0, core.numberValue(item.quantityRequested) - core.numberValue(item.quantityCancelled) - core.numberValue(item.quantityDelivered));
+        const available = Math.max(0, core.numberValue(item.reservedQuantity) - core.numberValue(item.quantityDelivered)) + core.numberValue(item.quantityAvailableReceived == null ? item.quantityReceived : item.quantityAvailableReceived);
+        return available < required;
+      });
+      if (pendingForRelease.length) return notify(`No se puede liberar la entrega: faltan ${pendingForRelease.length} producto${pendingForRelease.length === 1 ? '' : 's'} por completar.`);
+      request.deliveryReleasedAt = new Date().toISOString(); request.deliveryReleasedBy = actor.name;
+    }
     if (type === 'invoice' && !reference) return notify('La facturación requiere el folio de la factura.');
     if (override && !can('admin')) return notify('El excedente requiere permiso de administración.');
     if (type === 'receipt') {
@@ -594,7 +606,7 @@
     request.status = core.deriveRequisitionStatus(next.orderLines.filter(item => item.requisitionId === request.id));
     request.updatedAt = at;
     next.auditLog.push({ id: `AUD-${Date.now()}`, entityType: 'order_line', entityId: line.id, action: type, user: actor.name, at, before, after: JSON.parse(JSON.stringify(line)), supplier: supplier || null, reference, notes, override: Boolean(override), receipt: type === 'receipt' ? { documentType: receiptData.documentType, warehouseId: receiptData.warehouseId, rejectedQuantity: core.numberValue(receiptData.rejectedQuantity), lot: receiptData.lot || null, serial: receiptData.serial || null, expiryDate: receiptData.expiryDate || null, qualityStatus: receiptData.qualityStatus || 'released' } : null });
-    if (!saveStore(next)) return;if(catalogAdjustments.length&&!applyCatalogStockAdjustments(catalogAdjustments))return notify('El avance se registró, pero la existencia del catálogo requiere conciliación manual.'); q('#orderProgressDialog').close(); renderOrderDashboard(); renderOrderDetail(request.id); notify('Avance registrado con trazabilidad.');
+    if (!saveStore(next)) return;if(catalogAdjustments.length&&!applyCatalogStockAdjustments(catalogAdjustments))return notify('El avance se registró, pero la existencia del catálogo requiere conciliación manual.'); q('#orderProgressDialog').close(); renderOrderDashboard(); renderOrderDetail(request.id);if(typeof render==='function')render(); notify(type==='receipt'?'Recepción registrada: la entrada ya se reflejó en el almacén.':'Avance registrado con trazabilidad.');
   }
 
   async function fingerprint(buffer) {

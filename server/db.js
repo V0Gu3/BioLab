@@ -12,10 +12,19 @@ const number = input => Number.isFinite(Number(input)) ? Number(input) : 0;
 const value = (item, ...keys) => keys.map(key => item?.[key]).find(candidate => candidate !== undefined && candidate !== null && candidate !== '') ?? null;
 const timestamp = () => new Date().toISOString();
 const parseJson = input => typeof input === 'string' ? JSON.parse(input) : input;
+// La columna materializada de moneda debe reflejar los importes estructurados,
+// no una etiqueta heredada que pudo quedar desactualizada en el documento.
+function documentCurrency(item) {
+  const totals = Array.isArray(item?.totalsByCurrency) ? item.totalsByCurrency : [];
+  const fromTotals = totals.map(entry => entry?.currency).filter(Boolean);
+  const fromItems = (item?.items || []).map(line => line?.currency || line?.sourceCurrency).filter(Boolean);
+  const currencies = [...new Set((fromTotals.length ? fromTotals : fromItems).map(code => String(code).trim().toUpperCase()))];
+  return currencies.length > 1 ? 'MULTI' : (currencies[0] || String(value(item, 'currency') || 'MXN').toUpperCase());
+}
 
 async function openDatabase(options = {}) {
   const connectionString = options.connectionString || process.env.DATABASE_URL || process.env.BIO_DATABASE_URL;
-  if (!options.pool && !connectionString) throw new Error('Falta DATABASE_URL. Configura la conexión PostgreSQL antes de iniciar Bio.');
+  if (!options.pool && !connectionString) throw new Error('Falta DATABASE_URL. Configura la conexión PostgreSQL antes de iniciar PROBIOLAB.');
   const pool = options.pool || new Pool({ connectionString, max: Number(process.env.BIO_DB_POOL_SIZE || 10), ssl: process.env.PGSSL === 'require' ? { rejectUnauthorized: false } : undefined });
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
   return pool;
@@ -60,12 +69,12 @@ async function rebuildMaterialized(db) {
   for (const item of state['nexo-purchase-orders'] || []) await put('documents', documentRow('nexo-purchase-orders', 'internal_purchase_order', item, 'purchase_order', item.movementId));
 
   for (const item of state['nexo-sales-quotations'] || []) {
-    await put('quotations', { id: String(item.id), client_name: value(item, 'client'), status: value(item, 'status'), currency: String(value(item, 'currency') || 'MXN'), subtotal: number(item.subtotal), tax_amount: number(item.taxAmount), total: number(item.total), created_at: value(item, 'createdAtISO', 'createdAt'), created_by: value(item, 'createdBy', 'seller'), payload_json: item, updated_at: updated });
+    await put('quotations', { id: String(item.id), client_name: value(item, 'client'), status: value(item, 'status'), currency: documentCurrency(item), subtotal: number(item.subtotal), tax_amount: number(item.taxAmount), total: number(item.total), created_at: value(item, 'createdAtISO', 'createdAt'), created_by: value(item, 'createdBy', 'seller'), payload_json: item, updated_at: updated });
     for (const [index, line] of (item.items || []).entries()) await put('quotation_items', { quotation_id: String(item.id), line_no: index + 1, product_id: value(line, 'productId'), sku: value(line, 'sku', 'number'), description: value(line, 'name', 'description'), quantity: number(line.quantity), unit_price: number(line.unitPrice), total: number(value(line, 'lineTotal', 'total')), payload_json: line });
     await put('documents', documentRow('nexo-sales-quotations', 'quotation', item, 'quotation', item.commercialOrderId));
   }
   for (const item of state['nexo-commercial-orders'] || []) {
-    await put('client_orders', { id: String(item.id), quotation_id: value(item, 'quotationId'), client_name: value(item, 'client'), status: value(item, 'status'), currency: String(value(item, 'currency') || 'MXN'), total: number(item.total), created_at: value(item, 'createdAtISO', 'createdAt'), payload_json: item, updated_at: updated });
+    await put('client_orders', { id: String(item.id), quotation_id: value(item, 'quotationId'), client_name: value(item, 'client'), status: value(item, 'status'), currency: documentCurrency(item), total: number(item.total), created_at: value(item, 'createdAtISO', 'createdAt'), payload_json: item, updated_at: updated });
     for (const [index, line] of (item.items || []).entries()) await put('client_order_items', { client_order_id: String(item.id), line_no: index + 1, product_id: value(line, 'productId'), sku: value(line, 'sku', 'number'), description: value(line, 'name', 'description'), quantity: number(line.quantity), payload_json: line });
     await put('documents', documentRow('nexo-commercial-orders', 'client_order', item, 'client_order', item.quotationId));
   }

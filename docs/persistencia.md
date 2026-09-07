@@ -1,8 +1,8 @@
-# Persistencia central de Bio
+# Persistencia central de PROBIOLAB
 
 ## Diagnóstico de la arquitectura anterior
 
-Bio era una aplicación estática. Sus módulos compartían estructuras mediante `localStorage`; los archivos de cotizaciones usaban IndexedDB y no existían servidor, base central ni API. Esto permitía probar el flujo en un solo navegador, pero no compartir información entre equipos ni garantizar respaldos centralizados.
+PROBIOLAB era una aplicación estática. Sus módulos compartían estructuras mediante `localStorage`; los archivos de cotizaciones usaban IndexedDB y no existían servidor, base central ni API. Esto permitía probar el flujo en un solo navegador, pero no compartir información entre equipos ni garantizar respaldos centralizados.
 
 ## Arquitectura implementada
 
@@ -10,7 +10,7 @@ La aplicación se sirve ahora desde un proceso Node.js que expone la interfaz y 
 
 La capa `persistence.js` conserva temporalmente el contrato de `localStorage` de las pantallas existentes:
 
-1. Al abrir Bio consulta `/api/bootstrap`.
+1. Al abrir PROBIOLAB consulta `/api/bootstrap`.
 2. Si la base está vacía, migra el estado existente del navegador mediante `/api/import-local`.
 3. Si la base contiene información, hidrata el navegador con el estado central.
 4. Cada escritura operativa se sincroniza con `/api/state/:key`.
@@ -68,7 +68,7 @@ Para migrar el archivo SQLite generado durante la etapa anterior:
 2. Conserva `data/bio.db` como respaldo.
 3. Ejecuta `npm run migrate:sqlite`.
 4. Verifica que `importedKeys` y `verifiedKeys` coincidan.
-5. Inicia Bio con `npm start` y revisa Auditoría.
+5. Inicia PROBIOLAB con `npm start` y revisa Auditoría.
 
 ## Decisiones técnicas
 

@@ -29,7 +29,7 @@ async function createApp(options = {}) {
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || `${HOST}:${PORT}`}`), pathname = decodeURIComponent(url.pathname);
     try {
-      if (request.method === 'GET' && pathname === '/api/health') return sendJson(response, 200, { ok: true, service: 'Bio API', database: 'PostgreSQL', time: new Date().toISOString() });
+      if (request.method === 'GET' && pathname === '/api/health') return sendJson(response, 200, { ok: true, service: 'PROBIOLAB API', database: 'PostgreSQL', time: new Date().toISOString() });
       if (request.method === 'GET' && pathname === '/api/bootstrap') {
         const state = await readState(db), revisionRows = await db.query('SELECT state_key,revision,updated_at,updated_by FROM app_state'), revisions = Object.fromEntries(revisionRows.rows.map(row => [row.state_key, row]));
         return sendJson(response, 200, { ok: true, empty: Object.keys(state).length === 0, state, revisions, allowedKeys: STATE_KEYS });
@@ -65,11 +65,11 @@ async function createApp(options = {}) {
 if (require.main === module) {
   openDatabase().then(db => {
     return createApp({ db }).then(server => {
-      server.listen(PORT, HOST, () => console.log(`Bio disponible en http://${HOST}:${PORT} · PostgreSQL conectado`));
+      server.listen(PORT, HOST, () => console.log(`PROBIOLAB disponible en http://${HOST}:${PORT} · PostgreSQL conectado`));
       const shutdown = () => server.close(async () => { await server.closeDatabase(); process.exit(0); });
       process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown);
     });
-  }).catch(error => { console.error(`No fue posible iniciar Bio: ${error.message}`); process.exit(1); });
+  }).catch(error => { console.error(`No fue posible iniciar PROBIOLAB: ${error.message}`); process.exit(1); });
 }
 
 module.exports = { createApp };

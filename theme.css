@@ -1,11 +1,14 @@
 /* Sistema visual Bio: tokens únicos para apariencia, superficies y acentos. */
 :root {
   color-scheme: light;
-  --bio-primary: #52715b;
-  --bio-primary-strong: #364f3f;
-  --bio-primary-readable: #3a5943;
-  --bio-primary-soft: rgba(82, 113, 91, .11);
-  --bio-primary-glow: rgba(82, 113, 91, .25);
+  --bio-primary: #359bd3;
+  --bio-primary-strong: #2476aa;
+  --bio-primary-readable: #246f9c;
+  --bio-primary-soft: rgba(53, 155, 211, .11);
+  --bio-primary-glow: rgba(53, 155, 211, .25);
+  --bio-secondary: #9bc53d;
+  --bio-secondary-readable: #557b17;
+  --bio-secondary-soft: rgba(155, 197, 61, .13);
   --bio-on-primary: #fff;
   --bio-sidebar: #0a2913;
   --bio-sidebar-elevated: #1e3d27;
@@ -177,6 +180,11 @@ table, thead, tbody, tr, td, th { border-color: var(--bio-border) !important; }
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bio-primary) 10%, transparent);
 }
 .workspace-dot, .notification span { background: var(--bio-primary) !important; }
+.warehouse-card button.warehouse-row{width:100%;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}.warehouse-card button.warehouse-row:hover{background:var(--bio-surface-soft,#f7f9f6)}
+
+/* Ajustes operativos: resumen por periodo, valorización y controles integrados. */
+.date-control select{border:0;background:transparent;color:inherit;font:700 10px Manrope,sans-serif;outline:0;cursor:pointer}.date-control #dashboardPeriodLabel{padding-left:8px;border-left:1px solid var(--bio-border,#dce3dc);font:600 9px 'DM Mono',monospace;text-transform:capitalize}.metric-card.interactive-summary,#dashboardInventoryValueCard,#dashboardUnitsCard{cursor:pointer}.dashboard-period-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 22px}.dashboard-period-summary>div:not(.dashboard-daily-breakdown){padding:14px 16px;border:1px solid var(--bio-border,#e1e7e0);border-radius:12px;background:var(--bio-surface-raised,#fff)}.dashboard-period-summary span{display:block;color:var(--bio-text-muted,#879189);font:700 8px 'DM Mono',monospace}.dashboard-period-summary strong{display:block;margin-top:7px;color:var(--bio-text,#26342b);font-size:14px}.dashboard-daily-breakdown{grid-column:1/-1;padding:14px 16px;border:1px solid var(--bio-border,#e1e7e0);border-radius:12px;background:var(--bio-surface-raised,#fff)}#dashboardDailyRows{display:grid;gap:5px;margin-top:10px;max-height:145px;overflow:auto}#dashboardDailyRows>div{display:grid;grid-template-columns:90px 1fr 75px 75px 85px;gap:10px;align-items:center;padding:7px 9px;border-radius:7px;background:var(--bio-surface-soft,#f7f9f6);font-size:9px}#dashboardDailyRows time{font:700 8px 'DM Mono',monospace}.warehouse-quick-access{margin:18px 0}.inventory-currency-summary{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px}.inventory-currency-summary span{display:inline-flex;gap:8px;padding:7px 10px;border-radius:8px;background:var(--bio-primary-soft,#eef3ff);color:var(--bio-text,#334239);font-size:9px}.inventory-currency-summary b{color:var(--bio-primary,#3157a4)}.integrated-movement-badge{display:inline-flex;padding:5px 7px;border-radius:7px;background:#e8f7ef;color:#168767;font:700 7px 'DM Mono',monospace}.supplier-card-actions{display:flex;gap:5px;margin-left:auto}.supplier-card-actions button{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--bio-border,#dce3dc);border-radius:8px;background:var(--bio-surface-raised,#fff);color:var(--bio-primary,#3157a4);cursor:pointer}.supplier-card-actions button:last-child{color:#bd5c55}.supplier-card-actions svg{width:13px}.notification-process-list{display:grid;gap:8px;margin-top:14px}.notification-process-list article{display:grid;grid-template-columns:38px 1fr auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--bio-border,#dfe5de);border-radius:10px;background:var(--bio-surface-raised,#fff)}.notification-process-list article>span{width:36px;height:36px;display:grid;place-items:center;border-radius:9px;background:var(--bio-primary-soft,#eef3ff);color:var(--bio-primary,#3157a4)}.notification-process-list strong,.notification-process-list small{display:block}.notification-process-list small{margin-top:3px;color:var(--bio-text-muted,#879189);font-size:8px}.notification-process-list button{display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:0;border-radius:8px;background:var(--bio-primary,#3157a4);color:#fff;font-size:8px;font-weight:700;cursor:pointer}.notification-process-list button:disabled{background:#dfe4df;color:#8b948d;cursor:not-allowed}.notification-process-list svg{width:14px}.quotation-excel{color:#168767!important}.client-list-actions,#clientList .quotation-history-row>div:last-child{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}#clientList .quotation-history-row>div:last-child button{border-color:var(--bio-border,#dce3dc);background:var(--bio-surface-raised,#fff);color:var(--bio-primary,#3157a4)}#clientList .quotation-history-row>div:last-child button[data-retire-client]{color:#bd5c55;background:#fff6f5}#clientList .quotation-history-row>div:last-child button[data-toggle-client-block]{color:#a76622;background:#fff8ed}
+@media(max-width:800px){.dashboard-period-summary{grid-template-columns:1fr 1fr}#dashboardDailyRows>div{grid-template-columns:70px 1fr 60px 60px}#dashboardDailyRows>div strong{display:none}}
 body .sidebar :is(.workspace, .profile) small {
   color: var(--bio-sidebar-muted) !important;
 }
@@ -440,7 +448,7 @@ dialog::backdrop { background: rgba(4, 6, 10, .78) !important; }
   background: var(--bio-primary-soft) !important;
   box-shadow: 0 0 0 2px var(--bio-primary-glow);
 }
-.theme-color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 13px; }
+.theme-color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; margin-top: 13px; }
 .theme-color-grid button {
   padding: 10px 8px;
   border: 1px solid var(--bio-border);
@@ -641,4 +649,1496 @@ dialog::backdrop { background: rgba(4, 6, 10, .78) !important; }
 @media (max-width: 560px) {
   .settings-section-nav { grid-template-columns: 1fr; }
   .theme-font-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Profundidad visual y lectura financiera: la paleta da identidad; verde y rojo
+   mantienen el significado universal de saldo a favor y pendiente. */
+:root {
+  --bio-success: color-mix(in srgb, #14845f 78%, var(--bio-primary));
+  --bio-success-soft: color-mix(in srgb, var(--bio-success) 12%, var(--bio-surface));
+  --bio-danger: color-mix(in srgb, #c84e55 84%, var(--bio-primary));
+  --bio-danger-soft: color-mix(in srgb, var(--bio-danger) 11%, var(--bio-surface));
+  --bio-warning: color-mix(in srgb, #bf742c 78%, var(--bio-secondary));
+  --bio-warning-soft: color-mix(in srgb, var(--bio-warning) 12%, var(--bio-surface));
+  --bio-card-tint: color-mix(in srgb, var(--bio-primary) 8%, transparent);
+}
+
+:root[data-theme="dark"] {
+  --bio-success: color-mix(in srgb, #43be8e 76%, var(--bio-primary));
+  --bio-danger: color-mix(in srgb, #f0787d 84%, var(--bio-primary));
+  --bio-warning: color-mix(in srgb, #eab065 78%, var(--bio-secondary));
+  --bio-card-tint: color-mix(in srgb, var(--bio-primary) 15%, transparent);
+}
+
+body {
+  background:
+    radial-gradient(760px 420px at 100% -10%, var(--bio-primary-soft), transparent 70%),
+    radial-gradient(620px 360px at 15% 110%, color-mix(in srgb, var(--bio-primary) 7%, transparent), transparent 74%),
+    var(--bio-bg) !important;
+}
+
+:is(.module-card, .metric-card, .warehouse-card, .movement-card, .inventory-section,
+  .quotation-builder, .quotation-summary-card, .quotation-terms-panel, .quotation-notes-panel,
+  .quotation-history-card, .commercial-orders-card, .order-flow-overview, .order-tracking-card,
+  .supplier-card, .price-upload-card, .price-preview, .price-audit-card, .access-users-card,
+  .access-role-summary, .access-matrix-card, .fx-admin-card, .theme-options-card,
+  .theme-preview, .settings-overview-grid > button) {
+  background-image: linear-gradient(145deg, var(--bio-card-tint), transparent 38%) !important;
+  box-shadow: var(--bio-shadow);
+}
+
+:is(.metric-card, .module-stats article, .quotation-stats article, .commercial-order-stats article,
+  .supplier-order-stats article, .order-operations-stats article, .order-import-stats article) {
+  position: relative;
+  overflow: hidden;
+}
+
+:is(.metric-card, .module-stats article, .quotation-stats article, .commercial-order-stats article,
+  .supplier-order-stats article, .order-operations-stats article, .order-import-stats article)::after {
+  content: '';
+  position: absolute;
+  width: 76px;
+  height: 76px;
+  right: -30px;
+  top: -30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bio-primary-glow), transparent 68%);
+  pointer-events: none;
+}
+
+.metric-card:nth-child(2)::after, .module-stats article:nth-child(2)::after,
+.quotation-stats article:nth-child(2)::after { background: linear-gradient(135deg, color-mix(in srgb, var(--bio-success) 30%, transparent), transparent 68%); }
+.metric-card:nth-child(3)::after, .module-stats article:nth-child(3)::after,
+.quotation-stats article:nth-child(3)::after { background: linear-gradient(135deg, color-mix(in srgb, var(--bio-warning) 32%, transparent), transparent 68%); }
+
+.quick-action, .settings-overview-grid > button, .quotation-health-list > button,
+.quotation-summary-recent > button {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--bio-primary) 5%, transparent), transparent 70%) !important;
+}
+.quick-action:hover, .settings-overview-grid > button:hover, .quotation-health-list > button:hover,
+.quotation-summary-recent > button:hover {
+  background-image: linear-gradient(135deg, var(--bio-primary-soft), transparent 72%) !important;
+}
+
+/* Estados y cantidades: verdes para entradas/saldos, rojo para salidas y adeudos. */
+.money-positive, .money-settled, .qty-in, .up, .status.ok,
+.quotation-summary-values .money-positive, #clientList .quotation-history-row > span:nth-child(4) small {
+  color: var(--bio-success) !important;
+}
+.money-negative, .qty-out, .status.out, .down {
+  color: var(--bio-danger) !important;
+}
+.status.ok, .money-settled {
+  background: var(--bio-success-soft) !important;
+  border-color: color-mix(in srgb, var(--bio-success) 26%, var(--bio-border)) !important;
+}
+.status.out, .money-negative {
+  background: var(--bio-danger-soft) !important;
+  border-color: color-mix(in srgb, var(--bio-danger) 26%, var(--bio-border)) !important;
+}
+.status.low, .attention { color: var(--bio-warning) !important; }
+.status.low { background: var(--bio-warning-soft) !important; border-color: color-mix(in srgb, var(--bio-warning) 26%, var(--bio-border)) !important; }
+
+.quotation-summary-values > div:has(#quotationAdvanceAvailable) {
+  background: linear-gradient(135deg, var(--bio-success-soft), transparent 120%) !important;
+  border-color: color-mix(in srgb, var(--bio-success) 24%, var(--bio-border)) !important;
+}
+.quotation-summary-values > div:has(#quotationRemainingAfterAdvance) {
+  background: linear-gradient(135deg, var(--bio-danger-soft), transparent 120%) !important;
+  border-color: color-mix(in srgb, var(--bio-danger) 24%, var(--bio-border)) !important;
+}
+.quotation-summary-values .money-neutral { color: var(--bio-text-muted) !important; }
+
+.incoming span, .movement-icon.qty-in { background: var(--bio-success-soft) !important; color: var(--bio-success) !important; }
+.outgoing span, .movement-icon.qty-out { background: var(--bio-danger-soft) !important; color: var(--bio-danger) !important; }
+.waste span { background: var(--bio-warning-soft) !important; color: var(--bio-warning) !important; }
+
+.quotation-summary-card {
+  background-image: linear-gradient(145deg, var(--bio-primary-soft), transparent 48%) !important;
+  border-top-width: 3px !important;
+}
+
+/* Mapa visual operativo: cada tarjeta explica su prioridad incluso antes de leer el número. */
+.module-stats article,
+.movement-summary > div {
+  position: relative;
+  isolation: isolate;
+}
+.module-stats article::before,
+.movement-summary > div::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--bio-primary);
+}
+.module-stats article > svg {
+  width: 38px !important;
+  height: 38px !important;
+  padding: 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--bio-primary-soft), color-mix(in srgb, var(--bio-primary) 20%, transparent)) !important;
+  color: var(--bio-primary-readable) !important;
+}
+.module-stats article.watch::before,
+.module-stats article:has([id*="Pending"])::before,
+.module-stats article:has([id*="Receive"])::before,
+.module-stats article:has([id*="Deliver"])::before,
+.module-stats article:has([id*="Low"])::before { background: var(--bio-warning); }
+.module-stats article.watch > svg,
+.module-stats article:has([id*="Pending"]) > svg,
+.module-stats article:has([id*="Receive"]) > svg,
+.module-stats article:has([id*="Deliver"]) > svg,
+.module-stats article:has([id*="Low"]) > svg {
+  background: linear-gradient(135deg, var(--bio-warning-soft), color-mix(in srgb, var(--bio-warning) 20%, transparent)) !important;
+  color: var(--bio-warning) !important;
+}
+.module-stats article:has(#orderImportErrors)::before,
+.module-stats article:has(#supplierOrderMissingCount)::before,
+.module-stats article:has(#withoutSupplier)::before { background: var(--bio-danger); }
+.module-stats article:has(#orderImportErrors) > svg,
+.module-stats article:has(#supplierOrderMissingCount) > svg,
+.module-stats article:has(#withoutSupplier) > svg {
+  background: linear-gradient(135deg, var(--bio-danger-soft), color-mix(in srgb, var(--bio-danger) 20%, transparent)) !important;
+  color: var(--bio-danger) !important;
+}
+.module-stats article:has(#commercialOrderActive)::before,
+.module-stats article:has(#deliveryMetricCompleted)::before,
+.module-stats article:has(#quotationActiveCount)::before { background: var(--bio-success); }
+.module-stats article:has(#commercialOrderActive) > svg,
+.module-stats article:has(#deliveryMetricCompleted) > svg,
+.module-stats article:has(#quotationActiveCount) > svg {
+  background: linear-gradient(135deg, var(--bio-success-soft), color-mix(in srgb, var(--bio-success) 20%, transparent)) !important;
+  color: var(--bio-success) !important;
+}
+
+#movimientosView .movement-summary {
+  box-shadow: var(--bio-shadow);
+  background: var(--bio-surface) !important;
+}
+#movimientosView .movement-summary > div { background: linear-gradient(145deg, var(--bio-primary-soft), transparent 75%); }
+#movimientosView .movement-summary > div:nth-child(2) { background: linear-gradient(145deg, var(--bio-success-soft), transparent 75%); }
+#movimientosView .movement-summary > div:nth-child(2)::before { background: var(--bio-success); }
+#movimientosView .movement-summary > div:nth-child(3) { background: linear-gradient(145deg, var(--bio-danger-soft), transparent 75%); }
+#movimientosView .movement-summary > div:nth-child(3)::before { background: var(--bio-danger); }
+#movimientosView .movement-summary > div:nth-child(4) { background: linear-gradient(145deg, var(--bio-primary-soft), transparent 75%); }
+#movimientosView .movement-summary > div:nth-child(4)::before { background: var(--bio-primary); }
+#movimientosView .movement-summary .green { color: var(--bio-success) !important; }
+#movimientosView .movement-summary .red { color: var(--bio-danger) !important; }
+
+/* En el resumen financiero cada cifra conserva una clave de color y una guía lateral. */
+.quotation-summary-values > div {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 10px 12px 10px 16px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.quotation-summary-values > div::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--bio-primary);
+}
+.quotation-summary-values > div:hover { transform: translateX(2px); box-shadow: 0 7px 18px color-mix(in srgb, var(--bio-primary) 10%, transparent); }
+.quotation-summary-values > div:has(#quotationDiscount)::before { background: var(--bio-warning); }
+.quotation-summary-values > div:has(#quotationAdvanceAvailable)::before { background: var(--bio-success); }
+.quotation-summary-values > div:has(#quotationRemainingAfterAdvance)::before { background: var(--bio-danger); }
+.quotation-summary-values > .quotation-grand-total {
+  background: linear-gradient(115deg, var(--bio-primary-soft), transparent 90%) !important;
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 24%, var(--bio-border));
+}
+
+/* Pequeñas señales de lectura transversal: útil en tablas, métricas y filtros. */
+.status, .price-list-badge, .unit-pill {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+}
+.report-feature { background-image: linear-gradient(130deg, var(--bio-primary-soft), transparent 58%) !important; box-shadow: var(--bio-shadow); }
+.report-alert { background-image: linear-gradient(130deg, var(--bio-warning-soft), transparent 60%) !important; border-color: color-mix(in srgb, var(--bio-warning) 24%, var(--bio-border)) !important; }
+
+/* Refinamiento integral: una interfaz más expresiva, sin perder la rapidez operativa. */
+header {
+  background-image: linear-gradient(105deg, var(--bio-surface), color-mix(in srgb, var(--bio-primary) 5%, var(--bio-surface))) !important;
+  box-shadow: 0 1px 0 var(--bio-border), 0 8px 28px color-mix(in srgb, var(--bio-primary) 6%, transparent);
+}
+.crumb strong { color: var(--bio-primary-readable) !important; }
+.icon-button, .help, .filter, .date-control {
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.icon-button:hover, .help:hover, .filter:hover, .date-control:hover {
+  transform: translateY(-1px);
+  border-color: var(--bio-primary) !important;
+  background: var(--bio-primary-soft) !important;
+  box-shadow: 0 7px 16px color-mix(in srgb, var(--bio-primary) 12%, transparent);
+}
+
+.sidebar {
+  background-image:
+    radial-gradient(340px 260px at -20% 0%, color-mix(in srgb, var(--bio-primary) 38%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bio-sidebar), color-mix(in srgb, var(--bio-sidebar) 84%, #020507)) !important;
+}
+.sidebar .brand { position: relative; }
+.sidebar .brand::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 18px;
+  bottom: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--bio-primary), transparent);
+}
+.sidebar :is(.nav-item, .nav-subitem) {
+  position: relative;
+  overflow: hidden;
+  transition: transform .17s ease, background .17s ease, color .17s ease;
+}
+.sidebar :is(.nav-item, .nav-subitem):hover { transform: translateX(3px); }
+.nav-item.active, .nav-subitem.active {
+  background-image: linear-gradient(100deg, color-mix(in srgb, var(--bio-primary) 78%, var(--bio-sidebar-elevated)), color-mix(in srgb, var(--bio-primary) 32%, var(--bio-sidebar-elevated))) !important;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--bio-primary) 70%, #fff), 0 7px 18px rgba(0, 0, 0, .16);
+}
+.nav-badge {
+  background: color-mix(in srgb, var(--bio-primary) 26%, #fff) !important;
+  color: var(--bio-sidebar) !important;
+  font-weight: 800;
+}
+
+.page > .hero, .module-hero {
+  position: relative;
+  padding: 22px 24px;
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 17%, var(--bio-border));
+  border-radius: 16px;
+  background: linear-gradient(115deg, var(--bio-primary-soft), transparent 58%), var(--bio-surface);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--bio-primary) 8%, transparent);
+}
+.page > .hero::after, .module-hero::after {
+  content: '';
+  position: absolute;
+  right: 34%;
+  top: 0;
+  width: 120px;
+  height: 3px;
+  border-radius: 0 0 99px 99px;
+  background: linear-gradient(90deg, transparent, var(--bio-primary), transparent);
+}
+.hero h1, .module-hero h1 {
+  color: var(--bio-primary-readable) !important;
+  letter-spacing: -1.5px;
+}
+.hero .subtitle, .module-hero .subtitle { max-width: 680px; line-height: 1.65; }
+
+.primary-action, .submit, .quotation-emit-button, .confirm-submit {
+  background-image: linear-gradient(115deg, var(--bio-primary-strong), var(--bio-primary)) !important;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--bio-primary) 26%, transparent) !important;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.primary-action:hover, .submit:hover, .quotation-emit-button:hover, .confirm-submit:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.12) brightness(1.04);
+  box-shadow: 0 12px 25px color-mix(in srgb, var(--bio-primary) 34%, transparent) !important;
+}
+
+.module-toolbar {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bio-primary) 4%, var(--bio-surface)), var(--bio-surface)) !important;
+}
+.search-field, .filter-select {
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.search-field:focus-within, .filter-select:hover {
+  border-color: var(--bio-primary) !important;
+  background: var(--bio-surface) !important;
+  box-shadow: 0 0 0 3px var(--bio-primary-soft);
+}
+
+table thead tr, .history-head, .quotation-history-head, .supplier-order-head,
+.commercial-order-head, .order-tracking-head, .delivery-tracking-head {
+  background: color-mix(in srgb, var(--bio-primary) 5%, var(--bio-surface-soft)) !important;
+}
+tbody tr, .history-item, .quotation-history-row, .commercial-order-row,
+.supplier-order-row, .order-tracking-row, .delivery-tracking-row {
+  transition: background .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+tbody tr:hover, .history-item:hover, .quotation-history-row:hover, .commercial-order-row:hover,
+.supplier-order-row:hover, .order-tracking-row:hover, .delivery-tracking-row:hover {
+  background: linear-gradient(90deg, var(--bio-primary-soft), transparent 62%) !important;
+  box-shadow: inset 3px 0 0 var(--bio-primary);
+}
+
+:is(input, select, textarea) { transition: border-color .17s ease, box-shadow .17s ease, background .17s ease; }
+:is(input, select, textarea):hover { border-color: color-mix(in srgb, var(--bio-primary) 45%, var(--bio-border)) !important; }
+label > span { color: var(--bio-text-muted); }
+label > span::after { color: var(--bio-primary-readable); }
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) {
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 26%, var(--bio-border)) !important;
+  box-shadow: 0 28px 88px rgba(0, 0, 0, .38), 0 0 0 1px color-mix(in srgb, var(--bio-primary) 12%, transparent) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title,
+.order-dialog-head {
+  background-image: linear-gradient(115deg, var(--bio-sidebar), color-mix(in srgb, var(--bio-primary) 52%, var(--bio-sidebar))) !important;
+}
+.modal-icon, .confirm-icon {
+  background: linear-gradient(135deg, var(--bio-primary-soft), color-mix(in srgb, var(--bio-primary) 20%, transparent)) !important;
+  color: var(--bio-primary-readable) !important;
+}
+
+.count-intro, .supplier-order-explanation, .settings-scope-note {
+  background-image: linear-gradient(120deg, var(--bio-primary-soft), transparent 72%) !important;
+  border-color: color-mix(in srgb, var(--bio-primary) 22%, var(--bio-border)) !important;
+}
+.count-progress { background: var(--bio-success-soft); color: var(--bio-success) !important; border-color: color-mix(in srgb, var(--bio-success) 28%, var(--bio-border)) !important; }
+.difference.ok { color: var(--bio-success) !important; }
+.difference.adjust { color: var(--bio-warning) !important; }
+
+@media (max-width: 680px) {
+  .page > .hero, .module-hero { padding: 17px; border-radius: 13px; }
+  .page > .hero::after, .module-hero::after { right: 14%; }
+}
+
+/* Menú lateral: degradado contenido, cabecera nítida y navegación fácil de escanear. */
+.sidebar {
+  background-image:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--bio-primary) 28%, var(--bio-sidebar)) 0%,
+      var(--bio-sidebar) 24%,
+      color-mix(in srgb, var(--bio-sidebar) 88%, #020507) 100%) !important;
+}
+.sidebar .brand {
+  margin: -4px -2px 16px;
+  padding: 14px 12px 18px;
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 30%, transparent);
+  border-radius: 14px;
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--bio-primary) 34%, transparent), transparent 70%),
+    color-mix(in srgb, var(--bio-sidebar-elevated) 85%, transparent);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.brand-mark {
+  background: linear-gradient(135deg, var(--bio-primary), var(--bio-secondary)) !important;
+  color: color-mix(in srgb, var(--bio-sidebar) 84%, #fff) !important;
+}
+.sidebar .brand::after { left: 12px; right: 12px; bottom: 8px; background: linear-gradient(90deg, var(--bio-primary), color-mix(in srgb, var(--bio-primary) 35%, transparent), transparent); }
+.brand-mark {
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--bio-primary) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.workspace {
+  position: relative;
+  margin-bottom: 18px;
+  padding: 12px 11px !important;
+  border-radius: 12px;
+  background:
+    linear-gradient(105deg, color-mix(in srgb, var(--bio-primary) 24%, var(--bio-sidebar-elevated)), color-mix(in srgb, var(--bio-primary) 7%, var(--bio-sidebar)) 78%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 7px 15px rgba(0, 0, 0, .1);
+}
+.workspace::before {
+  content: 'ESPACIO DE TRABAJO';
+  position: absolute;
+  transform: translateY(-20px);
+  color: color-mix(in srgb, var(--bio-primary) 42%, #fff);
+  font: 700 7px 'DM Mono', monospace;
+  letter-spacing: .9px;
+}
+.workspace strong { font-size: 12px !important; letter-spacing: .1px; }
+.workspace small { margin-top: 2px; font-size: 8px !important; }
+.workspace-dot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--bio-primary) 18%, transparent); }
+
+.sidebar nav { padding-top: 5px; }
+.nav-section-label {
+  margin: 12px 9px 7px !important;
+  font-weight: 800 !important;
+  letter-spacing: 1.1px !important;
+  color: color-mix(in srgb, var(--bio-primary) 42%, #fff) !important;
+}
+.sidebar :is(.nav-item, .nav-subitem) {
+  min-height: 40px;
+  margin: 4px 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.sidebar .nav-item:hover:not(.active), .sidebar .nav-subitem:hover:not(.active) {
+  background-image: linear-gradient(100deg, color-mix(in srgb, var(--bio-primary) 35%, transparent), transparent 95%) !important;
+  border-color: color-mix(in srgb, var(--bio-primary) 24%, transparent);
+  color: #fff !important;
+}
+.nav-item.active, .nav-subitem.active {
+  border-color: color-mix(in srgb, var(--bio-primary) 48%, rgba(255,255,255,.25)) !important;
+  background-image: linear-gradient(102deg,
+    color-mix(in srgb, var(--bio-primary) 76%, var(--bio-sidebar-elevated)),
+    color-mix(in srgb, var(--bio-primary) 42%, var(--bio-sidebar-elevated)) 100%) !important;
+}
+.nav-submenu {
+  margin: 2px 0 7px 17px;
+  padding: 3px 0 3px 11px;
+  border-left: 1px solid color-mix(in srgb, var(--bio-primary) 34%, var(--bio-sidebar-border));
+}
+.profile {
+  margin: 17px -1px 0;
+  padding: 13px 10px 3px !important;
+  border-top-color: color-mix(in srgb, var(--bio-primary) 30%, var(--bio-sidebar-border)) !important;
+}
+.profile .avatar { box-shadow: 0 4px 12px color-mix(in srgb, var(--bio-primary) 25%, transparent); }
+
+/* Acciones inmersivas: volumen, luz y respuesta física guiados por la paleta activa. */
+:is(button, .primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action, .download-record, .download-quotation, .download-purchase-order,
+  .filter, .text-button) {
+  transition: transform .17s cubic-bezier(.2,.75,.25,1), box-shadow .17s ease,
+    filter .17s ease, background .17s ease, border-color .17s ease;
+}
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--bio-primary) 72%, #fff) !important;
+  background:
+    linear-gradient(140deg, color-mix(in srgb, #fff 18%, var(--bio-primary)), transparent 42%),
+    linear-gradient(112deg, var(--bio-primary-strong), var(--bio-primary) 66%, color-mix(in srgb, var(--bio-primary) 74%, #fff)) !important;
+  box-shadow:
+    0 10px 20px color-mix(in srgb, var(--bio-primary) 30%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.32),
+    inset 0 -1px 0 rgba(0,0,0,.18) !important;
+}
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child)::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 52%;
+  height: 180%;
+  left: -78%;
+  top: -40%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+  transition: left .45s ease;
+}
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child):hover::after { left: 130%; }
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child):hover {
+  transform: translateY(-2px) scale(1.012);
+  filter: saturate(1.15) brightness(1.08);
+  box-shadow:
+    0 14px 27px color-mix(in srgb, var(--bio-primary) 40%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.4),
+    inset 0 -1px 0 rgba(0,0,0,.16) !important;
+}
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child):active {
+  transform: translateY(1px) scale(.985);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.2) !important;
+}
+
+/* Acciones secundarias: superficie tonal, no botones planos. */
+:is(.filter, .icon-button, .help, .quotation-download, .download-record,
+  .download-quotation, .download-purchase-order, .commercial-order-action:not(.activate),
+  .supplier-order-actions button:not(:first-child), .quotation-reset-button, .cancel) {
+  background: linear-gradient(135deg, var(--bio-surface), var(--bio-primary-soft)) !important;
+  border-color: color-mix(in srgb, var(--bio-primary) 20%, var(--bio-border)) !important;
+  color: var(--bio-primary-readable) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 4px 10px color-mix(in srgb, var(--bio-primary) 8%, transparent);
+}
+:is(.filter, .icon-button, .help, .quotation-download, .download-record,
+  .download-quotation, .download-purchase-order, .commercial-order-action:not(.activate),
+  .supplier-order-actions button:not(:first-child), .quotation-reset-button, .cancel):hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-primary) 16%, var(--bio-surface)), var(--bio-primary-soft)) !important;
+  border-color: var(--bio-primary) !important;
+  box-shadow: 0 8px 17px color-mix(in srgb, var(--bio-primary) 18%, transparent), inset 0 1px 0 rgba(255,255,255,.65);
+}
+
+/* Las acciones irreversibles y de atención conservan rojo/ámbar expresivos. */
+:is([data-retire-client], [data-delete], [data-cancel], .danger-action) {
+  background: linear-gradient(135deg, color-mix(in srgb, #fff 13%, var(--bio-danger)), var(--bio-danger)) !important;
+  border-color: color-mix(in srgb, var(--bio-danger) 72%, #fff) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 17px color-mix(in srgb, var(--bio-danger) 26%, transparent), inset 0 1px 0 rgba(255,255,255,.27) !important;
+}
+:is([data-retire-client], [data-delete], [data-cancel], .danger-action):hover { filter: brightness(1.08) saturate(1.1); }
+:is(.warning-action, [data-toggle-client-block]) {
+  background: linear-gradient(135deg, color-mix(in srgb, #fff 15%, var(--bio-warning)), var(--bio-warning)) !important;
+  border-color: color-mix(in srgb, var(--bio-warning) 72%, #fff) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 17px color-mix(in srgb, var(--bio-warning) 25%, transparent), inset 0 1px 0 rgba(255,255,255,.27) !important;
+}
+
+/* Variantes semánticas inmersivas: la interacción conserva el mismo lenguaje en todo el sistema. */
+:root {
+  --bio-success-bright: #22b984;
+  --bio-success-deep: #0a6d4d;
+  --bio-danger-bright: #ee6d73;
+  --bio-danger-deep: #a93441;
+  --bio-warning-bright: #ecaa48;
+  --bio-warning-deep: #9b5916;
+}
+:root[data-theme="dark"] {
+  --bio-success-bright: #59d9a5;
+  --bio-success-deep: #168c67;
+  --bio-danger-bright: #ff9296;
+  --bio-danger-deep: #c94b55;
+  --bio-warning-bright: #ffc36d;
+  --bio-warning-deep: #c67a22;
+}
+
+:is(.success-action, [data-add-advance], [data-action="entrada"], .operation-option[data-type="entrada"].selected) {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--bio-success-bright) 72%, #fff) !important;
+  background:
+    radial-gradient(circle at 84% 13%, rgba(255,255,255,.35), transparent 28%),
+    linear-gradient(118deg, var(--bio-success-deep), var(--bio-success) 58%, var(--bio-success-bright)) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--bio-success) 34%, transparent), inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.18) !important;
+}
+:is(.success-action, [data-add-advance], [data-action="entrada"], .operation-option[data-type="entrada"].selected):hover {
+  transform: translateY(-2px) scale(1.012);
+  filter: brightness(1.07) saturate(1.12);
+  box-shadow: 0 15px 28px color-mix(in srgb, var(--bio-success) 44%, transparent), inset 0 1px 0 rgba(255,255,255,.42), inset 0 -1px 0 rgba(0,0,0,.16) !important;
+}
+:is(.danger-action, [data-retire-client], [data-delete], [data-cancel], .operation-option[data-type="salida"].selected, .operation-option[data-type="merma"].selected) {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--bio-danger-bright) 72%, #fff) !important;
+  background:
+    radial-gradient(circle at 84% 13%, rgba(255,255,255,.32), transparent 28%),
+    linear-gradient(118deg, var(--bio-danger-deep), var(--bio-danger) 58%, var(--bio-danger-bright)) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--bio-danger) 34%, transparent), inset 0 1px 0 rgba(255,255,255,.32), inset 0 -1px 0 rgba(0,0,0,.18) !important;
+}
+:is(.danger-action, [data-retire-client], [data-delete], [data-cancel], .operation-option[data-type="salida"].selected, .operation-option[data-type="merma"].selected):hover {
+  transform: translateY(-2px) scale(1.012);
+  filter: brightness(1.07) saturate(1.12);
+  box-shadow: 0 15px 28px color-mix(in srgb, var(--bio-danger) 44%, transparent), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.16) !important;
+}
+:is(.warning-action, [data-toggle-client-block], .operation-option[data-type="traspaso"].selected) {
+  background:
+    radial-gradient(circle at 84% 13%, rgba(255,255,255,.32), transparent 28%),
+    linear-gradient(118deg, var(--bio-warning-deep), var(--bio-warning) 58%, var(--bio-warning-bright)) !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--bio-warning) 32%, transparent), inset 0 1px 0 rgba(255,255,255,.32), inset 0 -1px 0 rgba(0,0,0,.18) !important;
+}
+
+/* Los elementos verdes/rojos no son sólo texto: ahora tienen halo y profundidad al interactuar. */
+:is(.status.ok, .money-positive, .money-settled, .qty-in, .green) {
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--bio-success) 22%, transparent);
+}
+:is(.status.out, .money-negative, .qty-out, .red) {
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--bio-danger) 20%, transparent);
+}
+:is(.status.ok, .status.out, .status.low, .price-list-badge):hover {
+  transform: translateY(-1px);
+  filter: saturate(1.15);
+}
+
+/* En la navegación, cada paleta tiene una luz más rica sin perder contraste. */
+.nav-item.active, .nav-subitem.active {
+  background-image:
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, #fff 21%, transparent), transparent 32%),
+    linear-gradient(102deg, color-mix(in srgb, var(--bio-primary) 84%, var(--bio-sidebar-elevated)), color-mix(in srgb, var(--bio-primary) 42%, var(--bio-sidebar-elevated)) 100%) !important;
+}
+.sidebar .nav-item:hover:not(.active), .sidebar .nav-subitem:hover:not(.active) {
+  background-image:
+    linear-gradient(100deg, color-mix(in srgb, var(--bio-primary) 48%, transparent), transparent 95%),
+    linear-gradient(90deg, color-mix(in srgb, var(--bio-primary) 14%, var(--bio-sidebar-elevated)), transparent) !important;
+  box-shadow: 0 7px 15px rgba(0,0,0,.13), inset 2px 0 0 color-mix(in srgb, var(--bio-primary) 70%, #fff);
+}
+
+/* Accesos rápidos: informan el tipo de movimiento sin competir con la acción de confirmar. */
+.quick-action[data-action="entrada"], .quick-action.incoming {
+  border-color: color-mix(in srgb, var(--bio-success) 30%, var(--bio-border)) !important;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--bio-success) 17%, transparent), transparent 38%),
+    linear-gradient(135deg, var(--bio-success-soft), var(--bio-surface) 68%) !important;
+  color: var(--bio-text) !important;
+  box-shadow: 0 7px 17px color-mix(in srgb, var(--bio-success) 10%, transparent), inset 3px 0 0 var(--bio-success) !important;
+}
+.quick-action[data-action="entrada"] span, .quick-action.incoming span {
+  background: var(--bio-success-soft) !important;
+  color: var(--bio-success) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bio-success) 20%, transparent);
+}
+.quick-action[data-action="entrada"]:hover, .quick-action.incoming:hover {
+  transform: translateY(-2px) !important;
+  filter: none !important;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--bio-success) 22%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--bio-success) 11%, var(--bio-surface)), var(--bio-surface) 68%) !important;
+  box-shadow: 0 11px 22px color-mix(in srgb, var(--bio-success) 17%, transparent), inset 3px 0 0 var(--bio-success) !important;
+}
+
+/* Accesos rápidos: tarjetas serenas con una señal cromática, no bloques de color. */
+.quick-actions .quick-action {
+  --quick-accent: var(--bio-primary);
+  --quick-soft: var(--bio-primary-soft);
+  position: relative;
+  min-height: 142px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--quick-accent) 18%, var(--bio-border)) !important;
+  border-radius: 14px;
+  background: var(--bio-surface) !important;
+  box-shadow: 0 8px 18px rgba(18, 25, 35, .045), inset 0 1px 0 rgba(255,255,255,.75) !important;
+}
+.quick-actions .quick-action::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 118px;
+  height: 118px;
+  top: -72px;
+  right: -50px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--quick-accent) 18%, transparent), transparent 70%);
+  transition: transform .25s ease, opacity .25s ease;
+}
+.quick-actions .quick-action::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 99px 99px 0 0;
+  background: linear-gradient(90deg, var(--quick-accent), color-mix(in srgb, var(--quick-accent) 16%, transparent));
+  opacity: .76;
+}
+.quick-actions .quick-action span {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 17px;
+  border: 1px solid color-mix(in srgb, var(--quick-accent) 22%, transparent);
+  border-radius: 13px;
+  background: linear-gradient(145deg, var(--quick-soft), color-mix(in srgb, var(--quick-accent) 8%, var(--bio-surface))) !important;
+  color: var(--quick-accent) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+}
+.quick-actions .quick-action strong { color: var(--bio-text) !important; font-size: 13px; }
+.quick-actions .quick-action small { color: var(--bio-text-muted) !important; }
+.quick-actions .quick-action > svg { color: var(--quick-accent) !important; opacity: .72; }
+.quick-actions .quick-action:hover {
+  transform: translateY(-3px) !important;
+  filter: none !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--quick-accent) 5%, var(--bio-surface)), var(--bio-surface) 72%) !important;
+  border-color: color-mix(in srgb, var(--quick-accent) 42%, var(--bio-border)) !important;
+  box-shadow: 0 14px 25px color-mix(in srgb, var(--quick-accent) 15%, transparent), inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+.quick-actions .quick-action:hover::before { transform: scale(1.24); }
+.quick-actions .quick-action.incoming, .quick-actions .quick-action[data-action="entrada"] { --quick-accent: var(--bio-success); --quick-soft: var(--bio-success-soft); }
+.quick-actions .quick-action.outgoing, .quick-actions .quick-action[data-action="salida"] { --quick-accent: var(--bio-danger); --quick-soft: var(--bio-danger-soft); }
+.quick-actions .quick-action.transfer, .quick-actions .quick-action[data-action="traspaso"] { --quick-accent: var(--bio-primary); --quick-soft: var(--bio-primary-soft); }
+.quick-actions .quick-action.waste, .quick-actions .quick-action[data-action="merma"] { --quick-accent: var(--bio-warning); --quick-soft: var(--bio-warning-soft); }
+
+/* Las paletas mezclan acento, éxito, atención y riesgo en una sola familia visual. */
+.theme-color-grid button span {
+  background:
+    linear-gradient(135deg, var(--swatch) 0 48%, color-mix(in srgb, var(--swatch) 67%, #fff) 49% 68%, color-mix(in srgb, var(--swatch) 70%, #101827) 69%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 3px 7px color-mix(in srgb, var(--swatch) 28%, transparent);
+}
+
+/* Entrada es una selección de flujo, no una confirmación: nunca debe cubrirse de verde. */
+body .quick-actions button.quick-action.incoming,
+body .quick-actions button.quick-action[data-action="entrada"] {
+  background: var(--bio-surface) !important;
+  background-image: none !important;
+  color: var(--bio-text) !important;
+  border-color: color-mix(in srgb, var(--bio-success) 25%, var(--bio-border)) !important;
+  box-shadow: 0 6px 15px rgba(18, 25, 35, .045), inset 3px 0 0 var(--bio-success), inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+body .quick-actions button.quick-action.incoming::before,
+body .quick-actions button.quick-action[data-action="entrada"]::before {
+  width: 74px;
+  height: 74px;
+  top: -43px;
+  right: -28px;
+  opacity: .62;
+}
+body .quick-actions button.quick-action.incoming:hover,
+body .quick-actions button.quick-action[data-action="entrada"]:hover {
+  background: color-mix(in srgb, var(--bio-success) 4%, var(--bio-surface)) !important;
+  background-image: none !important;
+  color: var(--bio-text) !important;
+  box-shadow: 0 11px 21px color-mix(in srgb, var(--bio-success) 12%, transparent), inset 3px 0 0 var(--bio-success), inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+
+/* Dupla institucional / de paleta: color principal + acento complementario en toda la interfaz. */
+header {
+  background-image:
+    radial-gradient(520px 160px at 100% -50%, var(--bio-secondary-soft), transparent 72%),
+    linear-gradient(105deg, var(--bio-surface), color-mix(in srgb, var(--bio-primary) 5%, var(--bio-surface))) !important;
+}
+.sidebar .brand {
+  background:
+    linear-gradient(112deg, color-mix(in srgb, var(--bio-primary) 38%, transparent), color-mix(in srgb, var(--bio-secondary) 20%, transparent) 65%, transparent),
+    color-mix(in srgb, var(--bio-sidebar-elevated) 85%, transparent) !important;
+}
+.sidebar .brand::after {
+  background: linear-gradient(90deg, var(--bio-primary), var(--bio-secondary), transparent) !important;
+}
+.brand-logo-frame {
+  width: 90px;
+  height: 62px;
+  flex: 0 0 90px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.brand-logo-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+  filter: drop-shadow(0 7px 8px color-mix(in srgb, var(--bio-primary) 42%, transparent)) drop-shadow(0 10px 13px color-mix(in srgb, var(--bio-secondary) 36%, transparent));
+}
+.sidebar .brand > span:last-child {
+  font-size: 12px;
+  letter-spacing: 1.2px;
+}
+.workspace {
+  background:
+    linear-gradient(105deg, color-mix(in srgb, var(--bio-primary) 25%, var(--bio-sidebar-elevated)), color-mix(in srgb, var(--bio-secondary) 13%, var(--bio-sidebar)) 78%) !important;
+}
+.nav-item.active, .nav-subitem.active {
+  background-image:
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, #fff 21%, transparent), transparent 32%),
+    linear-gradient(102deg, color-mix(in srgb, var(--bio-primary) 84%, var(--bio-sidebar-elevated)), color-mix(in srgb, var(--bio-secondary) 38%, var(--bio-sidebar-elevated)) 100%) !important;
+}
+.primary-action, .submit, .quotation-emit-button, .confirm-submit {
+  background-image:
+    linear-gradient(140deg, color-mix(in srgb, #fff 18%, var(--bio-primary)), transparent 42%),
+    linear-gradient(112deg, var(--bio-primary-strong), var(--bio-primary) 62%, var(--bio-secondary)) !important;
+}
+.page > .hero, .module-hero {
+  background:
+    radial-gradient(340px 160px at 95% 0%, var(--bio-secondary-soft), transparent 72%),
+    linear-gradient(115deg, var(--bio-primary-soft), transparent 58%),
+    var(--bio-surface) !important;
+}
+.page > .hero::after, .module-hero::after {
+  background: linear-gradient(90deg, transparent, var(--bio-primary), var(--bio-secondary), transparent) !important;
+}
+.quick-actions .quick-action.transfer, .quick-actions .quick-action[data-action="traspaso"] {
+  --quick-accent: var(--bio-secondary-readable);
+  --quick-soft: var(--bio-secondary-soft);
+}
+.theme-preview-nav {
+  background: linear-gradient(180deg, var(--bio-primary), var(--bio-secondary)) !important;
+}
+
+/* El degradado institucional recorre el menú completo, no sólo la marca. */
+.sidebar {
+  background:
+    radial-gradient(420px 280px at -18% -8%, color-mix(in srgb, #fff 18%, transparent), transparent 58%),
+    radial-gradient(360px 310px at 118% 100%, color-mix(in srgb, var(--bio-secondary) 36%, transparent), transparent 65%),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--bio-primary) 84%, #08182a) 0%,
+      color-mix(in srgb, var(--bio-primary) 62%, var(--bio-secondary) 38%) 49%,
+      color-mix(in srgb, var(--bio-secondary) 58%, #092819) 100%) !important;
+}
+.sidebar .brand {
+  background: linear-gradient(110deg, rgba(255,255,255,.18), rgba(255,255,255,.05)) !important;
+  border-color: rgba(255,255,255,.2) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 10px 25px rgba(0,0,0,.14) !important;
+}
+.workspace {
+  background: rgba(4, 20, 28, .18) !important;
+  border-color: rgba(255,255,255,.2) !important;
+  backdrop-filter: blur(7px);
+}
+.sidebar :is(.nav-item, .nav-subitem) { color: rgba(255,255,255,.84) !important; }
+.sidebar .nav-item:hover:not(.active), .sidebar .nav-subitem:hover:not(.active) {
+  background: rgba(255,255,255,.13) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  box-shadow: inset 2px 0 0 rgba(255,255,255,.48), 0 7px 15px rgba(0,0,0,.1) !important;
+}
+.nav-item.active, .nav-subitem.active {
+  background: linear-gradient(105deg, rgba(255,255,255,.25), rgba(255,255,255,.1)) !important;
+  border-color: rgba(255,255,255,.28) !important;
+  box-shadow: inset 3px 0 0 #fff, inset 0 1px 0 rgba(255,255,255,.25), 0 8px 17px rgba(0,0,0,.15) !important;
+}
+.nav-section-label, .workspace::before { color: rgba(255,255,255,.68) !important; }
+
+/* Botones: acento de paleta más sutil, con lectura limpia y respuesta corta. */
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child) {
+  background:
+    linear-gradient(115deg, var(--bio-primary-strong), color-mix(in srgb, var(--bio-primary) 78%, var(--bio-secondary))) !important;
+  border-color: color-mix(in srgb, var(--bio-primary) 50%, #fff) !important;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--bio-primary) 21%, transparent), inset 0 1px 0 rgba(255,255,255,.27) !important;
+}
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child)::after { display: none; }
+:is(.primary-action, .submit, .quotation-emit-button, .confirm-submit,
+  .commercial-order-action.activate, .supplier-order-actions button:first-child):hover {
+  transform: translateY(-1px) !important;
+  filter: brightness(1.04) !important;
+  box-shadow: 0 9px 18px color-mix(in srgb, var(--bio-primary) 26%, transparent), inset 0 1px 0 rgba(255,255,255,.32) !important;
+}
+:is(.filter, .icon-button, .help, .quotation-download, .download-record,
+  .download-quotation, .download-purchase-order, .commercial-order-action:not(.activate),
+  .supplier-order-actions button:not(:first-child), .quotation-reset-button, .cancel) {
+  background: linear-gradient(135deg, var(--bio-surface), color-mix(in srgb, var(--bio-primary) 6%, var(--bio-surface))) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 3px 8px color-mix(in srgb, var(--bio-primary) 7%, transparent) !important;
+}
+
+/* El brillo se concentra exclusivamente en la silueta del logotipo. */
+.sidebar .brand { box-shadow: inset 0 1px 0 rgba(255,255,255,.25) !important; }
+.sidebar .brand::after { display: none; }
+
+/* Selector de espacio: separa con claridad la operación real del entrenamiento. */
+.workspace { overflow: visible !important; z-index: 25; }
+.workspace-trigger {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.workspace-trigger > i { width: 15px; color: rgba(255,255,255,.76); transition: transform .18s ease; }
+.workspace-trigger[aria-expanded="true"] > i { transform: rotate(180deg); }
+.workspace-menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 9px);
+  left: 0;
+  right: 0;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 36%, rgba(255,255,255,.32));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--bio-sidebar) 86%, #08121b);
+  box-shadow: 0 18px 38px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(16px);
+}
+.workspace-menu > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255,255,255,.88);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.workspace-menu > button:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.12); }
+.workspace-menu > button.active { background: linear-gradient(105deg, color-mix(in srgb, var(--bio-primary) 48%, transparent), color-mix(in srgb, var(--bio-secondary) 20%, transparent)); border-color: rgba(255,255,255,.2); }
+.workspace-menu > button > span:nth-child(2) > strong, .workspace-admin-toggle strong { display:block; color:#fff; font-size:9px; }
+.workspace-menu > button > span:nth-child(2) > small, .workspace-admin-toggle small { display:block; margin-top:2px; color:rgba(255,255,255,.64); font-size:7px; line-height:1.35; }
+.workspace-menu > button > svg { width:14px; opacity:0; color:#fff; }
+.workspace-menu > button.active > svg { opacity:1; }
+.workspace-mode-icon { width:28px; height:28px; display:grid; place-items:center; border-radius:8px; background:var(--bio-primary-soft); color:color-mix(in srgb, var(--bio-primary) 72%, #fff); }
+.workspace-mode-icon.training { background:var(--bio-secondary-soft); color:color-mix(in srgb, var(--bio-secondary) 75%, #fff); }
+.workspace-mode-icon svg { width:14px; }
+.workspace-admin-toggle { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; margin-top:6px; padding:9px 8px 3px; border-top:1px solid rgba(255,255,255,.12); cursor:pointer; }
+.workspace-admin-toggle input { position:absolute; opacity:0; pointer-events:none; }
+.workspace-admin-toggle > i { width:29px; height:17px; border-radius:99px; background:rgba(255,255,255,.22); position:relative; transition:background .18s ease; }
+.workspace-admin-toggle > i::after { content:''; position:absolute; width:11px; height:11px; top:3px; left:3px; border-radius:50%; background:#fff; transition:transform .18s ease; }
+.workspace-admin-toggle input:checked + i { background:linear-gradient(90deg, var(--bio-primary), var(--bio-secondary)); }
+.workspace-admin-toggle input:checked + i::after { transform:translateX(12px); }
+.workspace.training-active { border-color: color-mix(in srgb, var(--bio-secondary) 58%, rgba(255,255,255,.32)) !important; }
+.workspace.training-active .workspace-dot { background:var(--bio-secondary) !important; box-shadow:0 0 0 4px color-mix(in srgb, var(--bio-secondary) 18%, transparent); }
+
+.training-workspace-notice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 14px 42px -12px;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--bio-secondary) 42%, var(--bio-border));
+  border-radius: 12px;
+  background: linear-gradient(105deg, var(--bio-secondary-soft), color-mix(in srgb, var(--bio-primary) 6%, var(--bio-surface)));
+  color: var(--bio-text);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--bio-secondary) 11%, transparent);
+}
+.training-workspace-notice[hidden] { display: none !important; }
+.training-workspace-notice > svg { width: 19px; color: var(--bio-secondary-readable); flex: none; }
+.training-workspace-notice span { font-size: 9px; color: var(--bio-text-muted); }
+.training-workspace-notice strong { color: var(--bio-secondary-readable); margin-right: 5px; }
+.training-workspace-notice button { margin-left: auto; border: 1px solid color-mix(in srgb, var(--bio-primary) 22%, var(--bio-border)); border-radius: 8px; padding: 7px 9px; background: var(--bio-surface); color: var(--bio-primary-readable); font: 700 8px Manrope, sans-serif; cursor: pointer; }
+.training-workspace-notice button:hover { background: var(--bio-primary-soft); }
+html[data-workspace="training"] .persistence-status { display: none; }
+html[data-workspace="training"] [data-view="auditView"], html[data-workspace="training"] [data-access="audit"] { display: none !important; }
+@media (max-width: 700px) { .training-workspace-notice { margin: 11px 18px -8px; align-items: flex-start; } .training-workspace-notice button { margin-left: 0; } }
+
+/* Capa unificada para ventanas y menús de apoyo.
+   Ningún diálogo conserva la antigua piel verde fija: todos responden a la paleta activa. */
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog, .document-preview-dialog) {
+  border: 1px solid var(--bio-border) !important;
+  border-radius: 18px !important;
+  background: var(--bio-surface-raised) !important;
+  color: var(--bio-text) !important;
+  box-shadow: 0 28px 82px color-mix(in srgb, var(--bio-sidebar) 52%, transparent) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog, .document-preview-dialog)::backdrop {
+  background: color-mix(in srgb, var(--bio-sidebar) 78%, rgba(4, 10, 18, .85)) !important;
+  backdrop-filter: blur(9px) saturate(.82) !important;
+  -webkit-backdrop-filter: blur(9px) saturate(.82) !important;
+}
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title,
+.order-dialog-head,
+.document-preview-head {
+  min-height: 94px;
+  padding: 20px 25px;
+  border: 0 !important;
+  background: linear-gradient(112deg, color-mix(in srgb, var(--bio-primary) 42%, var(--bio-sidebar)), var(--bio-sidebar) 76%) !important;
+  color: var(--bio-sidebar-text) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title .eyebrow,
+.order-dialog-head .eyebrow,
+.document-preview-head small {
+  color: color-mix(in srgb, var(--bio-primary) 45%, #fff) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title h2,
+.order-dialog-head h2,
+.document-preview-head strong { color: var(--bio-sidebar-text) !important; }
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-icon,
+.document-preview-icon {
+  background: linear-gradient(135deg, var(--bio-primary), color-mix(in srgb, var(--bio-secondary) 72%, var(--bio-primary))) !important;
+  color: var(--bio-on-primary) !important;
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--bio-primary) 35%, transparent), inset 0 1px rgba(255,255,255,.28) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .close,
+.order-dialog-close,
+.document-preview-close {
+  border-color: color-mix(in srgb, #fff 23%, transparent) !important;
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .close:hover,
+.order-dialog-close:hover,
+.document-preview-close:hover {
+  border-color: color-mix(in srgb, var(--bio-primary) 70%, #fff) !important;
+  background: color-mix(in srgb, var(--bio-primary) 35%, rgba(255,255,255,.08)) !important;
+}
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-body,
+.order-dialog-body,
+#actionConfirmDialog .confirm-content {
+  background: var(--bio-surface-raised) !important;
+  color: var(--bio-text) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-actions,
+.order-dialog-actions,
+.document-preview-actions,
+#actionConfirmDialog .confirm-actions {
+  border-top-color: var(--bio-border) !important;
+  background: var(--bio-surface-soft) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) :is(input, select, textarea, .quantity-input) {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-surface) !important;
+  color: var(--bio-text) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) :is(input, select, textarea):focus,
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) .quantity-input:focus-within {
+  border-color: var(--bio-primary) !important;
+  box-shadow: 0 0 0 3px var(--bio-primary-glow) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) .field > span,
+.order-progress-grid .field > span { color: var(--bio-text-muted) !important; }
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) .cancel,
+.document-preview-actions .preview-cancel {
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 20%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, var(--bio-surface), color-mix(in srgb, var(--bio-primary) 6%, var(--bio-surface))) !important;
+  color: var(--bio-primary-readable) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 3px 8px color-mix(in srgb, var(--bio-primary) 7%, transparent) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) :is(.submit, .confirm-submit),
+.document-preview-actions .preview-download {
+  border-color: color-mix(in srgb, var(--bio-primary) 38%, var(--bio-border)) !important;
+  background: linear-gradient(125deg, color-mix(in srgb, var(--bio-primary) 13%, var(--bio-surface)), color-mix(in srgb, var(--bio-primary) 5%, var(--bio-surface))) !important;
+  color: var(--bio-primary-readable) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.78), 0 4px 10px color-mix(in srgb, var(--bio-primary) 12%, transparent) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) :is(.submit, .confirm-submit):hover,
+.document-preview-actions .preview-download:hover {
+  filter: none !important;
+  transform: translateY(-1px) !important;
+  border-color: var(--bio-primary) !important;
+  background: linear-gradient(125deg, color-mix(in srgb, var(--bio-primary) 19%, var(--bio-surface)), color-mix(in srgb, var(--bio-primary) 9%, var(--bio-surface))) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 7px 15px color-mix(in srgb, var(--bio-primary) 17%, transparent) !important;
+}
+
+.confirm-note,
+.order-progress-context,
+#actionConfirmDialog .confirmation-summary,
+.catalog-supplier-first,
+.purchase-proof {
+  border-color: color-mix(in srgb, var(--bio-primary) 28%, var(--bio-border)) !important;
+  background: color-mix(in srgb, var(--bio-primary) 7%, var(--bio-surface-soft)) !important;
+  color: var(--bio-text-muted) !important;
+}
+.confirm-note svg { color: var(--bio-primary-readable) !important; }
+#actionConfirmDialog .confirmation-summary > span,
+#actionConfirmDialog .confirmation-summary li {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-surface) !important;
+  color: var(--bio-text-muted) !important;
+}
+#actionConfirmDialog .confirmation-summary li strong { color: var(--bio-text) !important; }
+#actionConfirmDialog .confirmation-summary li b { color: var(--bio-primary-readable) !important; }
+
+/* Menús de apoyo: misma profundidad, borde y foco que los modales. */
+:is(.global-search-results, .movement-product-results, .quotation-search-results) {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-surface-raised) !important;
+  color: var(--bio-text) !important;
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--bio-sidebar) 28%, transparent) !important;
+}
+.workspace-menu {
+  border-color: var(--bio-sidebar-border) !important;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--bio-primary) 17%, var(--bio-sidebar)), var(--bio-sidebar)) !important;
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--bio-sidebar) 65%, transparent) !important;
+}
+:is(.global-search-results button, .movement-product-option, .quotation-product-result) {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-surface) !important;
+  color: var(--bio-text) !important;
+}
+:is(.global-search-results button, .movement-product-option, .quotation-product-result):hover,
+:is(.global-search-results button, .movement-product-option, .quotation-product-result):focus-visible {
+  background: var(--bio-primary-soft) !important;
+  border-color: color-mix(in srgb, var(--bio-primary) 52%, var(--bio-border)) !important;
+  outline: 0;
+}
+.nav-submenu::before { background: var(--bio-sidebar-border) !important; }
+
+/* El selector de movimiento informa el tipo sin convertirse en un bloque saturado. */
+#movementDialog .operation-option {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-surface) !important;
+  color: var(--bio-text-muted) !important;
+  box-shadow: none !important;
+}
+#movementDialog .operation-option:hover {
+  border-color: color-mix(in srgb, var(--bio-primary) 28%, var(--bio-border)) !important;
+  background: var(--bio-surface-hover) !important;
+  color: var(--bio-text) !important;
+  transform: none !important;
+  filter: none !important;
+}
+#movementDialog .operation-option.selected,
+#movementDialog .operation-option[data-type="entrada"].selected {
+  border-color: color-mix(in srgb, var(--bio-success) 38%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-success) 12%, var(--bio-surface)), var(--bio-surface)) !important;
+  color: var(--bio-success-deep) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bio-success) 13%, transparent) !important;
+}
+#movementDialog .operation-option[data-type="salida"].selected,
+#movementDialog .operation-option[data-type="merma"].selected {
+  border-color: color-mix(in srgb, var(--bio-danger) 36%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-danger) 11%, var(--bio-surface)), var(--bio-surface)) !important;
+  color: var(--bio-danger-deep) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bio-danger) 11%, transparent) !important;
+}
+#movementDialog .operation-option[data-type="traspaso"].selected {
+  border-color: color-mix(in srgb, var(--bio-primary) 38%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, var(--bio-primary-soft), var(--bio-surface)) !important;
+  color: var(--bio-primary-readable) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bio-primary) 12%, transparent) !important;
+}
+#movementDialog .operation-option.selected:hover { transform: none !important; filter: none !important; }
+
+/* Acciones de Clientes: semánticas y discretas, con la misma familia de controles del sistema. */
+#clientList .quotation-history-row > div:last-child .quotation-download {
+  border: 1px solid color-mix(in srgb, var(--bio-primary) 48%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-primary) 24%, var(--bio-surface)), color-mix(in srgb, var(--bio-primary) 13%, var(--bio-surface))) !important;
+  color: var(--bio-primary-readable) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 3px 8px color-mix(in srgb, var(--bio-primary) 7%, transparent) !important;
+}
+#clientList .quotation-history-row > div:last-child .quotation-download:hover {
+  transform: translateY(-1px) !important;
+  filter: none !important;
+  border-color: var(--bio-primary) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-primary) 13%, var(--bio-surface)), var(--bio-primary-soft)) !important;
+}
+#clientList [data-add-advance] {
+  border-color: color-mix(in srgb, var(--bio-success) 55%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-success) 32%, var(--bio-surface)), color-mix(in srgb, var(--bio-success) 16%, var(--bio-surface))) !important;
+  color: var(--bio-success-deep) !important;
+}
+#clientList [data-edit-client] {
+  border-color: color-mix(in srgb, var(--bio-primary) 58%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-primary) 35%, var(--bio-surface)), color-mix(in srgb, var(--bio-primary) 17%, var(--bio-surface))) !important;
+  color: var(--bio-primary-readable) !important;
+}
+#clientList [data-toggle-client-block] {
+  border-color: color-mix(in srgb, var(--bio-warning) 56%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-warning) 32%, var(--bio-surface)), color-mix(in srgb, var(--bio-warning) 16%, var(--bio-surface))) !important;
+  color: var(--bio-warning-deep) !important;
+}
+#clientList [data-retire-client] {
+  border-color: color-mix(in srgb, var(--bio-danger) 55%, var(--bio-border)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bio-danger) 31%, var(--bio-surface)), color-mix(in srgb, var(--bio-danger) 15%, var(--bio-surface))) !important;
+  color: var(--bio-danger-deep) !important;
+}
+#clientList :is([data-add-advance], [data-edit-client], [data-toggle-client-block], [data-retire-client]):hover {
+  transform: translateY(-1px) !important;
+  filter: none !important;
+  box-shadow: 0 6px 13px color-mix(in srgb, currentColor 15%, transparent) !important;
+}
+
+@media (max-width: 650px) {
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog) { width: min(620px, calc(100% - 20px)) !important; }
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title,
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-body,
+  .order-dialog-head, .order-dialog-body { padding-left: 17px; padding-right: 17px; }
+}
+
+/* Identificación inmediata de las acciones del listado de clientes. */
+#clientList button[data-add-advance] {
+  background-color: color-mix(in srgb, var(--bio-success) 34%, var(--bio-surface)) !important;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--bio-success) 38%, var(--bio-surface)), color-mix(in srgb, var(--bio-success) 19%, var(--bio-surface))) !important;
+  border-color: color-mix(in srgb, var(--bio-success) 66%, var(--bio-border)) !important;
+  color: var(--bio-success-deep) !important;
+}
+#clientList button[data-edit-client] {
+  background-color: color-mix(in srgb, var(--bio-primary) 34%, var(--bio-surface)) !important;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--bio-primary) 38%, var(--bio-surface)), color-mix(in srgb, var(--bio-primary) 19%, var(--bio-surface))) !important;
+  border-color: color-mix(in srgb, var(--bio-primary) 66%, var(--bio-border)) !important;
+  color: var(--bio-primary-readable) !important;
+}
+#clientList button[data-toggle-client-block] {
+  background-color: color-mix(in srgb, var(--bio-warning) 34%, var(--bio-surface)) !important;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--bio-warning) 38%, var(--bio-surface)), color-mix(in srgb, var(--bio-warning) 19%, var(--bio-surface))) !important;
+  border-color: color-mix(in srgb, var(--bio-warning) 66%, var(--bio-border)) !important;
+  color: var(--bio-warning-deep) !important;
+}
+#clientList button[data-retire-client] {
+  background-color: color-mix(in srgb, var(--bio-danger) 34%, var(--bio-surface)) !important;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--bio-danger) 38%, var(--bio-surface)), color-mix(in srgb, var(--bio-danger) 19%, var(--bio-surface))) !important;
+  border-color: color-mix(in srgb, var(--bio-danger) 66%, var(--bio-border)) !important;
+  color: var(--bio-danger-deep) !important;
+}
+#clientList button:is([data-add-advance], [data-edit-client], [data-toggle-client-block], [data-retire-client]) svg {
+  stroke-width: 2.35;
+}
+
+.quotation-product-suggestions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 1px 7px;
+  color: var(--bio-primary-readable);
+  font: 700 9px 'DM Mono', monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.quotation-product-suggestions svg { width: 14px; color: var(--bio-secondary-readable, var(--bio-secondary)); }
+.quotation-product-suggestions small { margin-left: auto; color: var(--bio-text-muted); font: 600 8px Manrope, sans-serif; letter-spacing: 0; text-transform: none; }
+
+/* El control adicional sólo existe visualmente cuando la vigencia es personalizada. */
+#quotationCustomValidityField[hidden] { display: none !important; }
+#quotationAdvanceApplyField[hidden], #quotationAdvancePartialField[hidden] { display: none !important; }
+#quotationCreditDaysField[hidden], #quotationAdvancePercentField[hidden] { display: none !important; }
+.quotation-advance-line { gap: 9px; }
+.quotation-advance-inline { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(220px, .42fr); gap: 16px; align-items: end; width: 100%; }
+.quotation-advance-choice, .quotation-advance-percent { min-width: 0; display: grid !important; gap: 6px; }
+.quotation-builder .quotation-advance-choice > label, .quotation-builder .quotation-advance-percent > span { color: var(--muted); font: 700 9px 'DM Mono', monospace; letter-spacing: .55px; text-transform: uppercase; }
+.quotation-advance-inline label[hidden] { display: none !important; }
+.quotation-advance-choice select, .quotation-advance-percent input { min-height: 42px; }
+.quotation-percentage-input { position: relative; width: 100%; }
+.quotation-percentage-input input { width: 100%; padding-right: 38px; }
+.quotation-percentage-input b { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9em; pointer-events: none; }
+.quotation-builder .quotation-advance-choice small, .quotation-builder .quotation-advance-percent small { min-height: 1.15em; color: var(--muted); font-size: 8px; line-height: 1.4; }
+@media (max-width: 700px) { .quotation-advance-inline { grid-template-columns: 1fr; } }
+
+/* Seguimiento comercial: acciones identificables como en Clientes. */
+.commercial-order-action[data-download-commercial-order] { background: #dceffd !important; border-color: #73b5e5 !important; color: #126ca6 !important; }
+.commercial-order-action[data-activate-commercial-order] { background: #ffedc9 !important; border-color: #e6ad4f !important; color: #9b5b08 !important; box-shadow: 0 4px 10px rgba(177,112,23,.12) !important; }
+.commercial-order-action[data-continue-commercial-order] { background: #d9f3e5 !important; border-color: #74c89d !important; color: #08734b !important; box-shadow: 0 4px 10px rgba(14,120,77,.12) !important; }
+.commercial-order-action[data-download-commercial-order]:hover { background: #cce9ff !important; border-color: #4b9fd7 !important; }
+.commercial-order-action[data-activate-commercial-order]:hover { background: #ffe2aa !important; border-color: #d9982e !important; }
+.commercial-order-action[data-continue-commercial-order]:hover { background: #c6ecd9 !important; border-color: #4eae7b !important; }
+
+/* Historial de cotizaciones: el mismo código de color de las acciones de Clientes. */
+.quotation-history-actions [data-edit-quotation] { background: #dceffd !important; border-color: #73b5e5 !important; color: #126ca6 !important; }
+.quotation-history-actions [data-delete-quotation] { background: #ffe0e4 !important; border-color: #e58a95 !important; color: #ae3344 !important; }
+.quotation-history-actions [data-convert-quotation] { background: #d9f3e5 !important; border-color: #74c89d !important; color: #08734b !important; }
+.quotation-history-actions [data-sales-quotation] { background: #e9e5ff !important; border-color: #a69ae8 !important; color: #5e4eb5 !important; }
+.quotation-history-actions [data-sales-quotation-excel] { background: #e0f3e9 !important; border-color: #79c89d !important; color: #147446 !important; }
+.quotation-history-actions [data-edit-quotation]:hover { background: #cce9ff !important; }
+.quotation-history-actions [data-delete-quotation]:hover { background: #ffcfd6 !important; }
+.quotation-history-actions [data-convert-quotation]:hover { background: #c6ecd9 !important; }
+.quotation-history-actions [data-sales-quotation]:hover { background: #ddd6ff !important; }
+.quotation-history-actions [data-sales-quotation-excel]:hover { background: #ccebd9 !important; }
+
+/* Totales comerciales: nunca se mezclan divisas. El mismo bloque sirve para
+   cotizaciones y OC de clientes, tanto en KPIs como en listados. */
+.currency-total-list { display:flex; flex-wrap:wrap; align-items:center; gap:5px 8px; }
+.currency-total { display:inline-flex; align-items:baseline; gap:4px; white-space:nowrap; }
+.currency-total b { color:var(--bio-text-muted); font:700 8px 'DM Mono',monospace; letter-spacing:.04em; }
+.currency-total > span { color:var(--bio-primary-readable); font:800 12px Manrope,sans-serif; }
+.module-stats .currency-total-list { margin-top:4px; }
+.module-stats .currency-total > span { font-size:15px; letter-spacing:-.35px; }
+.currency-total-list.compact { justify-content:flex-end; }
+.currency-total-list.compact .currency-total > span,
+.quotation-history-total .currency-total > span,
+.commercial-order-total .currency-total > span { font-size:10px; }
+.quotation-history-total .currency-total-list,
+.commercial-order-total .currency-total-list { margin:0; }
+
+/* Acciones comerciales con la misma jerarquía semántica de Clientes. */
+.commercial-order-action.action-primary {
+  border-color:#74c89d !important;
+  background:linear-gradient(135deg,#d9f3e5,#eefaf3) !important;
+  color:#08734b !important;
+  box-shadow:0 4px 10px rgba(14,120,77,.12) !important;
+}
+.commercial-order-action.action-primary:hover { border-color:#4eae7b !important; background:linear-gradient(135deg,#c6ecd9,#e6f7ee) !important; }
+.commercial-order-action.action-secondary {
+  border-color:#73b5e5 !important;
+  background:linear-gradient(135deg,#dceffd,#edf7ff) !important;
+  color:#126ca6 !important;
+  box-shadow:0 3px 8px rgba(18,108,166,.10) !important;
+}
+.commercial-order-action.action-secondary:hover { border-color:#4b9fd7 !important; background:linear-gradient(135deg,#cce9ff,#e4f4ff) !important; }
+.commercial-order-actions .commercial-order-action.action-primary,
+.commercial-order-actions .commercial-order-action.action-secondary {
+  width:34px;
+  min-width:34px;
+  height:34px;
+  min-height:34px;
+  padding:0;
+  flex:0 0 34px;
+}
+/* Compatibilidad con filas ya pintadas: el patrón de Clientes usa sólo icono. */
+.commercial-order-actions .commercial-order-action.action-secondary {
+  font-size:0 !important;
+  line-height:0;
+}
+.commercial-order-actions .commercial-order-action.action-secondary svg {
+  width:14px;
+  height:14px;
+  stroke-width:2.25;
+}
+.commercial-order-action:focus-visible { outline:3px solid color-mix(in srgb,var(--bio-primary) 45%,#fff); outline-offset:2px; }
+.commercial-order-action:disabled { filter:saturate(.25); opacity:.58; box-shadow:none!important; }
+@media(max-width:620px){.commercial-order-actions{width:100%;gap:8px}.commercial-order-action{min-height:38px}.currency-total-list{gap:4px 7px}}
+
+/*
+ * Contrato visual de diálogos.
+ *
+ * La aplicación tiene diálogos de formularios, confirmación, expedientes y
+ * vistas previas creados en momentos distintos. Estas reglas son la fuente
+ * compartida para los elementos que todos tienen en común: cabecera, cuerpo,
+ * acciones, foco y contención del desplazamiento. Las variaciones conservan
+ * únicamente su contenido y tamaño funcional.
+ */
+:root {
+  --app-dialog-inset: 20px;
+  --app-dialog-radius: 18px;
+  --app-dialog-header-text: #fff;
+  --app-dialog-header-secondary: rgba(255, 255, 255, .86);
+  --app-dialog-header-meta: rgba(255, 255, 255, .72);
+  --app-dialog-focus: color-mix(in srgb, var(--bio-primary) 70%, #fff);
+  --app-dialog-scroll-thumb: color-mix(in srgb, var(--bio-primary) 50%, var(--bio-border));
+}
+
+/* Native dialogs are one scroll container: the body scrolls, never the shell. */
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog)[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - var(--app-dialog-inset));
+  margin: auto;
+  overflow: hidden;
+  isolation: isolate;
+}
+:is(#movementDialog, #newProductDialog, .system-dialog, .order-dialog) > form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title,
+.order-dialog-head,
+.document-preview-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 96px;
+  padding: 20px 25px;
+  gap: 16px;
+  border: 0 !important;
+  background: linear-gradient(112deg, color-mix(in srgb, var(--bio-primary) 42%, var(--bio-sidebar)), var(--bio-sidebar) 76%) !important;
+  color: var(--app-dialog-header-text) !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-heading,
+.order-dialog-head > div,
+.document-preview-head > div {
+  min-width: 0;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title .eyebrow,
+.order-dialog-head .eyebrow,
+.document-preview-head small {
+  margin: 0 0 4px;
+  color: #eff8ff !important;
+  font-size: 10px !important;
+  font-weight: 700;
+  letter-spacing: .1em;
+  opacity: 1 !important;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title h2,
+.order-dialog-head h2,
+.document-preview-head strong {
+  margin: 0;
+  color: var(--app-dialog-header-text) !important;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .15);
+}
+/* The folio is metadata, but it must remain readable over every active theme. */
+.document-preview-head > div > #documentPreviewFolio {
+  display: block;
+  margin-top: 3px;
+  color: #dceeff !important;
+  font-size: 10px !important;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 1 !important;
+}
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .close,
+.order-dialog-close,
+.document-preview-close {
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .36) !important;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .10) !important;
+  color: #fff !important;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .close:hover,
+.order-dialog-close:hover,
+.document-preview-close:hover {
+  border-color: rgba(255, 255, 255, .7) !important;
+  background: rgba(255, 255, 255, .20) !important;
+  transform: translateY(-1px);
+}
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) :is(.modal-body, .confirm-content),
+.order-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--app-dialog-scroll-thumb) transparent;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) :is(.modal-body, .confirm-content)::-webkit-scrollbar,
+.order-dialog-body::-webkit-scrollbar,
+.document-preview-pages::-webkit-scrollbar { width: 10px; height: 10px; }
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) :is(.modal-body, .confirm-content)::-webkit-scrollbar-thumb,
+.order-dialog-body::-webkit-scrollbar-thumb,
+.document-preview-pages::-webkit-scrollbar-thumb { background: var(--app-dialog-scroll-thumb); border: 3px solid transparent; border-radius: 999px; background-clip: padding-box; }
+
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-actions,
+.order-dialog-actions,
+.document-preview-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 15px 25px;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog, .document-preview-dialog) :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--app-dialog-focus) !important;
+  outline-offset: 2px;
+}
+:is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog, .document-preview-dialog) button:disabled {
+  cursor: not-allowed;
+  opacity: .56;
+  filter: saturate(.72);
+}
+
+/* The document preview owns its fixed canvas; its page stack is the only scrollable region. */
+.document-preview-dialog {
+  max-height: calc(100dvh - var(--app-dialog-inset)) !important;
+  isolation: isolate;
+}
+.document-preview-canvas { min-height: 0; overflow: hidden; }
+.document-preview-pages { overscroll-behavior: contain; scrollbar-color: var(--app-dialog-scroll-thumb) transparent; }
+
+/* Confirmaciones: el resumen ya no depende de los verdes heredados del prototipo. */
+#actionConfirmDialog .confirm-content { background: var(--bio-surface-raised) !important; }
+#actionConfirmDialog .confirm-content > p,
+#actionConfirmDialog .confirmation-summary li { color: var(--bio-text-muted) !important; }
+#actionConfirmDialog .confirmation-summary {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-surface) !important;
+  box-shadow: none !important;
+}
+#actionConfirmDialog .confirmation-summary > span {
+  border-color: var(--bio-border) !important;
+  background: var(--bio-primary-soft) !important;
+  color: var(--bio-primary-readable) !important;
+}
+#actionConfirmDialog .confirmation-summary li {
+  min-height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  border-color: var(--bio-border) !important;
+  font: 500 10px/1.45 Manrope, sans-serif;
+}
+#actionConfirmDialog .confirmation-summary li strong { color: var(--bio-text) !important; font: 700 11px Manrope, sans-serif; }
+#actionConfirmDialog .confirmation-summary li b { font: 600 10px 'DM Mono', monospace; white-space: nowrap; }
+#actionConfirmDialog .confirmation-summary li b.positive { color: var(--bio-success-deep) !important; }
+#actionConfirmDialog .confirmation-summary li b.negative { color: var(--bio-danger-deep) !important; }
+:is(#actionConfirmDialog, .system-dialog, .order-dialog) .confirm-note {
+  border-color: color-mix(in srgb, var(--bio-primary) 28%, var(--bio-border)) !important;
+  background: var(--bio-primary-soft) !important;
+  color: var(--bio-text-muted) !important;
+}
+:is(#actionConfirmDialog, .system-dialog, .order-dialog) .confirm-note :is(svg, i) { color: var(--bio-primary-readable) !important; }
+
+@media (max-width: 650px) {
+  :root { --app-dialog-inset: 12px; }
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog)[open] {
+    width: min(100% - 12px, 100%) !important;
+    border-radius: 16px !important;
+  }
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title,
+  .order-dialog-head,
+  .document-preview-head { min-height: 84px; padding: 16px; gap: 12px; }
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-actions,
+  .order-dialog-actions,
+  .document-preview-actions { padding: 13px 16px; }
+  :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog, .order-dialog, .document-preview-dialog) :is(.modal-actions, .order-dialog-actions, .document-preview-actions) > button { flex: 1 1 auto; }
+  .document-preview-dialog { width: min(100% - 12px, 100%) !important; height: calc(100dvh - 12px) !important; border-radius: 16px !important; }
 }
