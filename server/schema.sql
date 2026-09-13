@@ -28,6 +28,14 @@ CREATE TABLE IF NOT EXISTS user_credentials (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS user_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
+
 CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY, sku TEXT, product_number TEXT, name TEXT NOT NULL, supplier_id TEXT, unit TEXT, currency TEXT,
   price NUMERIC(18,6) NOT NULL DEFAULT 0, warehouse_1 NUMERIC(18,6) NOT NULL DEFAULT 0, warehouse_2 NUMERIC(18,6) NOT NULL DEFAULT 0,

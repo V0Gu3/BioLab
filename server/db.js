@@ -35,7 +35,13 @@ function documentCurrency(item) {
 async function openDatabase(options = {}) {
   const connectionString = options.connectionString || process.env.DATABASE_URL || process.env.BIO_DATABASE_URL;
   if (!options.pool && !connectionString) throw new Error('Falta DATABASE_URL. Configura la conexión PostgreSQL antes de iniciar PROBIOLAB.');
-  const pool = options.pool || new Pool({ connectionString, max: Number(process.env.BIO_DB_POOL_SIZE || 10), ssl: process.env.PGSSL === 'require' ? { rejectUnauthorized: false } : undefined });
+  // Supabase exige TLS para sus conexiones remotas. La detección conserva la
+  // experiencia local sin TLS y evita depender de una variable adicional en Vercel.
+  const supabaseConnection = /(?:^|\.)supabase\.co(?::|\/|$)/i.test(connectionString);
+  const ssl = process.env.PGSSL === 'require' || supabaseConnection
+    ? { rejectUnauthorized: false }
+    : undefined;
+  const pool = options.pool || new Pool({ connectionString, max: Number(process.env.BIO_DB_POOL_SIZE || 10), ssl });
   await pool.query(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
   return pool;
 }

@@ -18,6 +18,17 @@ No abras `index.html` directamente para trabajo operativo: ese modo conserva com
 
 PROBIOLAB utiliza PostgreSQL. Copia `.env.example` como `.env` y configura `DATABASE_URL` con el usuario, contraseña, servidor y base de datos de PROBIOLAB.
 
+### Supabase
+
+1. Crea un proyecto PostgreSQL en Supabase y espera a que termine de aprovisionarse.
+2. En **Connect**, copia la URI de conexión del pooler para aplicaciones serverless.
+3. Pégala en `DATABASE_URL` dentro de tu archivo `.env`. Ese archivo no se sube a Git.
+4. Inicia `npm start`; PROBIOLAB crea sus tablas automáticamente en la primera conexión.
+
+Para comprobar la estructura, relaciones esenciales e índices sin modificar datos operativos, ejecuta `npm run db:check`.
+
+En Vercel se usa la misma URI como variable de entorno `DATABASE_URL` para Production, Preview y Development. No se deben usar las claves públicas, la `service_role` ni las claves de API de Supabase en este proyecto.
+
 Si Docker está disponible, `docker-compose.postgres.yml` contiene una instancia preparada para desarrollo. También puedes utilizar PostgreSQL instalado o un servicio administrado.
 
 La base SQLite anterior se conserva únicamente como origen de migración. Con PostgreSQL disponible ejecuta `npm run migrate:sqlite` una sola vez y valida el resumen antes de retirar el respaldo.

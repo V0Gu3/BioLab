@@ -2,7 +2,6 @@
 const crypto = require('node:crypto');
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const sessions = new Map();
 const normalizeEmail = value => String(value || '').trim().toLowerCase();
 const hashPassword = password => {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -16,17 +15,18 @@ const verifyPassword = (password, stored) => {
 };
 const cookieValue = request => Object.fromEntries(String(request.headers.cookie || '').split(';').map(part => part.trim().split('=').map(decodeURIComponent)).filter(([key, value]) => key && value));
 const validPassword = password => typeof password === 'string' && password.length >= 12 && password.length <= 256;
+const tokenHash = token => crypto.createHash('sha256').update(String(token || '')).digest('hex');
 
 function sessionCookie(token) {
   return `bio_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_MS / 1000}${process.env.BIO_COOKIE_SECURE === 'true' ? '; Secure' : ''}`;
 }
 
 async function currentUser(db, request) {
-  const token = cookieValue(request).bio_session, session = token && sessions.get(token);
-  if (!session || session.expiresAt <= Date.now()) { if (token) sessions.delete(token); return null; }
-  const { rows } = await db.query('SELECT id,name,email,role,status,payload_json FROM users WHERE id=$1', [session.userId]);
+  const token = cookieValue(request).bio_session;
+  if (!token) return null;
+  const { rows } = await db.query('SELECT u.id,u.name,u.email,u.role,u.status,u.payload_json FROM user_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>$2', [tokenHash(token), new Date().toISOString()]);
   const user = rows[0];
-  if (!user || user.status !== 'active') { sessions.delete(token); return null; }
+  if (!user || user.status !== 'active') return null;
   return user;
 }
 
@@ -36,7 +36,8 @@ async function login(db, email, password) {
   const user = rows[0];
   if (!user || user.status !== 'active' || !verifyPassword(password, user.password_hash)) return null;
   const token = crypto.randomBytes(32).toString('base64url');
-  sessions.set(token, { userId: user.id, expiresAt: Date.now() + SESSION_TTL_MS });
+  await db.query('DELETE FROM user_sessions WHERE expires_at<=$1 OR user_id=$2', [new Date().toISOString(), user.id]);
+  await db.query('INSERT INTO user_sessions(token_hash,user_id,expires_at) VALUES($1,$2,$3)', [tokenHash(token), user.id, new Date(Date.now() + SESSION_TTL_MS).toISOString()]);
   return { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
 }
 
@@ -63,5 +64,5 @@ async function setPassword(db, userId, password) {
   await db.query('INSERT INTO user_credentials(user_id,password_hash,updated_at) VALUES($1,$2,CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET password_hash=EXCLUDED.password_hash,updated_at=EXCLUDED.updated_at', [userId, hashPassword(password)]);
 }
 
-function clearSession(request) { const token = cookieValue(request).bio_session; if (token) sessions.delete(token); }
+async function clearSession(db, request) { const token = cookieValue(request).bio_session; if (token) await db.query('DELETE FROM user_sessions WHERE token_hash=$1', [tokenHash(token)]); }
 module.exports = { currentUser, login, setupReady, setupAdministrator, setPassword, sessionCookie, clearSession, validPassword };

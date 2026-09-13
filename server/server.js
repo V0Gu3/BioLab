@@ -106,7 +106,7 @@ async function createApp(options = {}) {
         response.setHeader('Set-Cookie', sessionCookie(result.token)); return sendJson(response, 201, { ok: true, user: result.user });
       }
       if (request.method === 'POST' && pathname === '/api/auth/logout') {
-        clearSession(request); response.setHeader('Set-Cookie', 'bio_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'); return sendJson(response, 200, { ok: true });
+        await clearSession(db, request); response.setHeader('Set-Cookie', 'bio_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'); return sendJson(response, 200, { ok: true });
       }
       const authenticated = await currentUser(db, request), rawState = authenticated ? null : await readState(db), initialBootstrap = !authenticated && Object.keys(rawState).length === 0;
       if (!authenticated && !initialBootstrap && pathname.startsWith('/api/')) return sendJson(response, 401, { ok: false, error: 'Inicia sesión para usar la API.' });
