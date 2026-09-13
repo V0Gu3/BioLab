@@ -10,7 +10,8 @@
     "dev": "node --env-file-if-exists=.env --watch server/server.js",
     "test": "node --test tests/*.test.js",
     "migrate:sqlite": "node scripts/migrate-sqlite-to-postgres.js",
-    "db:check": "node --env-file-if-exists=.env scripts/check-postgres-schema.js"
+    "db:check": "node --env-file-if-exists=.env scripts/check-postgres-schema.js",
+    "db:bootstrap-admin": "node --env-file-if-exists=.env scripts/bootstrap-admin.js"
   },
   "engines": {
     "node": ">=22.5.0"

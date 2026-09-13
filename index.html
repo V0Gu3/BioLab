@@ -124,6 +124,13 @@
     <link rel="stylesheet" href="money-help.css?v=20260830-3" />
     <link rel="stylesheet" href="theme.css?v=20260912-1" />
     <link rel="stylesheet" href="login.css?v=20260913-1" />
+    <style>
+      /* Bloquea cualquier contenido operativo hasta que auth.js valide la sesión. */
+      #bioAuthGate { position:fixed; inset:0; z-index:2147483646; display:grid; place-items:center; background:#06101d; color:#dce9e6; font:500 11px 'DM Mono',monospace; letter-spacing:.14em; text-transform:uppercase; }
+      #bioAuthGate::before { content:''; width:24px; height:24px; border:2px solid rgba(0,215,185,.22); border-top-color:#00d7b9; border-radius:50%; animation:bio-auth-spin .75s linear infinite; }
+      #bioAuthGate span { position:absolute; margin-top:58px; opacity:.72; }
+      @keyframes bio-auth-spin { to { transform:rotate(360deg); } }
+    </style>
     <style id="client-action-colors">
       /* Acciones de Clientes: colores semánticos independientes del acento personal. */
       #clientList .quotation-download[data-add-advance] { background:linear-gradient(135deg,#d9f3e5,#eefaf3)!important; border-color:#74c89d!important; color:#08734b!important; }
@@ -140,6 +147,7 @@
     <script src="theme.js?v=20260903-14"></script>
   </head>
   <body>
+    <div id="bioAuthGate" role="status" aria-live="polite"><span>Validando acceso seguro</span></div>
     <div class="shell">
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="PROBIOLAB · Inicio"><span class="brand-logo-frame"><img src="assets/probiolab-logo-transparent.png" alt="Logotipo PROBIOLAB" /></span><span>PROBIOLAB</span></a>

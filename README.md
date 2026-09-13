@@ -27,6 +27,8 @@ PROBIOLAB utiliza PostgreSQL. Copia `.env.example` como `.env` y configura `DATA
 
 Para comprobar la estructura, relaciones esenciales e índices sin modificar datos operativos, ejecuta `npm run db:check`.
 
+En una base nueva, crea el primer administrador agregando temporalmente `BIO_INITIAL_ADMIN_EMAIL` y `BIO_INITIAL_ADMIN_PASSWORD` a `.env` y ejecutando `npm run db:bootstrap-admin`. Elimina de inmediato la línea de contraseña; la cuenta ya quedará creada en Supabase para iniciar sesión desde Vercel.
+
 En Vercel se usa la misma URI como variable de entorno `DATABASE_URL` para Production, Preview y Development. No se deben usar las claves públicas, la `service_role` ni las claves de API de Supabase en este proyecto.
 
 Si Docker está disponible, `docker-compose.postgres.yml` contiene una instancia preparada para desarrollo. También puedes utilizar PostgreSQL instalado o un servicio administrado.
