@@ -31,6 +31,28 @@
   --line: var(--bio-border);
 }
 
+/* Estado legible para las validaciones previas de conversión. */
+.confirmation-summary li.confirmation-blocking{background:rgba(214,74,88,.055)}
+.confirmation-summary li.confirmation-warning{background:rgba(222,157,65,.07)}
+.confirmation-summary li.confirmation-correct{background:rgba(36,143,103,.06)}
+.confirmation-summary li b.blocking{color:#b33b4e}.confirmation-summary li b.warning{color:#a56612}.confirmation-summary li b.correct{color:#16815f}
+.confirmation-fix{align-self:center;border:1px solid var(--bio-primary,#2a80b9);border-radius:7px;background:var(--bio-primary-soft,#e8f4fb);color:var(--bio-primary,#176a9f);font:800 9px Manrope,sans-serif;padding:6px 8px;cursor:pointer}
+.confirmation-fix:hover{filter:brightness(.96)}#confirmAction:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+
+/* Contraste no negociable en cabeceras oscuras: prevalece sobre textos tenues globales. */
+#documentPreviewDialog .document-preview-head small,
+#documentPreviewDialog .document-preview-head #documentPreviewFolio,
+#movementDialog .modal-title .eyebrow,
+#newProductDialog .modal-title .eyebrow,
+#actionConfirmDialog .modal-title .eyebrow,
+.system-dialog .modal-title .eyebrow,
+.order-dialog .order-dialog-head .eyebrow {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .42) !important;
+}
+
 /* La escala personal se aplica únicamente al texto dentro del panel principal.
    Menú, tarjetas, controles y documentos conservan sus dimensiones. */
 
@@ -183,6 +205,7 @@ table, thead, tbody, tr, td, th { border-color: var(--bio-border) !important; }
 .warehouse-card button.warehouse-row{width:100%;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}.warehouse-card button.warehouse-row:hover{background:var(--bio-surface-soft,#f7f9f6)}
 
 /* Ajustes operativos: resumen por periodo, valorización y controles integrados. */
+.fx-daily-task{display:flex;gap:12px;align-items:flex-start;margin:0 0 18px;padding:14px 16px;border:1px solid #e4a833;border-radius:12px;background:#fff6df;color:#734b00}.fx-daily-task svg{width:20px;flex:0 0 auto}.fx-daily-task strong,.fx-daily-task small{display:block}.fx-daily-task small{margin-top:4px;color:inherit}.fx-daily-task button{height:34px;flex:none;margin-left:auto;border:1px solid #c98711;border-radius:8px;padding:0 11px;background:#fff;color:#754b00;font:800 10px Manrope,sans-serif;cursor:pointer}.fx-daily-task button:hover{background:#754b00;color:#fff}.fx-pending-warning{color:#9b5f00!important;font-weight:700}.fx-daily-history{margin-top:18px;padding-top:16px;border-top:1px solid var(--bio-border,#dce3dc)}.fx-daily-history h3{margin:0 0 10px;font-size:13px}.fx-daily-history>div{display:grid;gap:7px}.fx-daily-history article{display:grid;grid-template-columns:100px 1fr auto;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;background:var(--bio-surface-soft,#f7f9f6);font-size:11px}.fx-daily-history small{color:var(--bio-text-muted,#68756b)}
 .date-control select{border:0;background:transparent;color:inherit;font:700 10px Manrope,sans-serif;outline:0;cursor:pointer}.date-control #dashboardPeriodLabel{padding-left:8px;border-left:1px solid var(--bio-border,#dce3dc);font:600 9px 'DM Mono',monospace;text-transform:capitalize}.metric-card.interactive-summary,#dashboardInventoryValueCard,#dashboardUnitsCard{cursor:pointer}.dashboard-period-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 22px}.dashboard-period-summary>div:not(.dashboard-daily-breakdown){padding:14px 16px;border:1px solid var(--bio-border,#e1e7e0);border-radius:12px;background:var(--bio-surface-raised,#fff)}.dashboard-period-summary span{display:block;color:var(--bio-text-muted,#879189);font:700 8px 'DM Mono',monospace}.dashboard-period-summary strong{display:block;margin-top:7px;color:var(--bio-text,#26342b);font-size:14px}.dashboard-daily-breakdown{grid-column:1/-1;padding:14px 16px;border:1px solid var(--bio-border,#e1e7e0);border-radius:12px;background:var(--bio-surface-raised,#fff)}#dashboardDailyRows{display:grid;gap:5px;margin-top:10px;max-height:145px;overflow:auto}#dashboardDailyRows>div{display:grid;grid-template-columns:90px 1fr 75px 75px 85px;gap:10px;align-items:center;padding:7px 9px;border-radius:7px;background:var(--bio-surface-soft,#f7f9f6);font-size:9px}#dashboardDailyRows time{font:700 8px 'DM Mono',monospace}.warehouse-quick-access{margin:18px 0}.inventory-currency-summary{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px}.inventory-currency-summary span{display:inline-flex;gap:8px;padding:7px 10px;border-radius:8px;background:var(--bio-primary-soft,#eef3ff);color:var(--bio-text,#334239);font-size:9px}.inventory-currency-summary b{color:var(--bio-primary,#3157a4)}.integrated-movement-badge{display:inline-flex;padding:5px 7px;border-radius:7px;background:#e8f7ef;color:#168767;font:700 7px 'DM Mono',monospace}.supplier-card-actions{display:flex;gap:5px;margin-left:auto}.supplier-card-actions button{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--bio-border,#dce3dc);border-radius:8px;background:var(--bio-surface-raised,#fff);color:var(--bio-primary,#3157a4);cursor:pointer}.supplier-card-actions button:last-child{color:#bd5c55}.supplier-card-actions svg{width:13px}.notification-process-list{display:grid;gap:8px;margin-top:14px}.notification-process-list article{display:grid;grid-template-columns:38px 1fr auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--bio-border,#dfe5de);border-radius:10px;background:var(--bio-surface-raised,#fff)}.notification-process-list article>span{width:36px;height:36px;display:grid;place-items:center;border-radius:9px;background:var(--bio-primary-soft,#eef3ff);color:var(--bio-primary,#3157a4)}.notification-process-list strong,.notification-process-list small{display:block}.notification-process-list small{margin-top:3px;color:var(--bio-text-muted,#879189);font-size:8px}.notification-process-list button{display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:0;border-radius:8px;background:var(--bio-primary,#3157a4);color:#fff;font-size:8px;font-weight:700;cursor:pointer}.notification-process-list button:disabled{background:#dfe4df;color:#8b948d;cursor:not-allowed}.notification-process-list svg{width:14px}.quotation-excel{color:#168767!important}.client-list-actions,#clientList .quotation-history-row>div:last-child{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}#clientList .quotation-history-row>div:last-child button{border-color:var(--bio-border,#dce3dc);background:var(--bio-surface-raised,#fff);color:var(--bio-primary,#3157a4)}#clientList .quotation-history-row>div:last-child button[data-retire-client]{color:#bd5c55;background:#fff6f5}#clientList .quotation-history-row>div:last-child button[data-toggle-client-block]{color:#a76622;background:#fff8ed}
 @media(max-width:800px){.dashboard-period-summary{grid-template-columns:1fr 1fr}#dashboardDailyRows>div{grid-template-columns:70px 1fr 60px 60px}#dashboardDailyRows>div strong{display:none}}
 body .sidebar :is(.workspace, .profile) small {
@@ -581,6 +604,9 @@ dialog::backdrop { background: rgba(4, 6, 10, .78) !important; }
   background: var(--bio-primary-soft) !important;
   color: var(--bio-primary-readable) !important;
 }
+#settingsView [data-settings-panel="currency"] .fx-rate-confirmed b { color: #2878b8 !important; }
+#settingsView [data-settings-panel="currency"] .fx-rate-protected strong { color: #2f8754 !important; }
+#settingsView [data-settings-panel="currency"] .fx-rate-protected span { color: #4e865e !important; }
 #settingsView [data-settings-panel="currency"] .fx-status-strip button {
   background: var(--bio-primary-strong) !important;
   color: var(--bio-on-primary) !important;
@@ -606,6 +632,10 @@ dialog::backdrop { background: rgba(4, 6, 10, .78) !important; }
   .fx-status-strip, .fx-rate-card, .fx-source-grid article
 ) {
   background: var(--bio-surface-raised) !important;
+}
+:root[data-theme="dark"] #settingsView [data-settings-panel="currency"] .fx-audit-list article {
+  background: var(--bio-surface-raised) !important;
+  border-color: var(--bio-border) !important;
 }
 
 /* Cotizaciones: resumen ejecutivo separado del panel operativo. */
@@ -968,6 +998,11 @@ tbody tr:hover, .history-item:hover, .quotation-history-row:hover, .commercial-o
   background: linear-gradient(90deg, var(--bio-primary-soft), transparent 62%) !important;
   box-shadow: inset 3px 0 0 var(--bio-primary);
 }
+.client-dossier-row { cursor: pointer; }
+.client-dossier-row:focus-visible { outline: 2px solid var(--bio-primary); outline-offset: -3px; }
+
+/* Validación compartida para formularios y modales. */
+.field-required::after{content:' *';color:#d64a58;font-weight:800}.form-required-legend{display:block;margin:0 0 12px;color:var(--bio-text-muted,#718076);font-size:8px}.form-required-legend::first-letter{color:#d64a58;font-weight:800}.field-has-error>span,.field-has-error>.field-label{color:#c63f50!important}.field-invalid{border-color:#d64a58!important;box-shadow:0 0 0 3px rgba(214,74,88,.15)!important}.field-error-message{display:flex!important;align-items:center;gap:5px;margin-top:5px;color:#c63f50!important;font-size:8px!important;line-height:1.35}.field-error-message svg{width:12px;height:12px;flex:none}.form-validation-notice{display:flex;align-items:center;gap:7px;margin:0 0 13px;padding:9px 10px;border:1px solid rgba(214,74,88,.38);border-radius:8px;background:rgba(214,74,88,.09);color:#ae3344;font-size:9px}.form-validation-notice svg{width:14px;flex:none}
 
 :is(input, select, textarea) { transition: border-color .17s ease, box-shadow .17s ease, background .17s ease; }
 :is(input, select, textarea):hover { border-color: color-mix(in srgb, var(--bio-primary) 45%, var(--bio-border)) !important; }
@@ -1997,11 +2032,12 @@ html[data-workspace="training"] [data-view="auditView"], html[data-workspace="tr
 .order-dialog-head .eyebrow,
 .document-preview-head small {
   margin: 0 0 4px;
-  color: #eff8ff !important;
+  color: #ffffff !important;
   font-size: 10px !important;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: .1em;
   opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .32);
 }
 :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .modal-title h2,
 .order-dialog-head h2,
@@ -2017,11 +2053,12 @@ html[data-workspace="training"] [data-view="auditView"], html[data-workspace="tr
 .document-preview-head > div > #documentPreviewFolio {
   display: block;
   margin-top: 3px;
-  color: #dceeff !important;
+  color: #ffffff !important;
   font-size: 10px !important;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.35;
   opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .32);
 }
 
 :is(#movementDialog, #newProductDialog, #actionConfirmDialog, .system-dialog) .close,

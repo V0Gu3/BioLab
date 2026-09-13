@@ -94,6 +94,7 @@
     return { ok: true, enabled: state.workspace.sandboxEnabled };
   };
   const setCurrentUser = userId => {
+    if (root.BioAuth?.user?.()?.id && root.BioAuth.user().id !== userId) return false;
     const target = state.users.find(user => user.id === userId && user.status === 'active');
     if (!target) return false;
     const before = state.currentUserId; state.currentUserId = target.id; persist({ type: 'session_user_changed', before, after: target.id }); return true;
@@ -102,6 +103,7 @@
     if (currentUser()?.role !== 'administrator' || !can('user_manage')) return { ok: false, message: 'Solo un administrador puede administrar usuarios y permisos.' };
     const email = String(input.email || '').trim().toLowerCase(), name = String(input.name || '').trim(), role = input.role;
     if (!name || !email || !ROLES[role]) return { ok: false, message: 'Completa nombre, correo y perfil.' };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) return { ok: false, message: 'Captura un correo de acceso válido.' };
     if (state.users.some(user => user.email.toLowerCase() === email && user.id !== input.id)) return { ok: false, message: 'El correo ya está asignado a otro usuario.' };
     const existing = state.users.find(user => user.id === input.id), before = existing ? { ...existing } : null;
     if (existing?.id === state.currentUserId && input.status === 'inactive') return { ok: false, message: 'No puedes desactivar el usuario con la sesión actual.' };

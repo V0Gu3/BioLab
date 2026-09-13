@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  const KEYS = ['nexo-access-v1', 'nexo-products', 'nexo-suppliers', 'nexo-movements', 'nexo-price-loads', 'nexo-purchase-orders', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-quotation-sequences', 'nexo-order-operations-v1', 'nexo-fx-v1'];
+  const KEYS = ['nexo-access-v1', 'nexo-products', 'nexo-suppliers', 'nexo-clients', 'nexo-movements', 'nexo-price-loads', 'nexo-price-catalog-entries', 'nexo-product-supplier-relations', 'nexo-purchase-orders', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-quotation-sequences', 'nexo-order-operations-v1', 'nexo-fx-v1'];
   const enabled = /^https?:$/.test(root.location.protocol) && !root.__BIO_TRAINING__, nativeSet = Storage.prototype.setItem, nativeRemove = Storage.prototype.removeItem;
   const status = { connected: false, hydrated: false, migrating: false, lastSync: null, error: null };
   const pending = new Map(); let timer = null;
@@ -63,6 +63,7 @@
   }
 
   bootstrap();
+  root.addEventListener?.('bio:auth-ready', bootstrap);
   if (enabled) {
     Storage.prototype.setItem = function (key, value) { nativeSet.call(this, key, value); if (this === root.localStorage) queue(String(key), String(value)); };
     Storage.prototype.removeItem = function (key) { nativeRemove.call(this, key); };

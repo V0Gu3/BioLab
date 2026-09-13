@@ -138,19 +138,28 @@
     return { status: ['over_received', 'amount_mismatch'].includes(quantityStatus) || invoiceStatus === 'amount_mismatch' ? 'review' : quantityStatus === 'matched' && invoiceStatus === 'matched' ? 'matched' : 'pending', quantityStatus, invoiceStatus, orderedQuantity, receivedQuantity, pendingQuantity: Math.max(0, orderedQuantity - receivedQuantity), orderedAmount, invoicedAmount, amountDifference: Math.round((invoicedAmount - orderedAmount) * 100) / 100, receiptIds: scopedReceipts.map(receipt => receipt.id), invoiceIds: scopedInvoices.map(invoice => invoice.id || invoice.folio) };
   };
 
-  const groupSupplierPurchaseLines = ({ lines = [], products = [], suppliers = [], existingLineIds = [] }) => {
+  const groupSupplierPurchaseLines = ({ lines = [], products = [], suppliers = [], relations = [], existingLineIds = [] }) => {
     const linked = new Set(existingLineIds.map(String)), grouped = new Map(), missing = [];
     lines.filter(line => !linked.has(String(line.id))).forEach(line => {
       const product = products.find(item => String(item.id) === String(line.productId)) || products.find(item => [item.number, item.sku].some(value => normalizeText(value) === normalizeText(line.catalog)));
-      const supplier = product && suppliers.find(item => String(item.id) === String(product.supplierId));
-      if (!product || !supplier) { missing.push({ line, product: product || null, supplier: supplier || null }); return; }
-      const currency = product.priceCurrency || 'MXN';
+      let relation = null;
+      if (product && relations.length) {
+        let candidates = relations.filter(item => String(item.productId) === String(product.id) && item.active !== false);
+        if (line.supplierRelationId) candidates = candidates.filter(item => String(item.id) === String(line.supplierRelationId));
+        if (line.supplierId) candidates = candidates.filter(item => String(item.supplierId) === String(line.supplierId));
+        if (!line.supplierRelationId && !line.supplierId && line.catalog) { const exact = candidates.filter(item => normalizeText(item.supplierSku) === normalizeText(line.catalog)); if (exact.length) candidates = exact; }
+        relation = candidates.find(item => item.preferred) || (candidates.length === 1 ? candidates[0] : null);
+      }
+      const supplierId = relation?.supplierId || (!relations.length ? product?.supplierId : null);
+      const supplier = supplierId && suppliers.find(item => String(item.id) === String(supplierId) && item.active !== false && String(item.status || '').toLowerCase() !== 'inactive');
+      if (!product || !supplier || (relations.length && !relation)) { missing.push({ line, product: product || null, supplier: supplier || null, relation, reason: !product ? 'PRODUCT_NOT_FOUND' : !relation ? 'RELATION_NOT_FOUND' : 'SUPPLIER_NOT_FOUND' }); return; }
+      const currency = relation?.currency || product.priceCurrency || 'MXN';
       const warehouse = cleanText(line.deliveryWarehouse || line.warehouseId || '1') || '1';
       const requiredDate = cleanText(line.requiredDate || line.committedDate || 'sin-fecha') || 'sin-fecha';
-      const paymentTerms = cleanText(line.purchasePaymentTerms || product.purchasePaymentTerms || 'estandar') || 'estandar';
+      const paymentTerms = cleanText(line.purchasePaymentTerms || relation?.purchasePaymentTerms || product.purchasePaymentTerms || 'estandar') || 'estandar';
       const key = `${supplier.id}|${currency}|${warehouse}|${requiredDate}|${normalizeText(paymentTerms)}`;
       if (!grouped.has(key)) grouped.set(key, { key, supplier, currency, warehouse, requiredDate, paymentTerms, rows: [] });
-      grouped.get(key).rows.push({ line, product });
+      grouped.get(key).rows.push({ line, product, relation });
     });
     return { groups: [...grouped.values()], missing };
   };

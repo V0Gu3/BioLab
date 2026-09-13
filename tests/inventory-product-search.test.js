@@ -38,11 +38,13 @@ test('nuevo producto requiere primero proveedor y conserva su nomenclatura secue
   assert.match(html, /catalogNumber" required readonly/);
 });
 
-test('aplicar una lista crea catálogo comercial y no productos de inventario', () => {
+test('aplicar una lista crea producto maestro sin existencias y relación persistente', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   assert.match(app, /removeLegacyPriceListInventoryProducts/);
-  assert.match(app, /priceCatalogEntries\.filter\(entry=>entry\.supplierId===supplierId&&entry\.isCurrent\)/);
-  assert.match(app, /sin altas de inventario/);
+  assert.match(app, /stagedEntries\.filter\(entry=>entry\.supplierId===supplierId&&entry\.isCurrent\)/);
+  assert.match(app, /source:'price_catalog_master'/);
+  assert.match(app, /BioSupplierRelations\.upsert\(stagedRelations/);
+  assert.match(app, /a1:0,a2:0/);
   assert.doesNotMatch(app, /activateStoredPriceCatalogEntries/);
 });
 
@@ -55,7 +57,7 @@ test('cotizaciones presenta el catálogo vigente de listas sin convertirlo en in
 
 test('cotizaciones conserva la moneda de cada artículo de lista sin ocultarlo por la moneda de referencia', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
-  assert.match(app, /currency:product\.priceCurrency\|\|'MXN'/);
+  assert.match(app, /currency=product\.salePriceCurrency\|\|relation\?\.currency\|\|product\.priceCurrency\|\|'MXN'/);
   assert.match(app, /documentCurrency=totals\.isMultiCurrency\?'MULTI'/);
   assert.match(app, /totalsByCurrency:totals\.byCurrency/);
   assert.match(app, /TOTALES POR MONEDA/);
@@ -65,10 +67,10 @@ test('el catálogo de listas aplicadas se consulta por proveedor y conserva su m
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   assert.match(html, /priceCatalogSupplierFilter/);
-  assert.match(html, /CATÁLOGO VIGENTE POR PROVEEDOR/);
+  assert.match(html, /VISOR DE LISTAS Y PRECIOS DE VENTA/);
   assert.match(app, /function renderProviderPriceCatalog/);
   assert.match(app, /entry\.supplierId===selected/);
-  assert.match(app, /money\(entry\.price,entry\.currency\)/);
+  assert.match(app, /money\(entry\.listPrice\?\?entry\.price,entry\.currency\)/);
 });
 
 test('la nueva cotización encuentra clientes frecuentes y completa sus datos editables', () => {

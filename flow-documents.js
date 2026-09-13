@@ -50,11 +50,42 @@
   }
   const filename = (kind, id) => `${kind.replaceAll('_', '-')}-${clean(id || 'sin-folio')}.pdf`;
   const DOCUMENT_STYLE = Object.freeze({ headerHeight: 34, margin: 16, headerBackground: [18, 25, 38], secondaryText: [177, 190, 214] });
+  // jsPDF acepta de forma más consistente una data URL que un elemento Image.
+  // La conversión evita que el PDF se emita antes de que el navegador termine
+  // de decodificar el PNG, que era la causa de que el logotipo se omitiera.
   let brandLogo;
   function loadBrandLogo() {
     if (brandLogo !== undefined) return Promise.resolve(brandLogo);
+    // El PNG transparente de alta resolución es ideal para la interfaz, pero
+    // algunos decodificadores de jsPDF rechazan su canal alfa. Para documentos
+    // se usa la variante de impresión, pequeña y compatible, sin alterar el
+    // logotipo mostrado en el menú.
+    const source = BRAND.logoPrint || BRAND.logo || 'assets/probiolab-logo.png';
+    if (root?.fetch && root?.FileReader) {
+      return root.fetch(source)
+        .then(response => {
+          if (!response.ok) throw new Error('No fue posible leer el logotipo institucional.');
+          return response.blob();
+        })
+        .then(blob => new Promise((resolve, reject) => {
+          const reader = new root.FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        }))
+        .then(dataUrl => (brandLogo = dataUrl))
+        .catch(() => loadBrandLogoFromImage(source));
+    }
+    return loadBrandLogoFromImage(source);
+  }
+  function loadBrandLogoFromImage(source) {
     if (!root?.Image) return Promise.resolve(brandLogo = null);
-    return new Promise(resolve => { const image = new root.Image(); image.onload = () => { brandLogo = image; resolve(image); }; image.onerror = () => { brandLogo = null; resolve(null); }; image.src = BRAND.logo || 'assets/probiolab-logo-transparent.png'; });
+    return new Promise(resolve => {
+      const image = new root.Image();
+      image.onload = () => { brandLogo = image; resolve(image); };
+      image.onerror = () => { brandLogo = null; resolve(null); };
+      image.src = source;
+    });
   }
   function drawHeader(doc, { title, folio, legalName, continuation = false, logo = brandLogo } = {}) {
     const { headerHeight, margin, headerBackground, secondaryText } = DOCUMENT_STYLE;
@@ -140,7 +171,8 @@
     return doc;
   }
 
-  function download(kind, payload, options = {}) {
+  async function download(kind, payload, options = {}) {
+    await loadBrandLogo();
     const PDFClass = options.PDFClass || (typeof window !== 'undefined' && window.jspdf?.jsPDF);
     const doc = create(kind, payload, PDFClass);
     doc.save(options.filename || filename(kind, payload.id));
@@ -168,7 +200,8 @@
     return doc;
   }
 
-  function preview(kind, payload, options = {}) {
+  async function preview(kind, payload, options = {}) {
+    await loadBrandLogo();
     const PDFClass = options.PDFClass || root?.jspdf?.jsPDF;
     const doc = create(kind, payload, PDFClass);
     return present(doc, { ...options, title: TYPES[kind][0], folio: payload.id, filename: options.filename || filename(kind, payload.id) });

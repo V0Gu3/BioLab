@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_normalized ON users(LOWER(email));
 
+CREATE TABLE IF NOT EXISTS user_credentials (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  password_hash TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY, sku TEXT, product_number TEXT, name TEXT NOT NULL, supplier_id TEXT, unit TEXT, currency TEXT,
   price NUMERIC(18,6) NOT NULL DEFAULT 0, warehouse_1 NUMERIC(18,6) NOT NULL DEFAULT 0, warehouse_2 NUMERIC(18,6) NOT NULL DEFAULT 0,
@@ -33,6 +39,49 @@ CREATE TABLE IF NOT EXISTS suppliers (
   id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, email TEXT, phone TEXT, payload_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(LOWER(name));
+
+CREATE TABLE IF NOT EXISTS product_supplier_relations (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL REFERENCES products(id),
+  supplier_id TEXT NOT NULL REFERENCES suppliers(id),
+  supplier_sku TEXT NOT NULL,
+  supplier_description TEXT,
+  purchase_unit TEXT,
+  purchase_price NUMERIC(18,6) NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'MXN',
+  lead_time_days NUMERIC(18,6) NOT NULL DEFAULT 0,
+  minimum_order_quantity NUMERIC(18,6) NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  is_preferred BOOLEAN NOT NULL DEFAULT FALSE,
+  valid_from TEXT,
+  valid_to TEXT,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_by TEXT,
+  payload_json JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  UNIQUE(product_id, supplier_id, supplier_sku)
+);
+CREATE INDEX IF NOT EXISTS idx_product_supplier_product ON product_supplier_relations(product_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_product_supplier_supplier ON product_supplier_relations(supplier_id, is_active);
+
+CREATE TABLE IF NOT EXISTS price_catalog_entries (
+  id TEXT PRIMARY KEY,
+  supplier_id TEXT NOT NULL,
+  product_id TEXT,
+  relation_id TEXT,
+  supplier_sku TEXT NOT NULL,
+  description TEXT,
+  purchase_unit TEXT,
+  purchase_price NUMERIC(18,6) NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'MXN',
+  batch_id TEXT,
+  is_current BOOLEAN NOT NULL DEFAULT TRUE,
+  payload_json JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_price_catalog_supplier ON price_catalog_entries(supplier_id, is_current);
+CREATE INDEX IF NOT EXISTS idx_price_catalog_relation ON price_catalog_entries(relation_id);
 
 CREATE TABLE IF NOT EXISTS movements (
   id TEXT PRIMARY KEY, movement_type TEXT NOT NULL, product_id TEXT, reference TEXT, quantity NUMERIC(18,6) NOT NULL DEFAULT 0,
@@ -123,3 +172,4 @@ CREATE INDEX IF NOT EXISTS idx_audit_occurred ON audit_events(occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_events(entity_type, entity_id);
 
 INSERT INTO schema_migrations(version) VALUES (1) ON CONFLICT (version) DO NOTHING;
+INSERT INTO schema_migrations(version) VALUES (2) ON CONFLICT (version) DO NOTHING;

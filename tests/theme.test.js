@@ -3,6 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('la interfaz conserva sus funciones si la biblioteca remota de iconos no carga', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  assert.match(app, /window\.lucide = window\.lucide \|\| \{ createIcons\(\) \{\} \};/);
+});
+
 test('persiste tema y paleta por usuario', () => {
   const values = new Map(), style = new Map(), rootElement = { dataset: {}, style: { setProperty: (key, value) => style.set(key, value) } };
   const document = { documentElement: rootElement, querySelector: () => null, querySelectorAll: () => [], addEventListener() {} };
@@ -84,6 +89,11 @@ test('integra todo el módulo de divisas con la paleta activa', () => {
   assert.match(css, /:root\[data-theme="dark"\] #settingsView \[data-settings-panel="currency"\]/);
 });
 
+test('la auditoría cambiaria no conserva filas blancas en modo oscuro', () => {
+  const css = fs.readFileSync(require.resolve('../theme.css'), 'utf8');
+  assert.match(css, /\[data-theme="dark"\][\s\S]*?\.fx-audit-list article[\s\S]*?background:\s*var\(--bio-surface-raised\)\s*!important/);
+});
+
 test('temas vive dentro de configuración y permanece disponible para todos', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   assert.match(html, /data-view="settingsView"/);
@@ -161,13 +171,13 @@ test('todos los modales y menús auxiliares usan la identidad de la paleta activ
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const css = fs.readFileSync(require.resolve('../theme.css'), 'utf8');
   const dialogs = [...html.matchAll(/<dialog\s+id="([^"]+)"/g)].map(match => match[1]);
-  assert.equal(dialogs.length, 17);
+  assert.equal(dialogs.length, 18);
   assert.match(css, /Capa unificada para ventanas y menús de apoyo/);
   assert.match(css, /#movementDialog, #newProductDialog, #actionConfirmDialog, \.system-dialog, \.order-dialog, \.document-preview-dialog/);
   assert.match(css, /Contrato visual de diálogos/);
   assert.match(css, /\.system-dialog, \.order-dialog\)\[open\][\s\S]*?max-height: calc\(100dvh - var\(--app-dialog-inset\)\)/);
-  assert.match(css, /\.document-preview-head > div > #documentPreviewFolio[\s\S]*?#dceeff/);
-  assert.match(css, /\.document-preview-head small[\s\S]*?#eff8ff/);
+  assert.match(css, /\.document-preview-head > div > #documentPreviewFolio[\s\S]*?#ffffff/);
+  assert.match(css, /\.document-preview-head small[\s\S]*?#ffffff/);
   assert.match(css, /:focus-visible[\s\S]*?outline: 3px solid var\(--app-dialog-focus\)/);
   assert.match(css, /\.order-dialog-body[\s\S]*?overscroll-behavior: contain/);
   assert.match(css, /var\(--bio-primary-glow\)/);

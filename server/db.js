@@ -4,7 +4,7 @@ const path = require('node:path');
 const { Pool } = require('pg');
 
 const STATE_KEYS = Object.freeze([
-  'nexo-access-v1', 'nexo-products', 'nexo-suppliers', 'nexo-movements', 'nexo-price-loads', 'nexo-purchase-orders',
+  'nexo-access-v1', 'nexo-products', 'nexo-suppliers', 'nexo-clients', 'nexo-movements', 'nexo-price-loads', 'nexo-price-catalog-entries', 'nexo-product-supplier-relations', 'nexo-purchase-orders',
   'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-quotation-sequences', 'nexo-order-operations-v1', 'nexo-fx-v1'
 ]);
 const ROOT = path.resolve(__dirname, '..');
@@ -12,6 +12,16 @@ const number = input => Number.isFinite(Number(input)) ? Number(input) : 0;
 const value = (item, ...keys) => keys.map(key => item?.[key]).find(candidate => candidate !== undefined && candidate !== null && candidate !== '') ?? null;
 const timestamp = () => new Date().toISOString();
 const parseJson = input => typeof input === 'string' ? JSON.parse(input) : input;
+function validateFxState(payload) {
+  if (!payload || typeof payload !== 'object') throw Object.assign(new Error('El estado de divisas no es válido.'), { status: 400 });
+  const records = Array.isArray(payload.records) ? payload.records : [], dates = new Set();
+  for (const record of records) {
+    const date = String(record.operationalDate || record.consultedDate || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || dates.has(date)) throw Object.assign(new Error('Solo puede existir un registro de divisas por fecha operativa.'), { status: 400 });
+    dates.add(date);
+    if (record.validated !== false && !['USD', 'CAD', 'EUR'].every(code => Number.isFinite(Number(record.rates?.[code])) && Number(record.rates[code]) > 0)) throw Object.assign(new Error('Un registro validado requiere valores positivos para USD, CAD y EUR.'), { status: 400 });
+  }
+}
 // La columna materializada de moneda debe reflejar los importes estructurados,
 // no una etiqueta heredada que pudo quedar desactualizada en el documento.
 function documentCurrency(item) {
@@ -53,16 +63,18 @@ function auditRow(sourceKey, category, item, index = 0) {
 
 async function rebuildMaterialized(db) {
   const state = await readState(db), updated = timestamp();
-  const materializedTables = ['quotation_items', 'client_order_items', 'supplier_order_lines', 'documents', 'audit_events', 'movements', 'order_lines', 'supplier_invoices', 'receipts', 'customer_invoices', 'shipments', 'supplier_orders', 'requisitions', 'client_orders', 'quotations', 'price_loads', 'fx_records', 'products', 'suppliers', 'users'];
+  const materializedTables = ['quotation_items', 'client_order_items', 'supplier_order_lines', 'documents', 'audit_events', 'movements', 'order_lines', 'supplier_invoices', 'receipts', 'customer_invoices', 'shipments', 'supplier_orders', 'requisitions', 'client_orders', 'quotations', 'price_loads', 'price_catalog_entries', 'product_supplier_relations', 'fx_records', 'products', 'suppliers'];
   for (const table of materializedTables) await db.query(`DELETE FROM ${table}`);
   const put = (table, row) => insert(db, table, row);
 
   const access = state['nexo-access-v1'] || {};
-  for (const item of access.users || []) await put('users', { id: String(item.id), name: String(item.name || ''), email: String(item.email || ''), role: String(item.role || 'seller'), status: String(item.status || 'active'), payload_json: item, updated_at: item.updatedAt || item.createdAt || updated });
+  for (const item of access.users || []) await db.query('INSERT INTO users(id,name,email,role,status,payload_json,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,email=EXCLUDED.email,role=EXCLUDED.role,status=EXCLUDED.status,payload_json=EXCLUDED.payload_json,updated_at=EXCLUDED.updated_at', [String(item.id), String(item.name || ''), String(item.email || ''), String(item.role || 'seller'), String(item.status || 'active'), JSON.stringify(item), item.updatedAt || item.createdAt || updated]);
   for (const [index, item] of (access.audit || []).entries()) await put('audit_events', auditRow('nexo-access-v1', 'access', item, index));
 
   for (const item of state['nexo-products'] || []) await put('products', { id: String(value(item, 'id', 'sku', 'number')), sku: value(item, 'sku'), product_number: value(item, 'number', 'productNumber'), name: String(value(item, 'name', 'description') || 'Sin nombre'), supplier_id: value(item, 'supplierId'), unit: value(item, 'unit'), currency: String(value(item, 'currency', 'priceCurrency') || 'MXN'), price: number(item.price), warehouse_1: number(value(item, 'a1', 'warehouse1')), warehouse_2: number(value(item, 'a2', 'warehouse2')), payload_json: item, updated_at: updated });
   for (const item of state['nexo-suppliers'] || []) await put('suppliers', { id: String(value(item, 'id', 'code')), code: value(item, 'code'), name: String(value(item, 'name', 'businessName') || 'Sin nombre'), email: value(item, 'email'), phone: value(item, 'phone'), payload_json: item, updated_at: updated });
+  for (const item of state['nexo-product-supplier-relations'] || []) await put('product_supplier_relations', { id: String(item.id), product_id: String(item.productId), supplier_id: String(item.supplierId), supplier_sku: String(item.supplierSku), supplier_description: value(item, 'supplierDescription'), purchase_unit: value(item, 'purchaseUnit'), purchase_price: number(item.purchasePrice), currency: String(item.currency || 'MXN'), lead_time_days: number(item.leadTimeDays), minimum_order_quantity: number(item.minimumOrderQuantity), is_active: item.active !== false, is_preferred: Boolean(item.preferred), valid_from: value(item, 'validFrom'), valid_to: value(item, 'validTo'), created_by: value(item, 'createdBy'), created_at: value(item, 'createdAt') || updated, updated_by: value(item, 'updatedBy'), payload_json: item, updated_at: value(item, 'updatedAt') || updated });
+  for (const item of state['nexo-price-catalog-entries'] || []) await put('price_catalog_entries', { id: String(item.id), supplier_id: String(item.supplierId), product_id: value(item, 'linkedProductId'), relation_id: value(item, 'supplierRelationId'), supplier_sku: value(item, 'code'), description: value(item, 'description'), purchase_unit: value(item, 'unit'), purchase_price: number(item.price), currency: String(item.currency || 'MXN'), batch_id: value(item, 'batchId'), is_current: item.isCurrent !== false, payload_json: item, updated_at: updated });
   for (const [index, item] of (state['nexo-movements'] || []).entries()) await put('movements', { id: String(value(item, 'id') || `MOV-${index}`), movement_type: String(value(item, 'type') || 'movimiento'), product_id: value(item, 'productId'), reference: value(item, 'reference', 'detail'), quantity: number(value(item, 'quantity', 'qty')), warehouse_id: value(item, 'warehouseId', 'warehouse'), occurred_at: value(item, 'createdAt', 'at', 'time'), user_name: value(item, 'user', 'createdBy'), payload_json: item, updated_at: updated });
 
   for (const item of state['nexo-price-loads'] || []) { await put('price_loads', { id: String(item.id), supplier_id: value(item, 'supplierId'), supplier_name: value(item, 'supplierName'), file_name: value(item, 'fileName'), file_hash: value(item, 'fileHash'), currencies: item.currencies || [], applied_at: value(item, 'appliedAt'), payload_json: item, updated_at: updated }); await put('documents', documentRow('nexo-price-loads', 'price_list_load', item, 'price_load', item.supplierId)); }
@@ -105,6 +117,7 @@ async function transaction(db, task) {
 
 async function saveState(db, stateKey, payload, actor = 'Sistema') {
   if (!STATE_KEYS.includes(stateKey)) throw new Error(`Estado no permitido: ${stateKey}`);
+  if (stateKey === 'nexo-fx-v1') validateFxState(payload);
   return transaction(db, async client => {
     const updated = timestamp(), result = await client.query(`INSERT INTO app_state(state_key,payload_json,revision,updated_at,updated_by) VALUES($1,$2,1,$3,$4) ON CONFLICT(state_key) DO UPDATE SET payload_json=EXCLUDED.payload_json,revision=app_state.revision+1,updated_at=EXCLUDED.updated_at,updated_by=EXCLUDED.updated_by RETURNING state_key,revision,updated_at,updated_by`, [stateKey, JSON.stringify(payload), updated, actor]);
     await rebuildMaterialized(client); return result.rows[0];

@@ -34,6 +34,7 @@
     q('#trainingWorkspaceNotice').hidden = state.mode !== 'training';
     q('#workspaceSandboxEnabled').checked = state.sandboxEnabled;
     q('#workspaceAdminToggle').hidden = !isAdmin;
+    q('[data-workspace-guide]').hidden = !canTrain;
     document.querySelectorAll('[data-view="auditView"], [data-access="audit"]').forEach(link => { link.hidden = state.mode === 'training' || !access.can('audit', user); });
     menu.querySelectorAll('[data-workspace-mode]').forEach(button => {
       const training = button.dataset.workspaceMode === 'training', active = state.mode === button.dataset.workspaceMode;
@@ -67,7 +68,7 @@
   }
 
   toggle.addEventListener('click', () => { menu.hidden = !menu.hidden; toggle.setAttribute('aria-expanded', String(!menu.hidden)); if (!menu.hidden) renderWorkspace(); });
-  menu.addEventListener('click', event => { const option = event.target.closest('[data-workspace-mode]'); if (option) switchMode(option.dataset.workspaceMode); });
+  menu.addEventListener('click', event => { const option = event.target.closest('[data-workspace-mode]'); if (option) switchMode(option.dataset.workspaceMode); else if (event.target.closest('[data-workspace-guide]')) closeMenu(); });
   q('#leaveTrainingWorkspace').addEventListener('click', event => { event.preventDefault(); switchMode('operational'); });
   q('#workspaceSandboxEnabled').addEventListener('change', event => {
     const wasTraining = access.workspace().mode === 'training';

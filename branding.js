@@ -12,6 +12,6 @@
     legalName: 'Proveedor Biotecnológico para Laboratorios S. de R.L. de C.V.',
     filePrefix: 'probiolab',
     logo: 'assets/probiolab-logo-transparent.png',
-    logoPrint: 'assets/probiolab-logo.png'
+    logoPrint: 'assets/probiolab-logo-print-transparent.png'
   });
 });

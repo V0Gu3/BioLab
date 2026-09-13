@@ -1,6 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+
+test('el resumen de cotización no duplica el código USD junto al símbolo', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  assert.match(app, /function currencyAmountLabel\(value,currency='MXN'\).*return `\$\{symbol\}\$\{amount\}`/);
+  assert.doesNotMatch(app, /return `\$\{code\} \$\{symbol\}\$\{amount\}`/);
+});
 const vm = require('node:vm');
 
 function loadHelp() {
