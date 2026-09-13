@@ -46,7 +46,18 @@
   }
 
   function closeMenu() { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); }
-  function switchMode(mode) {
+  async function synchronizeAndReload() {
+    await window.BioPersistence?.flush?.();
+    const sync = window.BioPersistence?.status?.();
+    if (sync?.error || sync?.pending) {
+      toast('No fue posible confirmar el cambio de espacio con la base central. Inténtalo nuevamente.');
+      renderWorkspace();
+      return false;
+    }
+    window.location.reload();
+    return true;
+  }
+  async function switchMode(mode) {
     const current = access.workspace().mode;
     if (mode === current) return closeMenu();
     if (mode === 'training') {
@@ -54,7 +65,7 @@
       saveStored(OPERATIONAL_BACKUP_KEY, captureData());
       const savedTraining = stored(TRAINING_DATA_KEY);
       if (savedTraining) restoreData(savedTraining); else saveStored(TRAINING_DATA_KEY, captureData());
-      window.location.reload();
+      await synchronizeAndReload();
       return;
     }
     saveStored(TRAINING_DATA_KEY, captureData());
@@ -64,12 +75,12 @@
     const result = access.setWorkspaceMode('operational'); if (!result.ok) return toast(result.message);
     document.documentElement.dataset.workspace = 'operational';
     q('#trainingWorkspaceNotice').hidden = true;
-    window.location.reload();
+    await synchronizeAndReload();
   }
 
   toggle.addEventListener('click', () => { menu.hidden = !menu.hidden; toggle.setAttribute('aria-expanded', String(!menu.hidden)); if (!menu.hidden) renderWorkspace(); });
-  menu.addEventListener('click', event => { const option = event.target.closest('[data-workspace-mode]'); if (option) switchMode(option.dataset.workspaceMode); else if (event.target.closest('[data-workspace-guide]')) closeMenu(); });
-  q('#leaveTrainingWorkspace').addEventListener('click', event => { event.preventDefault(); switchMode('operational'); });
+  menu.addEventListener('click', event => { const option = event.target.closest('[data-workspace-mode]'); if (option) void switchMode(option.dataset.workspaceMode); else if (event.target.closest('[data-workspace-guide]')) closeMenu(); });
+  q('#leaveTrainingWorkspace').addEventListener('click', event => { event.preventDefault(); void switchMode('operational'); });
   q('#workspaceSandboxEnabled').addEventListener('change', event => {
     const wasTraining = access.workspace().mode === 'training';
     const result = access.setSandboxEnabled(event.target.checked);
@@ -77,7 +88,10 @@
     if (!result.enabled && wasTraining) {
       saveStored(TRAINING_DATA_KEY, captureData());
       const operational = stored(OPERATIONAL_BACKUP_KEY); if (operational) restoreData(operational);
-      localStorage.removeItem(OPERATIONAL_BACKUP_KEY); window.location.reload(); return;
+      localStorage.removeItem(OPERATIONAL_BACKUP_KEY);
+      access.setWorkspaceMode('operational');
+      void synchronizeAndReload();
+      return;
     }
     if (!result.enabled) closeMenu();
     toast(result.enabled ? 'Área de pruebas habilitada para los perfiles autorizados.' : 'Área de pruebas deshabilitada.');
