@@ -1125,6 +1125,11 @@ label > span::after { color: var(--bio-primary-readable); }
 .profile-menu button { width:100%; display:flex; align-items:center; gap:8px; padding:8px 9px; border:0; border-radius:6px; background:transparent; color:#f2f7f2; font:700 11px Manrope,Arial,sans-serif; text-align:left; cursor:pointer; }
 .profile-menu button:hover, .profile-menu button:focus-visible { background:color-mix(in srgb, #fff 12%, transparent); outline:0; }
 .profile-menu button:disabled { opacity:.55; cursor:wait; }
+.access-user-head, .access-user-row { grid-template-columns:1.5fr .7fr .55fr .8fr 68px; }
+.access-user-actions { display:flex; justify-content:flex-end; gap:5px; }
+.access-user-actions button { width:29px; height:29px; display:grid; place-items:center; border:1px solid var(--bio-border,#dfe4df); border-radius:7px; background:var(--bio-surface,#fff); color:var(--bio-text-muted,#607067); cursor:pointer; }
+.access-user-actions button:hover, .access-user-actions button:focus-visible { border-color:var(--bio-primary); color:var(--bio-primary-readable); outline:0; }
+.access-user-actions button svg { width:12px; margin:0; }
 
 /* Acciones inmersivas: volumen, luz y respuesta física guiados por la paleta activa. */
 :is(button, .primary-action, .submit, .quotation-emit-button, .confirm-submit,
