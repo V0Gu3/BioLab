@@ -103,6 +103,16 @@
   q('#accessPermissionMatrix').addEventListener('change', event => { const input = event.target.closest('[data-role-permission]'); if (!input) return; const role = input.dataset.rolePermission, selected = [...q('#accessPermissionMatrix').querySelectorAll(`[data-role-permission="${role}"]:checked`)].map(item => item.value), result = access.saveRolePermissions(role, selected); if (!result.ok) return toast(result.message); toast(`Plantilla de ${access.role(role).name} actualizada.`); });
   q('#accessCurrentUser').addEventListener('change', event => { if (access.setCurrentUser(event.target.value)) toast(`Sesión local cambiada a ${access.currentUser().name}.`); });
   q('#themeSessionUser').addEventListener('change', event => { if (access.setCurrentUser(event.target.value)) { setSettingsSection('themes'); toast(`Perfil de prueba cambiado a ${access.currentUser().name}.`); } });
+  const profileMenu = q('#sidebarProfileMenu'), profileMenuToggle = q('#sidebarProfileMenuToggle');
+  const closeProfileMenu = () => { profileMenu.hidden = true; profileMenuToggle.setAttribute('aria-expanded', 'false'); };
+  profileMenuToggle.addEventListener('click', event => { event.stopPropagation(); profileMenu.hidden = !profileMenu.hidden; profileMenuToggle.setAttribute('aria-expanded', String(!profileMenu.hidden)); });
+  q('#sidebarLogout').addEventListener('click', async () => {
+    const button = q('#sidebarLogout'); button.disabled = true;
+    try { await window.BioAuth?.logout?.(); }
+    catch (error) { button.disabled = false; toast(error.message || 'No fue posible cerrar la sesión.'); }
+  });
+  document.addEventListener('click', event => { if (!q('#sidebarProfile')?.contains(event.target)) closeProfileMenu(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeProfileMenu(); });
   q('#systemUserRole').addEventListener('change', () => renderUserPermissionEditor());
   q('#systemUserForm').addEventListener('submit', async event => { event.preventDefault(); const role = q('#systemUserRole').value, baseline = new Set(access.rolePermissions(role)), checked = new Set([...q('#systemUserPermissions').querySelectorAll('input:checked')].map(input => input.value)), permissionGrants = [...checked].filter(permission => !baseline.has(permission)), permissionDenials = [...baseline].filter(permission => !checked.has(permission)), email = q('#systemUserEmail').value.trim().toLowerCase(), password = q('#systemUserPassword').value; const result = access.saveUser({ id: q('#systemUserId').value || null, name: q('#systemUserName').value, email, role, status: q('#systemUserStatus').value, permissionGrants, permissionDenials }); if (!result.ok) return toast(result.message); const user = access.getState().users.find(item => item.email.toLowerCase() === email); try { if (password) { await window.BioPersistence?.flush(); await window.BioAuth?.setPassword(user?.id, password); } } catch (error) { return toast(error.message); } q('#systemUserDialog').close(); toast('Usuario, contraseña y permisos actualizados.'); });
   document.querySelectorAll('.access-dialog-close').forEach(button => button.addEventListener('click', () => q('#systemUserDialog').close()));

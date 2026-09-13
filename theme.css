@@ -1117,6 +1117,14 @@ label > span::after { color: var(--bio-primary-readable); }
   border-top-color: color-mix(in srgb, var(--bio-primary) 30%, var(--bio-sidebar-border)) !important;
 }
 .profile .avatar { box-shadow: 0 4px 12px color-mix(in srgb, var(--bio-primary) 25%, transparent); }
+.profile-actions { position:relative; margin-left:auto; }
+.profile-actions > button { width:28px; height:28px; display:grid; place-items:center; padding:0; border:0; border-radius:7px; background:transparent; color:inherit; cursor:pointer; }
+.profile-actions > button:hover, .profile-actions > button:focus-visible { background:color-mix(in srgb, #fff 12%, transparent); outline:0; }
+.profile-actions > button svg, .profile-menu svg { width:15px; margin:0; }
+.profile-menu { position:absolute; z-index:30; right:0; bottom:calc(100% + 8px); min-width:146px; padding:5px; border:1px solid color-mix(in srgb, var(--bio-primary) 38%, var(--bio-sidebar-border)); border-radius:9px; background:var(--bio-sidebar-elevated); box-shadow:0 14px 30px rgba(6,16,10,.4); }
+.profile-menu button { width:100%; display:flex; align-items:center; gap:8px; padding:8px 9px; border:0; border-radius:6px; background:transparent; color:#f2f7f2; font:700 11px Manrope,Arial,sans-serif; text-align:left; cursor:pointer; }
+.profile-menu button:hover, .profile-menu button:focus-visible { background:color-mix(in srgb, #fff 12%, transparent); outline:0; }
+.profile-menu button:disabled { opacity:.55; cursor:wait; }
 
 /* Acciones inmersivas: volumen, luz y respuesta física guiados por la paleta activa. */
 :is(button, .primary-action, .submit, .quotation-emit-button, .confirm-submit,
