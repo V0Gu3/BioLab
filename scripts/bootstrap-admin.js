@@ -14,16 +14,23 @@ async function main() {
   if (password.length < 12) throw new Error('Configura BIO_INITIAL_ADMIN_PASSWORD con al menos 12 caracteres en .env.');
   const db = await openDatabase();
   try {
-    const { rows } = await db.query('SELECT COUNT(*)::int AS count FROM users');
-    if (Number(rows[0].count) > 0) throw new Error('La base ya tiene usuarios. El arranque inicial solo se permite en una base nueva.');
-    const state = {
-      version: 3,
-      currentUserId: 'USR-001',
-      users: [{ id: 'USR-001', name, email, role: 'administrator', status: 'active', createdAt: new Date().toISOString() }],
-      roleOverrides: {}, workspace: { sandboxEnabled: true, modes: {} }, audit: []
-    };
-    await saveState(db, 'nexo-access-v1', state, 'Configuración inicial segura');
-    await setPassword(db, 'USR-001', password);
+    const { rows: credentialRows } = await db.query('SELECT COUNT(*)::int AS count FROM user_credentials');
+    if (Number(credentialRows[0].count) > 0) throw new Error('Ya existen contraseñas configuradas. Inicia sesión o restablece la contraseña desde un administrador activo.');
+    const { rows: users } = await db.query("SELECT id FROM users WHERE LOWER(email)=LOWER($1) AND role='administrator' AND status='active'", [email]);
+    let userId = users[0]?.id;
+    if (!userId) {
+      const { rows: countRows } = await db.query('SELECT COUNT(*)::int AS count FROM users');
+      if (Number(countRows[0].count) > 0) throw new Error('Ya existen usuarios, pero no un administrador activo con ese correo. Verifica BIO_INITIAL_ADMIN_EMAIL.');
+      const state = {
+        version: 3,
+        currentUserId: 'USR-001',
+        users: [{ id: 'USR-001', name, email, role: 'administrator', status: 'active', createdAt: new Date().toISOString() }],
+        roleOverrides: {}, workspace: { sandboxEnabled: true, modes: {} }, audit: []
+      };
+      await saveState(db, 'nexo-access-v1', state, 'Configuración inicial segura');
+      userId = 'USR-001';
+    }
+    await setPassword(db, userId, password);
     console.log(`Administrador inicial creado para ${email}. Elimina BIO_INITIAL_ADMIN_PASSWORD de .env ahora.`);
   } finally {
     await db.end();

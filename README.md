@@ -29,6 +29,8 @@ Para comprobar la estructura, relaciones esenciales e índices sin modificar dat
 
 En una base nueva, crea el primer administrador agregando temporalmente `BIO_INITIAL_ADMIN_EMAIL` y `BIO_INITIAL_ADMIN_PASSWORD` a `.env` y ejecutando `npm run db:bootstrap-admin`. Elimina de inmediato la línea de contraseña; la cuenta ya quedará creada en Supabase para iniciar sesión desde Vercel.
 
+Para recuperar la contraseña de un administrador existente desde la computadora propietaria, agrega temporalmente `BIO_ADMIN_RESET_EMAIL`, `BIO_ADMIN_RESET_PASSWORD` y `BIO_ADMIN_RESET_CONFIRM=YES` a `.env`, y ejecuta `npm run db:reset-admin-password`. Elimina las tres variables inmediatamente después.
+
 En Vercel se usa la misma URI como variable de entorno `DATABASE_URL` para Production, Preview y Development. No se deben usar las claves públicas, la `service_role` ni las claves de API de Supabase en este proyecto.
 
 Si Docker está disponible, `docker-compose.postgres.yml` contiene una instancia preparada para desarrollo. También puedes utilizar PostgreSQL instalado o un servicio administrado.
