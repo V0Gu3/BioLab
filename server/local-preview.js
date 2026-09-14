@@ -25,7 +25,7 @@ const SECURITY_HEADERS = Object.freeze({
 function isPublicFile(relative) {
   const parts = relative.split(/[\\/]+/);
   if (parts.some(part => part.startsWith('.'))) return false;
-  if (relative === 'index.html') return true;
+  if (relative === 'index.html' || relative === 'login.html') return true;
   const extension = path.extname(relative).toLowerCase();
   return parts.length === 1 ? PUBLIC_ROOT_EXTENSIONS.has(extension) : parts[0] === 'assets' && PUBLIC_ASSET_EXTENSIONS.has(extension);
 }

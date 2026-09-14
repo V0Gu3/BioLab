@@ -123,7 +123,6 @@
     <link rel="stylesheet" href="document-preview.css?v=20260830-1" />
     <link rel="stylesheet" href="money-help.css?v=20260830-3" />
     <link rel="stylesheet" href="theme.css?v=20260912-1" />
-    <link rel="stylesheet" href="login.css?v=20260913-1" />
     <style>
       /* Bloquea cualquier contenido operativo hasta que auth.js valide la sesión. */
       #bioAuthGate { position:fixed; inset:0; z-index:2147483646; display:grid; place-items:center; background:#06101d; color:#dce9e6; font:500 11px 'DM Mono',monospace; letter-spacing:.14em; text-transform:uppercase; }
@@ -208,7 +207,7 @@
         <div class="training-workspace-notice" id="trainingWorkspaceNotice" hidden><i data-lucide="flask-conical"></i><span><strong>Espacio de pruebas</strong> Estás usando el sistema con datos aislados. Nada se registra en la operación ni en auditoría.</span><button type="button" id="leaveTrainingWorkspace">Volver a operativo</button></div>
 
         <section class="page" id="panel">
-          <div class="hero"><div><p class="eyebrow">VISTA GENERAL</p><h1>Todo está bajo control.</h1><p class="subtitle" id="dashboardPeriodDescription">Resumen de la operación registrada al día de hoy.</p></div><label class="date-control" for="dashboardPeriod"><i data-lucide="calendar-days"></i><select id="dashboardPeriod" aria-label="Periodo del resumen"><option value="today">Al día de hoy</option><option value="closed-month">Último mes cerrado</option></select><span id="dashboardPeriodLabel"></span></label></div>
+          <div class="hero"><div><p class="eyebrow">VISTA GENERAL</p><h1>Todo está bajo control.</h1><p class="subtitle" id="dashboardPeriodDescription">Resumen de la operación registrada al día de hoy.</p></div><label class="date-control" for="dashboardPeriod"><i data-lucide="calendar-days"></i><select id="dashboardPeriod" aria-label="Periodo del resumen"><option value="today">Al día de hoy</option><option value="closed-month">Último mes</option></select><span id="dashboardPeriodLabel"></span></label></div>
           <section class="metrics">
             <article class="metric-card" id="dashboardInventoryValueCard"><div class="metric-icon violet"><i data-lucide="package-check"></i></div><div><p>VALOR EN INVENTARIO</p><h2 id="dashboardInventoryValue">$0.00 MXN</h2><small id="dashboardInventoryCurrencies">Valuación separada por divisa</small></div></article>
             <article class="metric-card" id="dashboardUnitsCard"><div class="metric-icon blue"><i data-lucide="boxes"></i></div><div><p>UNIDADES DISPONIBLES</p><h2 id="unitTotal">0</h2><small><b id="dashboardReferenceCount">0</b> referencias con existencia</small></div></article>

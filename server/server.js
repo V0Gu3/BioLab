@@ -30,7 +30,7 @@ function sendJson(response, status, payload) {
 function isPublicFile(relative) {
   const parts = relative.split(/[\\/]+/);
   if (parts.some(part => part.startsWith('.'))) return false;
-  if (relative === 'index.html') return true;
+  if (relative === 'index.html' || relative === 'login.html') return true;
   const extension = path.extname(relative).toLowerCase();
   return parts.length === 1 ? PUBLIC_ROOT_EXTENSIONS.has(extension) : parts[0] === 'assets' && PUBLIC_ASSET_EXTENSIONS.has(extension);
 }
@@ -140,6 +140,14 @@ async function createApp(options = {}) {
         return sendJson(response, 404, { ok: false, error: 'Recurso no encontrado.' });
       }
       if (!['GET', 'HEAD'].includes(request.method)) return sendJson(response, 405, { ok: false, error: 'Método no permitido.' });
+      if ((pathname === '/' || pathname === '/index.html') && !authenticated) {
+        response.writeHead(302, { ...SECURITY_HEADERS, Location: '/login.html', 'Cache-Control': 'no-store' });
+        return response.end();
+      }
+      if (pathname === '/login.html' && authenticated) {
+        response.writeHead(302, { ...SECURITY_HEADERS, Location: '/', 'Cache-Control': 'no-store' });
+        return response.end();
+      }
       const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, ''), file = path.resolve(ROOT, relative);
       if (!isPublicFile(relative) || !file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return sendJson(response, 404, { ok: false, error: 'Archivo no encontrado.' });
       response.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': options.noCache === false ? 'public, max-age=300' : 'no-store' });
