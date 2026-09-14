@@ -1603,8 +1603,9 @@ header {
 .workspace-admin-toggle > i::after { content:''; position:absolute; width:11px; height:11px; top:3px; left:3px; border-radius:50%; background:#fff; transition:transform .18s ease; }
 .workspace-admin-toggle input:checked + i { background:linear-gradient(90deg, var(--bio-primary), var(--bio-secondary)); }
 .workspace-admin-toggle input:checked + i::after { transform:translateX(12px); }
-.workspace.training-active { border-color: color-mix(in srgb, var(--bio-secondary) 58%, rgba(255,255,255,.32)) !important; }
-.workspace.training-active .workspace-dot { background:var(--bio-secondary) !important; box-shadow:0 0 0 4px color-mix(in srgb, var(--bio-secondary) 18%, transparent); }
+.workspace-dot { background:#169a72 !important; box-shadow:0 0 0 4px color-mix(in srgb, #169a72 18%, transparent); }
+.workspace.training-active { border-color: color-mix(in srgb, #359bd3 58%, rgba(255,255,255,.32)) !important; }
+.workspace.training-active .workspace-dot { background:#359bd3 !important; box-shadow:0 0 0 4px color-mix(in srgb, #359bd3 18%, transparent); }
 
 .training-workspace-notice {
   display: flex;
