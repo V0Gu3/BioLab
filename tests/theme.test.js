@@ -51,7 +51,9 @@ test('el login recupera en forma local el modo del último usuario identificado'
   assert.match(auth, /initializeLoginTheme\(dialog\)/);
   assert.match(auth, /root\.addEventListener\('bio:theme-changed'/);
   assert.match(loginCss, /:root\[data-login-theme="light"\] \.bio-login-panel/);
-  assert.match(loginHtml, /login\.css\?v=20260913-3/);
+  assert.match(loginCss, /:root\[data-login-theme="light"\] \.bio-login-copy h1\{color:#14263a/);
+  assert.match(loginCss, /:root\[data-login-theme="light"\] \.bio-login-visual\{background:linear-gradient/);
+  assert.match(loginHtml, /login\.css\?v=20260913-4/);
   assert.match(loginHtml, /auth\.js\?v=20260913-3/);
 });
 
