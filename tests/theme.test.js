@@ -25,6 +25,19 @@ test('persiste tema y paleta por usuario', () => {
   assert.equal(JSON.parse(values.get('nexo-theme-v3:USR-001')).fontScale, 1.1);
 });
 
+test('el login recupera en forma local el modo del último usuario identificado', () => {
+  const auth = fs.readFileSync(require.resolve('../auth.js'), 'utf8');
+  const loginCss = fs.readFileSync(require.resolve('../login.css'), 'utf8');
+  const loginHtml = fs.readFileSync(require.resolve('../login.html'), 'utf8');
+  assert.match(auth, /bio-login-theme-by-email-v1/);
+  assert.match(auth, /nexo-theme-v3:\$\{userId\}/);
+  assert.match(auth, /initializeLoginTheme\(dialog\)/);
+  assert.match(auth, /root\.addEventListener\('bio:theme-changed'/);
+  assert.match(loginCss, /:root\[data-login-theme="light"\] \.bio-login-panel/);
+  assert.match(loginHtml, /login\.css\?v=20260913-3/);
+  assert.match(loginHtml, /auth\.js\?v=20260913-3/);
+});
+
 test('carga el tema antes de pintar y usa superficies oscuras neutrales', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const css = fs.readFileSync(require.resolve('../theme.css'), 'utf8');
