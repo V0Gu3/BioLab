@@ -57,6 +57,7 @@
     root.dispatchEvent?.(new CustomEvent('bio:access-changed', { detail: { action: action?.type || 'updated' } }));
   };
   const currentUser = () => state.users.find(user => user.id === state.currentUserId && user.status === 'active') || state.users.find(user => user.status === 'active') || null;
+  const isTrainingSession = () => root.__BIO_TRAINING__ === true || root.document?.documentElement?.dataset?.workspace === 'training';
   const rolePermissions = roleId => {
     if (!ROLES[roleId]) return [];
     const permissions = new Set(ROLES[roleId].permissions), overrides = state.roleOverrides?.[roleId] || {};
@@ -94,9 +95,16 @@
     return { ok: true, enabled: state.workspace.sandboxEnabled };
   };
   const setCurrentUser = userId => {
-    if (root.BioAuth?.user?.()?.id && root.BioAuth.user().id !== userId) return false;
+    // En Operativo la identidad siempre corresponde a la sesión autenticada.
+    // Pruebas permite simular otro perfil sin modificar esa sesión real.
+    if (root.BioAuth?.user?.()?.id && root.BioAuth.user().id !== userId && !isTrainingSession()) return false;
     const target = state.users.find(user => user.id === userId && user.status === 'active');
     if (!target) return false;
+    if (isTrainingSession()) {
+      state.workspace = state.workspace || { sandboxEnabled: true, modes: {} };
+      state.workspace.modes = state.workspace.modes || {};
+      state.workspace.modes[target.id] = 'training';
+    }
     const before = state.currentUserId; state.currentUserId = target.id; persist({ type: 'session_user_changed', before, after: target.id }); return true;
   };
   const saveUser = input => {
