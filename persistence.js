@@ -49,11 +49,22 @@
 
   async function flush() {
     timer = null; if (!status.connected || !pending.size) return;
-    const entries = [...pending.entries()]; pending.clear();
-    try {
-      for (const [key, payload] of entries) await fetch(`/api/state/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Bio-User': actor() }, body: JSON.stringify({ payload: safePayload(key, payload) }) }).then(response => { if (!response.ok) throw new Error(`No fue posible sincronizar ${key}.`); return response.json(); });
-      status.lastSync = new Date().toISOString(); status.error = null;
-    } catch (error) { entries.forEach(([key, payload]) => pending.set(key, payload)); status.error = error.message; timer = setTimeout(flush, 1800); }
+    let entries = [...pending.entries()], lastError = null; pending.clear();
+    // Las escrituras ya confirmadas no deben repetirse cuando una sola petición
+    // transitoria falla; repetir el lote completo provoca sincronizaciones
+    // innecesarias y bloquea el cambio de espacio de trabajo.
+    for (let attempt = 0; attempt < 3 && entries.length; attempt += 1) {
+      const failed = [];
+      for (const [key, payload] of entries) {
+        try {
+          await fetch(`/api/state/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Bio-User': actor() }, body: JSON.stringify({ payload: safePayload(key, payload) }) }).then(response => { if (!response.ok) throw new Error(`No fue posible sincronizar ${key}.`); return response.json(); });
+        } catch (error) { failed.push([key, payload]); lastError = error; }
+      }
+      entries = failed;
+      if (entries.length && attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+    if (entries.length) { entries.forEach(([key, payload]) => pending.set(key, payload)); status.error = lastError?.message || 'No fue posible sincronizar los cambios.'; timer = setTimeout(flush, 1800); }
+    else { status.lastSync = new Date().toISOString(); status.error = null; }
     notify();
   }
 
