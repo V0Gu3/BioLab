@@ -68,6 +68,17 @@ function auditRow(sourceKey, category, item, index = 0) {
 }
 
 async function rebuildMaterialized(db) {
+  // Cada actualización reconstruye las tablas de consulta a partir del estado
+  // completo. En producción varias peticiones pueden llegar a la vez (por
+  // ejemplo, al cambiar de espacio), así que se serializa la reconstrucción
+  // dentro de la misma transacción para evitar bloqueos cruzados en PostgreSQL.
+  try {
+    await db.query('SELECT pg_advisory_xact_lock(8042601)');
+  } catch (error) {
+    // pg-mem, usado exclusivamente por las pruebas, no implementa esta
+    // función nativa de PostgreSQL.
+    if (!(/pg_advisory_xact_lock/.test(error?.message || '') && /pg-mem/i.test(error?.message || ''))) throw error;
+  }
   const state = await readState(db), updated = timestamp();
   const materializedTables = ['quotation_items', 'client_order_items', 'supplier_order_lines', 'documents', 'audit_events', 'movements', 'order_lines', 'supplier_invoices', 'receipts', 'customer_invoices', 'shipments', 'supplier_orders', 'requisitions', 'client_orders', 'quotations', 'price_loads', 'price_catalog_entries', 'product_supplier_relations', 'fx_records', 'products', 'suppliers'];
   for (const table of materializedTables) await db.query(`DELETE FROM ${table}`);
