@@ -25,6 +25,23 @@ test('persiste tema y paleta por usuario', () => {
   assert.equal(JSON.parse(values.get('nexo-theme-v3:USR-001')).fontScale, 1.1);
 });
 
+test('cambiar entre claro y oscuro conserva la tipografía y su escala', () => {
+  const values = new Map(), style = new Map();
+  const rootElement = { dataset: {}, style: { setProperty: (key, value) => style.set(key, value) } };
+  const textElement = { dataset: { bioBaseFontSize: '12' }, style: {}, matches: () => true, childNodes: [{ nodeType: 3, textContent: 'Texto' }] };
+  const main = { childNodes: [], querySelectorAll: () => [textElement] };
+  const document = { documentElement: rootElement, querySelector: selector => selector === 'main' ? main : null, querySelectorAll: () => [], addEventListener() {} };
+  const window = { BioAccess: { currentUser: () => ({ id: 'USR-001' }) }, addEventListener() {}, dispatchEvent() {}, requestAnimationFrame: callback => callback(), getComputedStyle: () => ({ fontSize: '12px' }) };
+  const context = { window, document, CustomEvent: class CustomEvent {}, localStorage: { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) } };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../theme.js'), 'utf8'), context);
+  window.BioTheme.save({ fontScale: 1.2 });
+  const sizeBeforeModeChange = textElement.style.fontSize;
+  window.BioTheme.save({ mode: 'dark' });
+  assert.equal(window.BioTheme.getState().fontScale, 1.2);
+  assert.equal(textElement.style.fontSize, sizeBeforeModeChange);
+  assert.equal(rootElement.dataset.theme, 'dark');
+});
+
 test('el login recupera en forma local el modo del último usuario identificado', () => {
   const auth = fs.readFileSync(require.resolve('../auth.js'), 'utf8');
   const loginCss = fs.readFileSync(require.resolve('../login.css'), 'utf8');

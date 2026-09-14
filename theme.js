@@ -108,7 +108,7 @@
     textObserver.observe(main, { childList: true, subtree: true });
   }
 
-  function apply(next = state) {
+  function apply(next = state, { scaleText = true } = {}) {
     state = normalize(next);
     const element = document.documentElement;
     const primary = state.primaryColor;
@@ -134,7 +134,9 @@
     element.style.setProperty('--violet', primary);
     element.style.setProperty('--teal', primary);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', palette.sidebar);
-    root.requestAnimationFrame?.(() => scaleContentText());
+    // El modo y la paleta únicamente cambian color. La escala tipográfica se
+    // recalcula solo al iniciarse o cuando el usuario cambia explícitamente su tamaño.
+    if (scaleText) root.requestAnimationFrame?.(() => scaleContentText());
   }
 
   function renderControls() {
@@ -163,7 +165,7 @@
     const before = { ...state };
     state = normalize(next);
     localStorage.setItem(storageKey(), JSON.stringify(state));
-    apply();
+    apply(state, { scaleText: before.fontScale !== state.fontScale });
     renderControls();
     root.dispatchEvent(new CustomEvent('bio:theme-changed', { detail: { before, after: { ...state }, ...detail } }));
     return { ...state };
