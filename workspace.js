@@ -27,7 +27,7 @@
   const saveStored = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
   function renderWorkspace() {
-    const state = access.workspace(), user = access.currentUser(), canTrain = access.can('sandbox', user), isAdmin = user?.role === 'administrator';
+    const state = access.workspace(), user = access.currentUser(), canTrain = access.can('sandbox', user), isAdmin = ['administrator', 'developer'].includes(user?.role);
     q('#workspaceCurrentLabel').textContent = state.mode === 'training' ? 'Pruebas' : 'Operativo';
     q('#workspaceSwitcher').classList.toggle('training-active', state.mode === 'training');
     document.documentElement.dataset.workspace = state.mode;
@@ -36,6 +36,14 @@
     q('#workspaceAdminToggle').hidden = !isAdmin;
     q('[data-workspace-guide]').hidden = !canTrain;
     document.querySelectorAll('[data-view="auditView"], [data-access="audit"]').forEach(link => { link.hidden = state.mode === 'training' || !access.can('audit', user); });
+    const canManageInventory = access.can('inventory_manage', user), canManageCatalog = access.can('catalog_manage', user), canSeeSuppliers = access.can('supplier_view', user), canSeeSupplierOrders = access.can('supplier_order_view', user), canTrackOrders = access.can('receive', user), canSeeReports = access.can('reports', user);
+    document.querySelectorAll('[data-view="movimientosView"], [data-view="conteosView"], [data-summary-view="movimientosView"], [data-summary-view="conteosView"], .warehouse-quick-access, #movementDialog').forEach(element => { element.hidden = !canManageInventory; });
+    document.querySelectorAll('[data-view="supplierOrdersView"], [data-view="proveedoresView"], [data-view="preciosView"]').forEach(element => { element.hidden = element.dataset.view === 'supplierOrdersView' ? !canSeeSupplierOrders : !canSeeSuppliers; });
+    document.querySelectorAll('[data-view="trackingSummaryView"], [data-view="ordersView"], [data-view="deliveriesView"]').forEach(element => { element.hidden = !canTrackOrders; });
+    document.querySelectorAll('[data-view="reportesView"], #newProduct, #newCatalogProduct').forEach(element => { element.hidden = element.id === 'newProduct' || element.id === 'newCatalogProduct' ? !canManageCatalog : !canSeeReports; });
+    const warehouseLink = q('.inventory-group > [data-view]'), productLink = q('.products-group > [data-view]');
+    if (warehouseLink && !canManageInventory && access.can('inventory_view', user)) { warehouseLink.dataset.view = 'inventarioView'; warehouseLink.setAttribute('href', '#inventario'); }
+    if (productLink && !canSeeSuppliers && access.can('catalog_view', user)) { productLink.dataset.view = 'productosView'; productLink.setAttribute('href', '#productos'); }
     menu.querySelectorAll('[data-workspace-mode]').forEach(button => {
       const training = button.dataset.workspaceMode === 'training', active = state.mode === button.dataset.workspaceMode;
       button.hidden = training && (!state.sandboxEnabled || !canTrain);

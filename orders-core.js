@@ -98,7 +98,7 @@
 
   const validateSupplierPurchaseGate = ({ requestType, clientOrderStatus }) => {
     if (requestType !== 'customer_order') return { valid: true, code: 'NOT_CUSTOMER_ORDER' };
-    if (clientOrderStatus !== 'active') return { valid: false, code: 'CLIENT_ORDER_NOT_ACTIVE', message: 'Activa primero la OC del cliente vinculada a la cotización.' };
+    if (clientOrderStatus !== 'active') return { valid: false, code: 'CLIENT_ORDER_NOT_ACTIVE', message: 'Activa primero el pedido interno vinculado a la cotización.' };
     return { valid: true, code: 'CLIENT_ORDER_ACTIVE' };
   };
 

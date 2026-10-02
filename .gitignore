@@ -27,6 +27,7 @@ coverage/
 # Compilación y cachés
 dist/
 build/
+public/
 .cache/
 .parcel-cache/
 .vite/
@@ -74,3 +75,7 @@ $RECYCLE.BIN/
 playwright-report/
 test-results/
 blob-report/
+
+.vercel
+.vercel-cli/
+.env*

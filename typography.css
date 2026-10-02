@@ -1,0 +1,29 @@
+/* Una sola voz tipográfica para toda la interfaz.
+   Las familias anteriores Manrope y DM Mono no se distribuían con la app y
+   variaban por equipo al activar sus fallbacks. */
+:root { --bio-interface-font: Arial, Helvetica, sans-serif; }
+
+html,
+body,
+body * {
+  font-family: var(--bio-interface-font) !important;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+/* Mantiene legibles y comparables los importes, folios y cantidades sin
+   reintroducir una familia diferente. */
+.sku,
+.movement-quantity,
+.supplier-order-origin > strong,
+.supplier-order-total,
+.currency-total-list,
+time,
+[data-folio] {
+  font-variant-numeric: tabular-nums;
+}

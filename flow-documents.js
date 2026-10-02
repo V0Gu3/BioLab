@@ -6,7 +6,7 @@
   const BRAND = root?.PROBIOLAB_BRAND || { name: 'PROBIOLAB', documentName: 'PROBIOLAB', documentSubtitle: 'CONTROL OPERATIVO Y TRAZABILIDAD' };
   const TYPES = {
     quotation: ['COTIZACION', 'Propuesta comercial'],
-    client_order: ['ORDEN DE COMPRA DEL CLIENTE', 'Autorizacion comercial para surtido'],
+    client_order: ['PEDIDO INTERNO', 'Autorización comercial para surtido'],
     supplier_order: ['ORDEN DE COMPRA A PROVEEDOR', 'Abastecimiento relacionado por partida'],
     inventory_entry: ['ENTRADA DE ALMACEN', 'Recepcion auditable de mercancia'],
     inventory_exit: ['SALIDA DE ALMACEN', 'Egreso auditable contra entrega'],
@@ -122,7 +122,14 @@
     doc.setFillColor(247, 249, 252); doc.roundedRect(16, y - 4, 178, 29, 3, 3, 'F');
     field('Folio', data.id, 21, 48); field('Fecha', data.date || 'Sin fecha', 75, 36); field('Estado', data.status, 117, 32); field('Moneda', data.currency === 'MULTI' ? 'Multimoneda (totales separados)' : data.currency, 155, 34); y += 38;
     doc.setFillColor(250, 251, 253); doc.setDrawColor(226, 230, 237); doc.roundedRect(16, y - 4, 178, 34, 3, 3, 'FD');
-    field('Cliente / destino', data.client || data.warehouse || '-', 21, 77); field('Proveedor / origen', data.supplier || data.origin || '-', 105, 80);
+    if (data.clientNumber) {
+      field('Cliente / destino', data.client || data.warehouse || '-', 21, 67);
+      field('Número de cliente', data.clientNumber, 92, 32);
+      field('Proveedor / origen', data.supplier || data.origin || '-', 128, 56);
+    } else {
+      field('Cliente / destino', data.client || data.warehouse || '-', 21, 77);
+      field('Proveedor / origen', data.supplier || data.origin || '-', 105, 80);
+    }
     doc.setTextColor(104, 114, 130); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text(doc.splitTextToSize(clean([data.reference, data.related].filter(Boolean).join(' - ') || subtitle), 166), 21, y + 21); y += 43;
     const tableHeader = () => {
       doc.setFillColor(49, 87, 164); doc.roundedRect(16, y - 5, 178, 10, 2, 2, 'F');
@@ -188,7 +195,7 @@
     canvasArea.id = 'documentPreviewPages'; canvasArea.className = 'document-preview-pages'; canvasArea.innerHTML = '<span class="document-preview-loading">Preparando vista previa…</span>'; frame.hidden = true; frame.before(canvasArea);
     dialog.dataset.objectUrl = objectUrl; title.textContent = options.title || `DOCUMENTO ${BRAND.name}`; folio.textContent = clean(options.folio || 'Vista previa'); downloadButton.onclick = () => { const link = root.document.createElement('a'); link.href = objectUrl; link.download = options.filename || `documento-${BRAND.name.toLowerCase()}.pdf`; link.click(); };
     if (blob.type === 'application/pdf' && root.pdfjsLib) {
-      root.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      root.pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/vendor/pdfjs-6.3.289.worker.min.mjs';
       blob.arrayBuffer().then(data => root.pdfjsLib.getDocument({ data }).promise).then(async pdf => { canvasArea.innerHTML = ''; for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) { const page = await pdf.getPage(pageNumber), viewport = page.getViewport({ scale: 1.45 }), canvas = root.document.createElement('canvas'), context = canvas.getContext('2d'); canvas.width = viewport.width; canvas.height = viewport.height; canvas.setAttribute('aria-label', `Página ${pageNumber} de ${pdf.numPages}`); canvasArea.appendChild(canvas); await page.render({ canvasContext: context, viewport }).promise; } }).catch(() => { canvasArea.remove(); frame.hidden = false; frame.src = objectUrl; });
     } else { canvasArea.remove(); frame.hidden = false; frame.src = objectUrl; }
     dialog.showModal(); root.lucide?.createIcons();

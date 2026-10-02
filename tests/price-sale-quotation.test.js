@@ -24,7 +24,8 @@ test('la edición de precio y descuento no redibuja la partida al teclear y marc
 
 test('la importación conserva lista y venta separadas y evita duplicar el mismo archivo', () => {
   assert.match(app, /listPrice:Number\(entry\.listPrice\?\?entry\.price\)/);
-  assert.match(app, /salePrice:Number\(entry\.salePrice\)>0\?Number\(entry\.salePrice\):null/);
+  assert.match(app, /salePrice=Number\(entry\.salePrice\)>0\?Math\.round/);
+  assert.match(app, /originalSalePrice/);
   assert.match(app, /PRECIO\.\*\(VENTA\|COMERCIAL\)/);
   assert.match(app, /fileHash&&load\.fileHash===parsed\.fileHash/);
   assert.match(app, /isCurrent=false/);
@@ -53,8 +54,9 @@ test('el visor de listas pagina los artículos en bloques de 20', () => {
 test('vendedor no recibe ni persiste el precio de lista en cotizaciones', () => {
   assert.match(app, /listPrice:isSeller\?null:Number\(item\.listPrice\)/);
   assert.match(server, /function sanitizeForRole/);
-  assert.match(server, /delete copy\.listPrice/);
-  assert.match(server, /delete copy\.sourcePrice/);
+  assert.match(server, /new Set\(\['price', 'listPrice', 'purchasePrice', 'cost', 'sourcePrice'\]\)/);
+  assert.match(server, /\['products', 'quotations', 'client-orders'\]\.includes\(resource\)/);
+  assert.match(server, /copy\['nexo-commercial-orders'\].*map\(withoutListPrice\)/);
 });
 
 test('las listas sin precio de venta quedan visibles para corrección pero no son cotizables', () => {

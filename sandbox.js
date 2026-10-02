@@ -3,7 +3,7 @@
   const STORAGE_KEY = 'bio-sandbox-v1';
   const STEPS = [
     { id: 'quotation', label: 'Cotización', short: 'Propuesta', title: 'Emitir cotización de prueba', description: 'Creará el primer documento del expediente simulado.', prefix: 'TEST-COT', icon: 'file-text', kind: 'document', stock: 0 },
-    { id: 'client_order', label: 'OC cliente', short: 'Autorización', title: 'Generar OC del cliente', description: 'Congelará precios y vinculará la autorización comercial.', prefix: 'TEST-OC', icon: 'clipboard-list', kind: 'document', stock: 0 },
+    { id: 'client_order', label: 'Pedido interno', short: 'Autorización', title: 'Generar pedido interno', description: 'Congelará precios y vinculará la autorización comercial.', prefix: 'TEST-PI', icon: 'clipboard-list', kind: 'document', stock: 0 },
     { id: 'supplier_order', label: 'OC proveedor', short: 'Compra', title: 'Generar OC al proveedor', description: 'Asignará el producto de entrenamiento al proveedor simulado.', prefix: 'TEST-OCP', icon: 'shopping-cart', kind: 'document', stock: 0 },
     { id: 'entry', label: 'Entrada', short: 'Recepción', title: 'Registrar entrada simulada', description: 'Recibirá 5 unidades sin modificar el almacén real.', prefix: 'TEST-ENT', icon: 'arrow-down-to-line', kind: 'movement', stock: 5 },
     { id: 'exit', label: 'Salida', short: 'Entrega', title: 'Registrar salida simulada', description: 'Descontará 5 unidades únicamente del stock de entrenamiento.', prefix: 'TEST-SAL', icon: 'arrow-up-from-line', kind: 'movement', stock: -5 },

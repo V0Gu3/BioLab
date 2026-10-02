@@ -26,7 +26,7 @@
 .bio-money-grid > div > span:first-child { color: var(--bio-primary-readable); font: 700 7px 'DM Mono', monospace; }
 .bio-money-result { color: var(--bio-text); text-align: right; }
 .bio-money-result strong, .bio-money-result small { display: block; }
-.bio-money-result strong { font-size: 9px; }
+.bio-money-result strong { font-size: 12px; line-height: 1.15; letter-spacing: -.01em; }
 .bio-money-result small { margin-top: 2px; color: var(--bio-text-muted); font: 600 6px 'DM Mono', monospace; }
 .bio-money-tooltip footer { margin-top: 9px; color: var(--bio-text-muted); font-size: 6px; line-height: 1.4; }
 .bio-money-unavailable strong, .bio-money-unavailable span { display: block; }

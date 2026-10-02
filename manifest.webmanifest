@@ -1,0 +1,14 @@
+{
+  "name": "PROBIOLAB Operaciones",
+  "short_name": "PROBIOLAB",
+  "description": "Control operativo de inventario, pedidos y almacenes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f9f7",
+  "theme_color": "#17221d",
+  "lang": "es-MX",
+  "icons": [
+    {"src": "/assets/probiolab-logo-transparent.png", "type": "image/png", "sizes": "any", "purpose": "any"}
+  ]
+}

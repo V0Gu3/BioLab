@@ -30,7 +30,7 @@ test('consulta Banco de México como fuente principal y calcula tasas contra MXN
   assert.equal(record.rates.CAD, 12.5);
   assert.equal(record.rates.EUR, 20);
   assert.match(request.url, /^https:\/\/www\.banxico\.org\.mx\/SieAPIRest\/service\/v1\/series\/SF43718,SF60632,SF46410\/datos\/oportuno\?token=TOKEN-VALIDO-123$/);
-  assert.equal(fx.protectedPrice(100, 'USD', 'MXN').unitPrice, 2125);
+  assert.equal(fx.protectedPrice(100, 'USD', 'MXN').unitPrice, 2040);
   const refreshed = await fx.ensureDaily({ force: true, confirmationRequired: false });
   assert.equal(refreshed.validated, true);
   assert.equal(fx.getState().audit.some(entry => entry.event === 'daily_rates_registered'), true);
@@ -44,6 +44,17 @@ test('usa el Banco Central Europeo cuando Banxico no tiene token', async () => {
   assert.equal(record.rates.CAD, 5);
   assert.equal(record.rates.EUR, 20);
   assert.equal(fx.getState().audit.some(entry => entry.event === 'rate_source_failed' && entry.source === 'banxico'), true);
+});
+
+test('permite desactivar Banxico sin almacenar ni enviar un token al navegador', async () => {
+  const calls = [];
+  const fx = loadFx(async url => { calls.push(url); return { ok: true, text: async () => officialCsv }; });
+  assert.equal(fx.setBanxicoEnabled(false).ok, true);
+  const record = await fx.ensureDaily();
+  assert.equal(record.sourceType, 'official_secondary');
+  assert.equal(calls.some(url => String(url).includes('banxico.org.mx')), false);
+  assert.equal(fx.getState().banxicoEnabled, false);
+  assert.equal(fx.getState().audit.some(entry => entry.event === 'banxico_source_toggled' && entry.afterEnabled === false), true);
 });
 
 test('usa Frankfurter cuando falla también la fuente oficial secundaria', async () => {
@@ -108,7 +119,26 @@ test('la tasa protegida aplica el porcentaje comercial sobre la tasa confirmada'
   const fx = loadFx(async () => { throw new Error('Sin red'); });
   assert.equal(fx.setProtection(20).ok, true);
   assert.equal(fx.saveManual({ USD: 18, CAD: 13, EUR: 21, reason: 'Prueba de protección' }).ok, true);
-  assert.equal(fx.protectedPrice(1, 'USD', 'MXN').unitPrice, 22.5);
+  assert.equal(fx.protectedPrice(1, 'USD', 'MXN').unitPrice, 21.6);
+});
+
+test('el ajuste fijo y el porcentaje de protección se recalculan entre sí con la tasa USD confirmada', () => {
+  const fx = loadFx(async () => { throw new Error('Sin red'); });
+  assert.equal(fx.saveManual({ USD: 10, CAD: 8, EUR: 12, reason: 'Tasa de referencia' }).ok, true);
+  assert.equal(fx.setProtectionFixed(2.5).ok, true);
+  assert.equal(fx.getState().protectionPercent, 25);
+  assert.equal(fx.getState().protectionFixed, 2.5);
+  assert.equal(fx.protectedPrice(1, 'USD', 'MXN').unitPrice, 12.5);
+  assert.equal(fx.setProtection(25).ok, true);
+  assert.equal(fx.getState().protectionFixed, 2.5);
+});
+
+test('deriva el ajuste fijo del porcentaje existente cuando aún no había un valor fijo guardado', () => {
+  const fx = loadFx(async () => { throw new Error('Sin red'); });
+  assert.equal(fx.saveManual({ USD: 10, CAD: 8, EUR: 12, reason: 'Tasa de referencia' }).ok, true);
+  assert.equal(fx.getState().protectionFixed, null);
+  assert.equal(fx.setProtection(20).ok, true);
+  assert.equal(fx.getState().protectionFixed, 2);
 });
 
 test('una sincronización fallida conserva el último registro válido y deja el detalle de las fuentes', async () => {

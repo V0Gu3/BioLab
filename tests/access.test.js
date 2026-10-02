@@ -13,8 +13,11 @@ function loadAccess(options = {}) {
 
 test('genera los perfiles principales con permisos separados', () => {
   const access = loadAccess();
-  assert.deepEqual(Object.keys(access.ROLES), ['administrator', 'auditor', 'supervisor', 'seller']);
+  assert.deepEqual(Object.keys(access.ROLES), ['administrator', 'developer', 'auditor', 'supervisor', 'seller']);
   assert.equal(access.ROLES.administrator.permissions.includes('user_manage'), true);
+  assert.equal(access.ROLES.administrator.permissions.includes('system_reset'), false);
+  assert.equal(access.ROLES.developer.permissions.includes('system_reset'), true);
+  assert.equal(access.ROLES.developer.permissions.length, Object.keys(access.PERMISSIONS).length);
   assert.equal(access.ROLES.supervisor.permissions.includes('supplier_order_manage'), true);
   assert.equal(access.ROLES.supervisor.permissions.includes('user_manage'), false);
   assert.equal(access.ROLES.supervisor.permissions.includes('audit'), false);
@@ -22,6 +25,7 @@ test('genera los perfiles principales con permisos separados', () => {
   assert.equal(access.ROLES.auditor.permissions.includes('inventory_manage'), false);
   assert.equal(access.ROLES.auditor.permissions.includes('sandbox'), true);
   assert.equal(access.ROLES.seller.permissions.includes('quotation_manage'), true);
+  assert.equal(access.ROLES.seller.permissions.includes('inventory_view'), true);
   assert.equal(access.ROLES.seller.permissions.includes('inventory_manage'), false);
   assert.equal(access.ROLES.seller.permissions.includes('sandbox'), true);
   assert.equal(access.getState().users.length, 4);
@@ -66,6 +70,15 @@ test('el administrador modifica la plantilla del perfil antes de aplicar excepci
   assert.equal(access.can('inventory_view'), true);
   assert.equal(access.can('user_manage'), false);
   assert.equal(access.getState().audit.some(item => item.type === 'role_permissions_updated' && item.entityId === 'seller'), true);
+});
+
+test('solo Desarrollo conserva la facultad de restablecer datos operativos', () => {
+  const access = loadAccess();
+  assert.equal(access.saveRolePermissions('auditor', [...access.rolePermissions('auditor'), 'system_reset']).ok, true);
+  assert.equal(access.rolePermissions('auditor').includes('system_reset'), false);
+  const auditor = access.getState().users.find(user => user.role === 'auditor');
+  assert.equal(access.effectivePermissions({ ...auditor, permissionGrants: ['system_reset'] }).includes('system_reset'), false);
+  assert.equal(access.rolePermissions('developer').includes('system_reset'), true);
 });
 
 test('el espacio de pruebas se habilita por administrador y respeta el permiso del usuario', () => {

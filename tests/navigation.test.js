@@ -4,14 +4,16 @@ const fs = require('node:fs');
 
 test('los submenús tienen un identificador y un estado expandido accesible', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
-  for (const group of ['quotations', 'inventory', 'orders', 'products']) {
+  for (const group of ['quotations', 'internal-orders', 'inventory', 'orders']) {
     assert.match(html, new RegExp(`data-nav-group="${group}"`));
   }
   assert.equal((html.match(/aria-expanded="true"/g) || []).length, 4);
-  for (const view of ['warehouseSummaryView', 'trackingSummaryView', 'productSummaryView']) {
+  for (const view of ['warehouseSummaryView', 'trackingSummaryView']) {
     assert.match(html, new RegExp(`data-view="${view}"`));
     assert.match(html, new RegExp(`id="${view}"`));
   }
+  assert.match(html, /data-view="productosView"/);
+  assert.match(html, /id="productSummaryView"/);
   assert.match(html, /data-view="deliveriesView"/);
   assert.match(html, /id="deliveriesView"/);
 });
@@ -43,6 +45,14 @@ test('una recarga conserva la sección activa y la posición de lectura', () => 
   assert.match(js, /window\.addEventListener\('pagehide'/);
   assert.match(js, /restoreNavigationState\(\)/);
   assert.match(js, /window\.scrollTo\(\{top:scrollY,behavior:'auto'\}\)/);
+});
+
+test('editar una cotización abre una revisión auditable y la conversión se identifica como pedido interno', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  assert.match(app, /function openQuotationForEditing\(quotation,reason\)/);
+  assert.match(app, /Edición justificada:/);
+  assert.match(app, /data-view="newQuotationView"/);
+  assert.match(app, /Convertir en pedido interno/);
 });
 
 test('los filtros visibles actualizan resultados y los estados permiten profundizar', () => {
@@ -181,6 +191,7 @@ test('seguimiento separa bitácora manual de recepciones y remisiones formales',
   assert.match(orders, /La recepción requiere al menos la remisión/);
   assert.match(orders, /La remisión requiere quién recibe y evidencia/);
   assert.match(orders, /Folio de remisión; se toma del archivo adjunto/);
+  assert.doesNotMatch(orders, /No se puede liberar la entrega: faltan/);
   assert.match(orders, /reference\.value = file\.name/);
   assert.match(orders, /formalTypes\[type\] \|\| 'Guardar operación'/);
   assert.match(orders, /returnToDossierAfterOperation/);

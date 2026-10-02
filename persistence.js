@@ -3,7 +3,7 @@
   const KEYS = ['nexo-access-v1', 'nexo-products', 'nexo-suppliers', 'nexo-clients', 'nexo-movements', 'nexo-price-loads', 'nexo-price-catalog-entries', 'nexo-product-supplier-relations', 'nexo-purchase-orders', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-quotation-sequences', 'nexo-order-operations-v1', 'nexo-fx-v1'];
   const enabled = /^https?:$/.test(root.location.protocol) && !root.__BIO_TRAINING__, nativeSet = Storage.prototype.setItem, nativeRemove = Storage.prototype.removeItem;
   const status = { connected: false, hydrated: false, migrating: false, lastSync: null, error: null };
-  const pending = new Map(); let timer = null;
+  const pending = new Map(); let timer = null, writableKeys = new Set();
   const parse = value => { try { return JSON.parse(value); } catch { return null; } };
   const safePayload = (key, payload) => {
     if (!payload || typeof payload !== 'object') return payload;
@@ -32,13 +32,14 @@
     try {
       const response = requestSync('GET', '/api/bootstrap');
       status.connected = true;
+      writableKeys = new Set(Array.isArray(response.allowedKeys) ? response.allowedKeys : []);
       if (response.empty) {
         const state = Object.fromEntries(KEYS.map(key => [key, parse(root.localStorage.getItem(key))]).filter(([, payload]) => payload !== null).map(([key, payload]) => [key, safePayload(key, payload)]));
         if (Object.keys(state).length) { status.migrating = true; requestSync('POST', '/api/import-local', { state, actor: 'Migración inicial del navegador' }); status.migrating = false; }
       } else {
         Object.entries(response.state || {}).forEach(([key, payload]) => {
           if (!KEYS.includes(key)) return;
-          if (key === 'nexo-access-v1') payload = { ...payload, currentUserId: parse(root.localStorage.getItem(key))?.currentUserId || 'USR-001' };
+          if (key === 'nexo-access-v1') payload = { ...payload, currentUserId: root.BioAuth?.user?.()?.id || parse(root.localStorage.getItem(key))?.currentUserId || 'USR-001' };
           if (key === 'nexo-fx-v1') payload = { ...payload, banxicoToken: parse(root.localStorage.getItem(key))?.banxicoToken || '' };
           nativeSet.call(root.localStorage, key, JSON.stringify(payload));
         });
@@ -47,8 +48,15 @@
     } catch (error) { status.error = error.message; status.connected = false; }
   }
 
-  async function flush() {
-    timer = null; if (!status.connected || !pending.size) return;
+  async function flush(options = {}) {
+    const throwOnError = options.throwOnError === true;
+    timer = null;
+    if (!status.connected) {
+      const error = new Error(status.error || 'No hay conexión con la base central. Verifica la API antes de continuar.');
+      if (throwOnError) throw error;
+      return false;
+    }
+    if (!pending.size) return true;
     let entries = [...pending.entries()], lastError = null; pending.clear();
     // Las escrituras ya confirmadas no deben repetirse cuando una sola petición
     // transitoria falla; repetir el lote completo provoca sincronizaciones
@@ -57,19 +65,32 @@
       const failed = [];
       for (const [key, payload] of entries) {
         try {
-          await fetch(`/api/state/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Bio-User': actor() }, body: JSON.stringify({ payload: safePayload(key, payload) }) }).then(response => { if (!response.ok) throw new Error(`No fue posible sincronizar ${key}.`); return response.json(); });
-        } catch (error) { failed.push([key, payload]); lastError = error; }
+          await fetch(`/api/state/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Bio-User': actor() }, body: JSON.stringify({ payload: safePayload(key, payload) }) }).then(response => { if (!response.ok) throw Object.assign(new Error(`No fue posible sincronizar ${key}.`), { status: response.status }); return response.json(); });
+        } catch (error) {
+          // Un permiso revocado no es una caída de la API: se descarta la escritura
+          // local para evitar reintentos y errores 403 repetidos en la consola.
+          if (error.status === 403) { writableKeys.delete(key); continue; }
+          failed.push([key, payload]); lastError = error;
+        }
       }
       entries = failed;
       if (entries.length && attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
     }
-    if (entries.length) { entries.forEach(([key, payload]) => pending.set(key, payload)); status.error = lastError?.message || 'No fue posible sincronizar los cambios.'; timer = setTimeout(flush, 1800); }
+    if (entries.length) {
+      entries.forEach(([key, payload]) => pending.set(key, payload));
+      status.error = lastError?.message || 'No fue posible sincronizar los cambios.';
+      timer = setTimeout(flush, 1800);
+      notify();
+      if (throwOnError) throw new Error(`Los cambios no se guardaron en la base central. ${status.error}`);
+      return false;
+    }
     else { status.lastSync = new Date().toISOString(); status.error = null; }
     notify();
+    return true;
   }
 
   function queue(key, serialized) {
-    if (!status.connected || !KEYS.includes(key)) return;
+    if (!status.connected || !KEYS.includes(key) || !writableKeys.has(key)) return;
     const payload = parse(serialized); if (payload === null) return; pending.set(key, payload); clearTimeout(timer); timer = setTimeout(flush, 80);
   }
 

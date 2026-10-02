@@ -5,6 +5,7 @@
   "description": "PROBIOLAB: control operativo, inventario y trazabilidad",
   "type": "commonjs",
   "scripts": {
+    "build:public": "node scripts/build-public.js",
     "start": "node --env-file-if-exists=.env server/server.js",
     "start:local": "node server/local-preview.js",
     "dev": "node --env-file-if-exists=.env --watch server/server.js",
@@ -18,7 +19,12 @@
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "pg": "^8.23.0"
+    "@simplewebauthn/server": "14.0.3",
+    "jspdf": "4.2.1",
+    "lucide": "0.468.0",
+    "pdfjs-dist": "6.3.289",
+    "pg": "^8.23.0",
+    "xlsx-js-style": "1.2.0"
   },
   "devDependencies": {
     "pg-mem": "^3.0.14"

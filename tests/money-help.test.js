@@ -35,3 +35,9 @@ test('convierte un monto a todas las divisas con la tasa congelada', () => {
   assert.equal(details.MXN.percentage, 1700);
   assert.equal(details.EUR.percentage, 85);
 });
+
+test('detecta la moneda compañera de un importe antes de asumir MXN', () => {
+  const source = fs.readFileSync(require.resolve('../money-help.js'), 'utf8');
+  assert.match(source, /companionCurrency/);
+  assert.match(source, /\[data-money-currency\],\.price-currency,\.price-list-badge/);
+});

@@ -5,3 +5,21 @@
 /* Base visual de la versión de referencia. El login ya no hereda estilos de la aplicación. */
 .bio-login-page{margin:0;font-family:Manrope,Arial,sans-serif;color:#181a1f}.bio-login-dialog,.bio-login-dialog *{box-sizing:border-box}.bio-login-card .eyebrow{margin:0 0 .45rem;color:#727782;font:400 .625rem/1 'DM Mono',monospace;letter-spacing:.16em}.bio-login-card .subtitle{font-size:.8125rem;color:#727782}.bio-login-card input{border-color:#359bd3;background:#fdfefe;color:#181a1f}.bio-login-submit{font:800 .95rem/1 Manrope,Arial,sans-serif}.bio-password-control button{color:#91a7c1}
 :root[data-login-theme="light"] .bio-login-dialog,:root[data-login-theme="light"] .bio-login-dialog::backdrop{background:#f4f8fb;color:#14263a}:root[data-login-theme="light"] .bio-login-visual{background:linear-gradient(90deg,rgba(242,249,253,.76),rgba(224,240,248,.6)),url('assets/probiolab-login-lab-background.png') center/cover}:root[data-login-theme="light"] .bio-login-visual::after{background:linear-gradient(90deg,rgba(244,250,253,.08) 45%,rgba(225,241,248,.64) 100%)}:root[data-login-theme="light"] .bio-login-brand{color:#087d77}:root[data-login-theme="light"] .bio-login-copy .eyebrow{color:#142f47;text-shadow:none}:root[data-login-theme="light"] .bio-login-copy h1{color:#14263a}:root[data-login-theme="light"] .bio-login-copy p{color:#526b80}:root[data-login-theme="light"] .bio-login-panel{border-left-color:#d7e4ed;background:#fff}:root[data-login-theme="light"] .bio-login-card h2{color:#14263a}:root[data-login-theme="light"] .bio-login-card .subtitle{color:#617489}:root[data-login-theme="light"] .bio-login-card .field{color:#52677b}:root[data-login-theme="light"] .bio-login-card input{border-color:#c9d8e4;background:#fff;color:#14263a}:root[data-login-theme="light"] .bio-password-control button{color:#617a91}:root[data-login-theme="light"] .bio-password-control button:hover,:root[data-login-theme="light"] .bio-password-control button:focus-visible{background:#e7f1f7;color:#087d77}:root[data-login-theme="light"] .bio-login-security{color:#6b7f91}
+
+/* Retroalimentación inmediata de acceso: error visible, reintento limpio y éxito confirmado. */
+.bio-login-card{transition:transform .24s ease,filter .24s ease}
+.bio-login-error{display:flex;align-items:center;gap:.5rem;padding:.7rem .8rem;border:1px solid rgba(244,101,119,.45);border-radius:.5rem;background:rgba(244,101,119,.12);color:#ff8f9e}
+.bio-login-error[hidden]{display:none}
+.bio-login-error::before{content:'!';width:1.15rem;height:1.15rem;display:grid;place-items:center;border-radius:50%;background:#f25f72;color:#fff;font:800 .76rem/1 Manrope,Arial,sans-serif}
+.bio-login-submit{transition:transform .18s ease,background .18s ease,box-shadow .18s ease,opacity .18s ease}
+.bio-login-submit:disabled{cursor:wait;opacity:.76}
+#bioLoginForm.is-loading .bio-login-card{filter:saturate(.85)}
+#bioLoginForm.is-loading .bio-login-submit{background:#247ba8;box-shadow:0 0 0 4px rgba(36,123,168,.13)}
+#bioLoginForm.is-error .bio-login-card{animation:bio-login-shake .46s ease both}
+#bioLoginForm.is-error input{border-color:#ef6475;box-shadow:0 0 0 3px rgba(239,100,117,.14)}
+#bioLoginForm.is-success .bio-login-card{animation:bio-login-success .52s ease both}
+#bioLoginForm.is-success .bio-login-submit{background:#17a779;color:#fff;box-shadow:0 0 0 5px rgba(23,167,121,.15)}
+@keyframes bio-login-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+@keyframes bio-login-success{0%{transform:scale(1)}55%{transform:scale(1.025)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.bio-login-card,.bio-login-submit{transition:none!important}#bioLoginForm.is-error .bio-login-card,#bioLoginForm.is-success .bio-login-card{animation:none}}
+.bio-passkey-login{width:100%;display:flex;align-items:center;justify-content:center;gap:.55rem;margin-top:.7rem;padding:.8rem;border:1px solid #359bd3;border-radius:.5rem;background:transparent;color:#d8f5f1;font:700 .9rem/1 Manrope,Arial,sans-serif;cursor:pointer}.bio-passkey-login:hover{border-color:#22dec9;background:rgba(34,222,201,.1)}.bio-passkey-login:disabled{opacity:.6;cursor:wait}:root[data-login-theme="light"] .bio-passkey-login{color:#087d77}

@@ -73,6 +73,20 @@ test('el catálogo de listas aplicadas se consulta por proveedor y conserva su m
   assert.match(app, /money\(entry\.listPrice\?\?entry\.price,entry\.currency\)/);
 });
 
+test('el catálogo de productos muestra la divisa una sola vez, en su etiqueta', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  assert.match(app, /const priceAmount=value=>/);
+  assert.match(app, /<strong>\$\{priceAmount\(product\.price\)\}<\/strong><small class="price-currency">\$\{escapeHtml\(product\.priceCurrency\)\}<\/small>/);
+});
+
+test('el visor de listas recupera renglones de cargas previas conservados en el catálogo', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  assert.match(app, /function restorePreviousPriceCatalogEntries/);
+  assert.match(app, /product\.priceListStatus==='current'/);
+  assert.match(app, /recoveredFromProduct:true/);
+  assert.match(app, /nexo-price-catalog-entries/);
+});
+
 test('la nueva cotización encuentra clientes frecuentes y completa sus datos editables', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');

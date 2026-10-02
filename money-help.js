@@ -76,11 +76,14 @@
     if (CURRENCIES.includes(String(attributed || '').toUpperCase())) return attributed.toUpperCase();
     const own = explicitCurrency(element.textContent);
     if (own) return own;
+    const row = element.closest('tr,article,[class*="row"]');
+    const companionCurrency = explicitCurrency([...row?.querySelectorAll?.('[data-money-currency],.price-currency,.price-list-badge') || []].map(node => node.dataset.moneyCurrency || node.textContent).join(' '));
+    if (companionCurrency) return companionCurrency;
     if (element.closest('.quotation-workspace,.quotation-history-row,.commercial-order-row')) {
       const quoteCurrency = document.querySelector('#quotationCurrency')?.value;
       if (CURRENCIES.includes(quoteCurrency)) return quoteCurrency;
     }
-    const rowCurrency = explicitCurrency(element.closest('tr,article,[class*="row"]')?.textContent);
+    const rowCurrency = explicitCurrency(row?.textContent);
     return rowCurrency || 'MXN';
   }
 

@@ -33,7 +33,7 @@
 
     const documentSources = [
       ['nexo-sales-quotations', 'Cotizaciones', 'Cotización', 'quotation'],
-      ['nexo-commercial-orders', 'OC de clientes', 'Orden de compra del cliente', 'client_order'],
+      ['nexo-commercial-orders', 'Pedidos internos', 'Pedido interno', 'client_order'],
       ['nexo-purchase-orders', 'Compras internas', 'Orden de compra interna', 'purchase_order'],
       ['nexo-price-loads', 'Listas de precios', 'Comprobante de carga de precios', 'price_load']
     ];

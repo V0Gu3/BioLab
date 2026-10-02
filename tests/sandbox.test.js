@@ -25,7 +25,7 @@ test('el selector mantiene el control de habilitación únicamente para el admin
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const workspace = fs.readFileSync(require.resolve('../workspace.js'), 'utf8');
   assert.match(html, /id="workspaceSandboxEnabled"/);
-  assert.match(workspace, /user\?\.role === 'administrator'/);
+  assert.match(workspace, /\['administrator', 'developer'\]\.includes\(user\?\.role\)/);
   assert.match(workspace, /access\.can\('sandbox', user\)/);
   assert.match(workspace, /\[data-view="auditView"\]/);
 });
