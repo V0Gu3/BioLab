@@ -131,6 +131,7 @@
     else window.setTimeout(refreshDossier, 0);
   };
   const requestLines = requestId => store.orderLines.filter(line => line.requisitionId === requestId);
+  const resolveOperationalRequest = requestId => store.requisitions.find(item => [item.id, item.clientOrderId].some(value => String(value || '') === String(requestId || '')));
   const sum = (lines, field) => lines.reduce((total, line) => total + core.numberValue(line[field]), 0);
   const requestStatusClass = status => status === 'cancelled' ? 'cancelled' : ['purchasing', 'partially_purchased', 'partially_received', 'partially_delivered', 'partially_invoiced'].includes(status) ? 'warning' : ['closed', 'delivered', 'invoiced', 'ready_to_deliver', 'inventory_reserved'].includes(status) ? 'active' : '';
   const linkedText = request => {
@@ -917,7 +918,7 @@
   }
 
   async function downloadOrderAudit(requestId, preview = false) {
-    const request = store.requisitions.find(item => item.id === requestId);
+    const request = resolveOperationalRequest(requestId);
     const button = preview ? q('#downloadOrderAudit') : null, finish = preview ? window.BioOperationProgress?.start('Preparando expediente…', button) : null;
     try {
     if (!request) throw new Error('No se encontró el pedido relacionado con este expediente.');
@@ -1508,7 +1509,7 @@
     const commercialOrder = commercialOrders().find(order => String(order.id) === String(clientOrderId));
     const belongsToSeller = current.role !== 'seller' || String(commercialOrder?.ownerId || '') === String(current.id || '') || (!commercialOrder?.ownerId && [commercialOrder?.ownerName, commercialOrder?.seller, commercialOrder?.createdBy].some(value => String(value || '').trim().toLowerCase() === String(current.name || '').trim().toLowerCase()));
     if (!commercialOrder || !belongsToSeller) { notify('No tienes acceso a la trazabilidad de este pedido interno.'); return; }
-    const request = store.requisitions.find(item => String(item.clientOrderId || item.id) === String(clientOrderId));
+    const request = resolveOperationalRequest(clientOrderId);
     if (!request) { notify('El pedido todavía no tiene trazabilidad operativa disponible.'); return; }
     const data = dossierData(request);
     const lineTrace = data.lines.map(line => {
@@ -1518,7 +1519,7 @@
     const receipts = data.receipts.map(receipt => `<article class="dossier-record compact"><div><strong>${escapeHtml(receipt.type === 'total' ? 'Recepción total' : 'Recepción parcial')}</strong><small>Almacén ${escapeHtml(receipt.warehouseId || '—')} · ${escapeHtml(receipt.reference || receipt.supplierRemission || receipt.id)}</small></div><span>${(receipt.items || []).reduce((total, item) => total + core.numberValue(item.quantityAccepted ?? item.quantity), 0)} uds.</span></article>`).join('') || '<small>Sin recepciones registradas.</small>';
     const shipments = data.shipments.map(shipment => `<article class="dossier-record compact"><div><strong>${escapeHtml(shipment.folio || shipment.id)}</strong><small>${shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial'} · ${dossierDate(shipment.date || shipment.deliveredAt)}</small></div><span>${(shipment.items || []).reduce((total, item) => total + core.numberValue(item.quantity), 0)} uds.</span></article>`).join('') || '<small>Sin remisiones registradas.</small>';
     const timeline = data.audits.slice(0, 8).map(entry => `<article><time>${dossierDate(entry.at)}</time><div><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><small>${escapeHtml(entry.reference || 'Actualización operativa')}</small></div></article>`).join('') || '<p class="subtitle">Aún no hay eventos operativos registrados.</p>';
-    activeRequestId = null; activeDossierTab = 'summary'; q('#downloadOrderAudit').hidden = true;
+    activeRequestId = request.id; activeDossierTab = 'summary'; q('#downloadOrderAudit').hidden = false;
     q('#orderDetailTitle').textContent = `${commercialOrder.id} · Trazabilidad`;
     q('#orderDetailBody').innerHTML = `<section class="dossier-hero seller-order-trace-hero"><div><p class="eyebrow">SEGUIMIENTO DE PEDIDO</p><h3>${escapeHtml(commercialOrder.client || request.customerName || 'Cliente')}</h3><small>Vista de solo lectura. No muestra costos, precios de compra ni acciones operativas.</small></div><div class="dossier-hero-state"><b class="order-status-badge ${requestStatusClass(request.status)}">${escapeHtml(core.STATUS_LABELS[request.status] || request.status)}</b><strong>${data.percent}%</strong><small>entregado</small></div></section><section class="dossier-kpis"><article><span>PARTIDAS</span><strong>${data.lines.length}</strong><small>Del pedido interno</small></article><article><span>RECIBIDO</span><strong>${data.progress.received}</strong><small>Unidades en recepción</small></article><article><span>ENTREGADO</span><strong>${data.progress.delivered}</strong><small>Unidades al cliente</small></article><article><span>PENDIENTE</span><strong>${Math.max(0, data.authorized - data.progress.delivered)}</strong><small>Unidades por entregar</small></article></section><section class="dossier-section"><div class="dossier-section-head"><div><p class="eyebrow">AVANCE POR PRODUCTO</p><h3>Partidas del pedido</h3></div><b class="dossier-progress">${data.percent}%</b></div><div class="dossier-progress-track"><i style="width:${data.percent}%"></i></div><div class="dossier-line-list">${lineTrace}</div></section><section class="dossier-section"><div class="dossier-section-head"><div><p class="eyebrow">RECEPCIONES</p><h3>Entrada a almacén</h3></div></div><div class="dossier-line-list">${receipts}</div></section><section class="dossier-section"><div class="dossier-section-head"><div><p class="eyebrow">REMISIONES</p><h3>Entrega al cliente</h3></div></div><div class="dossier-line-list">${shipments}</div></section><section class="dossier-section"><h3>Últimos eventos</h3><div class="dossier-timeline">${timeline}</div></section>`;
     q('#orderDetailDialog').showModal(); window.lucide?.createIcons();

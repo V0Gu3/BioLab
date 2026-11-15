@@ -128,12 +128,16 @@ test('cancelar el selector de evidencia conserva abierto el modal de avance', ()
 });
 
 test('la previsualización del expediente carga el generador PDF bajo demanda', () => {
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
   assert.match(orders, /async function downloadOrderAudit/);
+  assert.match(orders, /const request = resolveOperationalRequest\(requestId\)/);
+  assert.match(orders, /activeRequestId = request\.id; activeDossierTab = 'summary'; q\('#downloadOrderAudit'\)\.hidden = false/);
   assert.match(orders, /await window\.BioLibraries\?\.pdf\?\.\(\)/);
   assert.match(orders, /BioFlowDocs\.previewBlob\(doc\.output\('blob'\)/);
   assert.match(orders, /documentPreviewDialog'\)\?\.open/);
   assert.match(orders, /catch \(error\)[\s\S]*?No fue posible preparar el expediente/);
+  assert.match(html, /id="downloadOrderAudit"[\s\S]*?Previsualizar expediente/);
 });
 
 test('las operaciones dejan pintar el indicador de proceso antes de guardar', () => {
