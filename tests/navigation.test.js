@@ -251,7 +251,7 @@ test('seguimiento separa bitácora manual de recepciones y remisiones formales',
   assert.match(orders, /returnToDossierAfterOperation/);
   assert.match(orders, /dossier-operation-notice/);
   assert.match(orders, /REM-\$\{dateCode\}-/);
-  assert.match(orders, /shipmentFolio\(next, new Date\(\)\)/);
+  assert.match(orders, /shipmentFolio\(next, (?:documentDate|localDateKey\(\))\)/);
   assert.match(orders, /dateValue instanceof Date/);
 });
 

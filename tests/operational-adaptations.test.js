@@ -245,6 +245,16 @@ test('el seguimiento reconcilia compras históricas y distingue etapas no aplica
   assert.match(orders, /const purchaseRequired = lines\.reduce/);
 });
 
+test('Ciclo 5 punto 7 conserva folios y una fecha local única en Pruebas', () => {
+  assert.match(orders, /function reconcileHistoricalDocumentDates/);
+  assert.match(orders, /identityReconciliation/);
+  assert.match(orders, /date: documentDate/);
+  assert.match(orders, /date: shipment\.date \|\| String\(shipment\.deliveredAt/);
+  assert.match(orders, /createdAt: documentDate, createdAtTimestamp: at/);
+  assert.match(orders, /bio:persistence-changed/);
+  assert.match(orders, /store = loadStore\(\)/);
+});
+
 test('Ciclo 4 bloquea calendarios pasados y traduce la bitácora operativa', () => {
   assert.match(orders, /pastBusinessDate\(commitmentDate\)/);
   assert.match(orders, /pastBusinessDate\(receiptData\.expiryDate\)/);

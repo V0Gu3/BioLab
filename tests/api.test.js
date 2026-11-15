@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { createApp, parseDofUsdIndicator, dofUsdHistoryUrl, dofPublicationMetadata, enforceActivatedOrderLock, enforceRequiredQuotationLock } = require('../server/server');
+const { createApp, parseDofUsdIndicator, dofUsdHistoryUrl, dofPublicationMetadata, enforceActivatedOrderLock, enforceRequiredQuotationLock, assertDocumentHistoryStable } = require('../server/server');
 const { createTestDatabase } = require('./helpers/postgres');
 
 test('identifica el USD y la fecha publicados por el Diario Oficial', () => {
@@ -38,6 +38,22 @@ test('la identidad del vendedor se completa sin desbloquear documentos comercial
   const required = { id: 'COT-261102-0002', status: 'required', locked: true, total: 1200, ownerId: '' };
   assert.doesNotThrow(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [required] }, [{ ...required, ownerId: 'USR-10', ownerName: 'Ana', ownerSellerNumber: 'V-010' }]));
   assert.throws(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [required] }, [{ ...required, total: 1 }]), error => error.status === 409);
+});
+
+test('remisiones y órdenes históricas conservan folio, relación y fecha', () => {
+  const current = {
+    shipments: [{ id: 'DEL-1', folio: 'REM-261108-0003', requisitionId: 'PI-1', date: '2026-11-08' }],
+    supplierOrders: [{ id: 'OCP-261106-0001', createdAt: '2026-11-06', status: 'confirmed' }]
+  };
+  assert.doesNotThrow(() => assertDocumentHistoryStable(current, structuredClone(current)));
+  assert.throws(() => assertDocumentHistoryStable(current, { ...structuredClone(current), shipments: [] }), error => error.status === 409 && /no puede desaparecer/.test(error.message));
+  assert.throws(() => assertDocumentHistoryStable(current, { ...structuredClone(current), shipments: [{ ...current.shipments[0], date: '2026-11-09' }] }), error => error.status === 409 && /fecha original/.test(error.message));
+  assert.throws(() => assertDocumentHistoryStable(current, { ...structuredClone(current), supplierOrders: [{ ...current.supplierOrders[0], createdAt: '2026-11-09' }] }), error => error.status === 409);
+  const legacy = { shipments: [{ ...current.shipments[0], date: '2026-11-09' }], supplierOrders: [{ ...current.supplierOrders[0], createdAt: '2026-11-09' }] };
+  assert.doesNotThrow(() => assertDocumentHistoryStable(legacy, current));
+  const evidencedRepair = { ...structuredClone(current), shipments: [{ ...current.shipments[0], folio: 'REM-261106-0001', date: '2026-11-06', identityReconciliation: { originalFolio: 'REM-261108-0003', source: 'audit_and_inventory_movement' } }] };
+  assert.doesNotThrow(() => assertDocumentHistoryStable(current, evidencedRepair));
+  assert.throws(() => assertDocumentHistoryStable({ shipments: [], supplierOrders: [] }, { shipments: [{ id: 'DEL-2', folio: 'REM-261108-0004', requisitionId: 'PI-1', date: '2026-11-09' }], supplierOrders: [] }), error => error.status === 400);
 });
 
 test('expone la API REST sobre PostgreSQL', async () => {

@@ -60,6 +60,15 @@
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   const searchKey = core.normalizeText;
   const formatDate = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sin fecha';
+  const localDateKey = (value = new Date()) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+  const documentDateFromFolio = (value, prefix) => {
+    const match = String(value || '').match(new RegExp(`^${prefix}-(\\d{2})(\\d{2})(\\d{2})-\\d{4,}$`));
+    return match ? `20${match[1]}-${match[2]}-${match[3]}` : '';
+  };
   const formatMovementDateTime = value => {
     const date = value ? new Date(value) : null;
     return date && !Number.isNaN(date.getTime()) ? date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha y hora';
@@ -87,6 +96,7 @@
     shortage_authorized_cancellation: 'Saldo faltante cancelado con autorización',
     duplicate_receipt_reconciled: 'Recepción duplicada conciliada',
     historical_purchase_receipt_reconciled: 'Compras y recepciones históricas conciliadas',
+    historical_document_date_reconciled: 'Fecha documental histórica conciliada',
     delivery_total: 'Remisión total generada',
     receipt: 'Recepción registrada',
     delivery: 'Remisión generada',
@@ -516,6 +526,49 @@
 
   const lineSupply = (line, targetStore = store) => core.effectiveLineSupply({ line, links: targetStore.supplierOrderLines, supplierOrders: targetStore.supplierOrders, receipts: targetStore.receipts });
 
+  function reconcileHistoricalDocumentDates() {
+    const next = JSON.parse(JSON.stringify(store)), repairs = [];
+    const knownFolios = new Set(next.shipments.map(shipment => String(shipment.folio || shipment.id)));
+    const deliveryAudits = next.auditLog.filter(entry => /^delivery_(total|partial)$/.test(String(entry.action || '')) && /^REM-\d{6}-\d{4,}$/.test(String(entry.reference || '')));
+    [...new Map(deliveryAudits.map(entry => [String(entry.reference), entry])).values()].forEach(entry => {
+      const folio = String(entry.reference);
+      if (knownFolios.has(folio)) return;
+      const line = next.orderLines.find(item => String(item.id) === String(entry.entityId)), requisitionId = line?.requisitionId;
+      const movements = next.inventoryMovements.filter(movement => movement.type === 'exit' && movement.sourceDocumentType === 'shipment' && movement.at === entry.at && (!requisitionId || movement.requisitionId === requisitionId));
+      if (!movements.length) return;
+      const sourceId = movements[0].sourceDocumentId, matching = next.shipments.filter(shipment => shipment.deliveredAt === entry.at && (!requisitionId || shipment.requisitionId === requisitionId));
+      if (matching.length === 1) {
+        const shipment = matching[0], originalFolio = shipment.folio || shipment.id;
+        shipment.identityReconciliation = { originalFolio, source: 'audit_and_inventory_movement', repairedAt: new Date().toISOString() };
+        shipment.folio = folio;
+        repairs.push({ entityType: 'shipment', entityId: shipment.id, before: originalFolio, after: folio, field: 'folio' });
+      } else if (sourceId && !next.shipments.some(shipment => String(shipment.id) === String(sourceId))) {
+        const items = [...new Map(movements.map(movement => [movement.orderLineId, movement])).values()].map(movement => ({ orderLineId: movement.orderLineId, quantity: core.numberValue(movement.quantity) }));
+        next.shipments.push({ id: sourceId, folio, date: documentDateFromFolio(folio, 'REM'), requisitionId: requisitionId || movements[0].requisitionId, items, deliveredAt: entry.at, recipient: 'Registro histórico recuperado', type: 'total', status: 'recovered', observations: 'Remisión recuperada desde auditoría y movimientos de salida existentes.', identityReconciliation: { source: 'audit_and_inventory_movement', repairedAt: new Date().toISOString() } });
+        repairs.push({ entityType: 'shipment', entityId: sourceId, before: null, after: folio, field: 'folio' });
+      }
+      knownFolios.add(folio);
+    });
+    next.shipments.forEach(shipment => {
+      const canonical = documentDateFromFolio(shipment.folio || shipment.id, 'REM');
+      if (!canonical || shipment.date === canonical) return;
+      repairs.push({ entityType: 'shipment', entityId: shipment.id, before: shipment.date || null, after: canonical });
+      shipment.dateReconciliation = { originalDate: shipment.date || null, source: 'folio', repairedAt: new Date().toISOString() };
+      shipment.date = canonical;
+    });
+    next.supplierOrders.forEach(order => {
+      const canonical = documentDateFromFolio(order.id, 'OCP');
+      if (!canonical || String(order.createdAt || '').slice(0, 10) === canonical) return;
+      repairs.push({ entityType: 'supplier_order', entityId: order.id, before: order.createdAt || null, after: canonical });
+      order.dateReconciliation = { originalDate: order.createdAt || null, source: 'folio', repairedAt: new Date().toISOString() };
+      order.createdAt = canonical;
+    });
+    if (!repairs.length) return false;
+    const at = new Date().toISOString();
+    repairs.forEach((repair, index) => next.auditLog.push({ id: `AUD-DOCUMENT-REPAIR-${repair.entityId}-${index + 1}`, entityType: repair.entityType, entityId: repair.entityId, action: 'historical_document_date_reconciled', eventKind: 'system_reconciliation', user: 'Sistema', at, before: { [repair.field || 'date']: repair.before }, after: { [repair.field || 'date']: repair.after }, reference: repair.entityId, notes: repair.field === 'folio' ? 'El folio histórico se recuperó a partir de auditoría y movimientos de salida existentes.' : 'La fecha visible se alineó con el folio original sin regenerar ni sustituir el documento.' }));
+    return saveStore(next);
+  }
+
   function reconcileHistoricalPurchaseReceipts() {
     const next = JSON.parse(JSON.stringify(store)), receiptKeys = new Map(); let changed = false, repairedLines = 0, duplicateReceipts = 0;
     [...next.receipts].sort((left, right) => String(left.receivedAt || left.date || left.id).localeCompare(String(right.receivedAt || right.date || right.id))).forEach(receipt => {
@@ -564,14 +617,14 @@
     const unlinked = next.orderLines.filter(line => requestIds.has(line.requisitionId) && core.numberValue(line.quantityRequested) - core.numberValue(line.quantityCancelled) - core.numberValue(line.reservedQuantity) - core.numberValue(line.quantityPurchased) > 0 && !next.supplierOrderLines.some(link => link.orderLineId === line.id));
     const { groups } = core.groupSupplierPurchaseLines({ lines: unlinked, products, suppliers, relations });
     groups.forEach(group => {
-      const firstRequest = eligibleRequests.find(request => request.id === group.rows[0]?.line.requisitionId), id = supplierOrderFolio(next, firstRequest?.requestDate), at = new Date().toISOString();
+      const firstRequest = eligibleRequests.find(request => request.id === group.rows[0]?.line.requisitionId), at = new Date().toISOString(), documentDate = localDateKey(), id = supplierOrderFolio(next, documentDate);
       const links = group.rows.map(({ line, product, relation }, index) => {
         const quantity = Math.max(0, core.numberValue(line.quantityRequested) - core.numberValue(line.quantityCancelled) - core.numberValue(line.reservedQuantity) - core.numberValue(line.quantityPurchased));
         return { id: `SOL-${id}-${String(index + 1).padStart(3, '0')}`, supplierOrderId: id, requisitionId: line.requisitionId, orderLineId: line.id, productId: product.id, supplierRelationId: relation?.id || line.supplierRelationId || null, supplierSku: relation?.supplierSku || line.catalog, purchaseUnit: relation?.purchaseUnit || line.unit, quantity, unitPrice: core.numberValue(relation?.purchasePrice ?? product.price), currency: group.currency, allocationType: eligibleRequests.find(request => request.id === line.requisitionId)?.type === 'internal_stock' ? 'stock' : 'customer_order' };
       }).filter(link => link.quantity > 0);
       if (!links.length) return;
       const requisitionIds = [...new Set(links.map(link => link.requisitionId))], requests = requisitionIds.map(requestId => eligibleRequests.find(request => request.id === requestId)).filter(Boolean), subtotal = links.reduce((total, link) => total + link.quantity * link.unitPrice, 0);
-      const order = { id, supplierId: group.supplier.id, supplierName: group.supplier.name, clientOrderId: requests.length === 1 ? requests[0].clientOrderId || requests[0].id : null, clientOrderIds: requests.map(request => request.clientOrderId || request.id), quotationId: requests.length === 1 ? requests[0].quotationId : null, quotationIds: [...new Set(requests.map(request => request.quotationId).filter(Boolean))], createdAt: at.slice(0, 10), confirmedAt: null, currency: group.currency, exchangeRate: null, exchangeRateDate: null, warehouseId: group.warehouse, requiredDate: group.requiredDate === 'sin-fecha' ? null : group.requiredDate, paymentTerms: group.paymentTerms, subtotal: Math.round(subtotal * 100) / 100, total: Math.round(subtotal * 100) / 100, status: 'draft', documentStage: 'purchase_proposal', version: 1, locked: false, requisitionIds, lineIds: links.map(link => link.orderLineId), autoGenerated: true, consolidated: requisitionIds.length > 1, createdBy: actor.name };
+      const order = { id, supplierId: group.supplier.id, supplierName: group.supplier.name, clientOrderId: requests.length === 1 ? requests[0].clientOrderId || requests[0].id : null, clientOrderIds: requests.map(request => request.clientOrderId || request.id), quotationId: requests.length === 1 ? requests[0].quotationId : null, quotationIds: [...new Set(requests.map(request => request.quotationId).filter(Boolean))], createdAt: documentDate, createdAtTimestamp: at, confirmedAt: null, currency: group.currency, exchangeRate: null, exchangeRateDate: null, warehouseId: group.warehouse, requiredDate: group.requiredDate === 'sin-fecha' ? null : group.requiredDate, paymentTerms: group.paymentTerms, subtotal: Math.round(subtotal * 100) / 100, total: Math.round(subtotal * 100) / 100, status: 'draft', documentStage: 'purchase_proposal', version: 1, locked: false, requisitionIds, lineIds: links.map(link => link.orderLineId), autoGenerated: true, consolidated: requisitionIds.length > 1, createdBy: actor.name };
       next.supplierOrders.unshift(order); next.supplierOrderLines.push(...links);
       group.rows.forEach(({ line, relation }) => { line.supplierId = group.supplier.id; line.supplierName = group.supplier.name; line.supplierRelationId = relation?.id || line.supplierRelationId || null; });
       next.auditLog.push({ id: `AUD-${id}`, entityType: 'supplier_order', entityId: id, action: 'purchase_proposal_generated', user: actor.name, at, before: null, after: order, reference: requisitionIds.join(', ') });
@@ -700,7 +753,7 @@
     if (!shipment || !request || !window.BioFlowDocs) return notify('No fue posible generar la remisión.');
     const items = shipment.items.map(item => { const line = store.orderLines.find(candidate => candidate.id === item.orderLineId), supply = documentSupplyContext(line); return { catalog: line?.catalog, description: line?.description, supplier: supply.supplier, quantity: item.quantity, unitPrice: line?.unitPrice, total: line?.unitPrice == null ? null : core.numberValue(item.quantity) * core.numberValue(line.unitPrice), currency: line?.currency || supply.currency }; });
     const suppliers = [...new Set(items.map(item => item.supplier).filter(Boolean))];
-    return window.BioFlowDocs[preview ? 'preview' : 'download']('remision', { id: shipment.folio || shipment.id, date: shipment.deliveredAt || shipment.date, status: shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial', client: request.customerName, recipient: shipment.recipient || shipment.receivedBy || shipment.deliveredTo || 'No registrado', supplier: suppliers.join(' · ') || null, origin: 'Almacén 1', reference: request.clientOrderId || request.id, related: `${request.quotationId || ''} - ${request.id}`, items, auditId: shipment.id, notes: shipment.observations || 'Entrega registrada con salida de inventario. El proveedor de origen se identifica por partida; los costos de compra se resguardan en los comprobantes internos.' }, { filename: `remision-${shipment.folio || shipment.id}.pdf` });
+    return window.BioFlowDocs[preview ? 'preview' : 'download']('remision', { id: shipment.folio || shipment.id, date: shipment.date || String(shipment.deliveredAt || '').slice(0, 10), status: shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial', client: request.customerName, recipient: shipment.recipient || shipment.receivedBy || shipment.deliveredTo || 'No registrado', supplier: suppliers.join(' · ') || null, origin: 'Almacén 1', reference: request.clientOrderId || request.id, related: `${request.quotationId || ''} - ${request.id}`, items, auditId: shipment.id, notes: shipment.observations || 'Entrega registrada con salida de inventario. El proveedor de origen se identifica por partida; los costos de compra se resguardan en los comprobantes internos.' }, { filename: `remision-${shipment.folio || shipment.id}.pdf` });
   }
   const nextRequisitionFolio = dateValue => {
     const code = String(dateValue || new Date().toISOString().slice(0, 10)).replaceAll('-', '').slice(2);
@@ -833,7 +886,7 @@
       const state = deliveryState(progress), latest = [...shipments].sort((a, b) => String(b.deliveredAt || b.date).localeCompare(String(a.deliveredAt || a.date)))[0];
       const label = state === 'completed' ? 'Entrega completa' : state === 'partial' ? 'Entrega parcial' : 'Pendiente de entrega';
       const documents = shipments.map(shipment => `<button class="delivery-document" data-delivery-document="${escapeHtml(shipment.id)}" title="Previsualizar ${escapeHtml(shipment.folio || 'remisión')}"><i data-lucide="file-text"></i>${escapeHtml(shipment.folio || 'Remisión')}</button>`).join('') || '<small class="delivery-no-document">Sin remisión</small>';
-      return `<article class="delivery-tracking-row"><div class="order-request"><strong>${escapeHtml(request.clientOrderId || request.id)} · ${escapeHtml(request.customerName || 'Cliente')}</strong><small>${progress.lines.length} partida${progress.lines.length === 1 ? '' : 's'} · ${progress.requested} unidades</small></div><div class="delivery-progress"><div class="order-progress-bar"><i style="width:${progress.deliverPercent}%"></i></div><small>${progress.delivered} de ${progress.requested} entregadas</small></div><div class="delivery-latest"><strong>${escapeHtml(latest?.folio || 'Sin remisión')}</strong><small>${latest ? formatDate(latest.deliveredAt?.slice(0, 10) || latest.date) : 'Aún no emitida'}</small></div><span class="order-status-badge ${state === 'completed' ? 'active' : state === 'partial' ? 'warning' : ''}">${label}</span><div class="delivery-documents">${documents}</div><button class="order-row-action" data-order-detail="${escapeHtml(request.id)}" title="Abrir expediente"><i data-lucide="arrow-up-right"></i></button></article>`;
+      return `<article class="delivery-tracking-row"><div class="order-request"><strong>${escapeHtml(request.clientOrderId || request.id)} · ${escapeHtml(request.customerName || 'Cliente')}</strong><small>${progress.lines.length} partida${progress.lines.length === 1 ? '' : 's'} · ${progress.requested} unidades</small></div><div class="delivery-progress"><div class="order-progress-bar"><i style="width:${progress.deliverPercent}%"></i></div><small>${progress.delivered} de ${progress.requested} entregadas</small></div><div class="delivery-latest"><strong>${escapeHtml(latest?.folio || 'Sin remisión')}</strong><small>${latest ? formatDate(latest.date || String(latest.deliveredAt || '').slice(0, 10)) : 'Aún no emitida'}</small></div><span class="order-status-badge ${state === 'completed' ? 'active' : state === 'partial' ? 'warning' : ''}">${label}</span><div class="delivery-documents">${documents}</div><button class="order-row-action" data-order-detail="${escapeHtml(request.id)}" title="Abrir expediente"><i data-lucide="arrow-up-right"></i></button></article>`;
     }).join('') || '<div class="order-tracking-empty"><i data-lucide="package-search"></i><strong>No hay entregas que coincidan</strong><span>Cambia el filtro o activa un pedido interno para iniciar el seguimiento.</span></div>';
     window.lucide?.createIcons();
   }
@@ -1072,7 +1125,7 @@
     if (planned.some(item => item.available < item.quantity)) return notify('Una o más partidas ya no tienen disponibilidad suficiente para la remisión total.');
     const catalogPlan = planCatalogDeductions(planned);
     if (!catalogPlan) return notify('La existencia física de los almacenes no alcanza para registrar esta remisión total.');
-    const at = new Date().toISOString(), stamp = Date.now(), id = `DELIVERY-${stamp}`, folio = shipmentFolio(next, new Date());
+    const at = new Date().toISOString(), documentDate = localDateKey(), stamp = Date.now(), id = `DELIVERY-${stamp}`, folio = shipmentFolio(next, documentDate);
     const evidence = evidenceFiles.map(file => ({ name: file.name, size: file.size, type: file.type, version: 1, origin: 'delivery_confirmation' }));
     if (window.BioMediaStore) {
       try {
@@ -1104,7 +1157,7 @@
       });
       next.auditLog.push({ id: `AUD-${stamp}-${line.id}`, entityType: 'order_line', entityId: line.id, action: 'delivery_total', eventKind: 'formal_operation', user: actor.name, at, before: null, after: { quantityDelivered: line.quantityDelivered }, reference: folio, notes });
     }
-    next.shipments.push({ id, folio, date: at.slice(0, 10), scheduledAt: deliveryData.scheduledAt || null, requisitionId: request.id, items: shipmentItems, deliveredAt: at, recipient: deliveryData.recipient, type: 'total', evidenceId: evidence[0]?.id || null, evidence, observations: notes });
+    next.shipments.push({ id, folio, date: documentDate, scheduledAt: deliveryData.scheduledAt || null, requisitionId: request.id, items: shipmentItems, deliveredAt: at, recipient: deliveryData.recipient, type: 'total', evidenceId: evidence[0]?.id || null, evidence, observations: notes });
     request.deliveryReleasedAt ||= at;
     request.deliveryReleasedBy ||= actor.name;
     request.status = core.deriveRequisitionStatus(next.orderLines.filter(line => line.requisitionId === request.id));
@@ -1145,7 +1198,7 @@
     if (type === 'receipt' && pastBusinessDate(receiptData.shortageCommitment)) return notify('La fecha compromiso del faltante no puede ser anterior a hoy.');
     if (type === 'delivery' && pastBusinessDate(deliveryData.scheduledAt)) return notify('La fecha programada no puede ser anterior a hoy.');
     // La remisión es un documento interno: su folio no puede depender de una captura manual.
-    if (type === 'delivery') reference = shipmentFolio(next, new Date());
+    if (type === 'delivery') reference = shipmentFolio(next, localDateKey());
     if (type === 'cancel' && !notes.trim()) return notify('La cancelación requiere un motivo.');
     if (type === 'purchase') {
       const gate = core.validateSupplierPurchaseGate({ requestType: request.type, clientOrderStatus: request.clientOrderStatus });
@@ -1247,7 +1300,7 @@
       const reservations = next.inventoryReservations.filter(item => item.orderLineId === line.id && item.status === 'active'), preferredWarehouses = reservations.map(item => String(item.warehouseId || '1'));
       catalogAdjustments = planCatalogDeduction(line.productId, quantity, [...preferredWarehouses, line.deliveryWarehouse || '1']);
       if (!catalogAdjustments) return notify('La existencia física de los almacenes no alcanza para registrar esta salida. Revisa recepciones y reservas.');
-      next.shipments.push({ id, folio: reference || id, date: at.slice(0, 10), scheduledAt: deliveryData.scheduledAt || null, requisitionId: request.id, items: [{ orderLineId: line.id, quantity }], deliveredAt: at, recipient: deliveryData.recipient, type: line.quantityDelivered >= line.quantityRequested ? 'total' : 'partial', evidenceId: evidence[0]?.id || null, evidence, observations: notes });
+      next.shipments.push({ id, folio: reference || id, date: localDateKey(), scheduledAt: deliveryData.scheduledAt || null, requisitionId: request.id, items: [{ orderLineId: line.id, quantity }], deliveredAt: at, recipient: deliveryData.recipient, type: line.quantityDelivered >= line.quantityRequested ? 'total' : 'partial', evidenceId: evidence[0]?.id || null, evidence, observations: notes });
       let remainingToConsume = quantity; const reservedByWarehouse = {};
       reservations.forEach(reservation => { const availableReservation = Math.max(0, core.numberValue(reservation.quantity) - core.numberValue(reservation.quantityConsumed)), used = Math.min(remainingToConsume, availableReservation), warehouseId = String(reservation.warehouseId || '1'); reservation.quantityConsumed = core.numberValue(reservation.quantityConsumed) + used; remainingToConsume -= used; reservedByWarehouse[warehouseId] = core.numberValue(reservedByWarehouse[warehouseId]) + used; if (reservation.quantityConsumed >= core.numberValue(reservation.quantity)) reservation.status = 'consumed'; });
       catalogAdjustments.forEach((adjustment) => { const warehouseId = String(adjustment.warehouseId), movementQuantity = Math.abs(adjustment.delta), reservedQuantityUsed = Math.min(movementQuantity, core.numberValue(reservedByWarehouse[warehouseId])); reservedByWarehouse[warehouseId] = Math.max(0, core.numberValue(reservedByWarehouse[warehouseId]) - reservedQuantityUsed); next.inventoryMovements.push({ id: inventoryMovementFolio(next, 'exit', at), requisitionId: request.id, orderLineId: line.id, warehouseId, productId: line.productId, catalog: line.catalog, type: 'exit', quantity: movementQuantity, reservedQuantityUsed, purchasedQuantityUsed: movementQuantity - reservedQuantityUsed, reason: 'Salida contra remisión', sourceDocumentType: 'shipment', sourceDocumentId: id, user: actor.name, at, reconciliationStatus: line.productId ? 'matched' : 'pending_product_match' }); });
@@ -1438,7 +1491,7 @@
       purchases: `<section class="dossier-section"><h3>Compras y consolidación</h3>${data.supplierOrders.map(order => { const links = data.supplierLinks.filter(link => link.supplierOrderId === order.id), assigned = links.reduce((sum, link) => sum + Math.max(0, core.numberValue(link.quantity) - core.numberValue(link.quantityCancelled)), 0), cancelled = links.reduce((sum, link) => sum + core.numberValue(link.quantityCancelled), 0); return `<article class="dossier-record"><div><strong>${escapeHtml(order.id)} · ${escapeHtml(order.supplierName || 'Proveedor por confirmar')}</strong><small>${escapeHtml(order.status || 'Sin estado')} · ${escapeHtml(order.currency || data.currency)} · ${assigned} unidades vigentes${cancelled ? ` · ${cancelled} canceladas con autorización` : ''}</small></div><span>${dossierMoney(order.total, order.currency || data.currency)}</span></article>`; }).join('') || '<p class="subtitle">Aún no hay OC a proveedor. La requisición conserva las cantidades pendientes de compra.</p>'}</section>`,
       receipts: `<section class="dossier-section"><h3>Recepciones y factura de proveedor</h3>${data.receipts.map(receipt => `<article class="dossier-record"><div><strong>${escapeHtml(receipt.id)} · ${receipt.type === 'total' ? 'Recepción total' : 'Recepción parcial'}</strong><small>Almacén ${escapeHtml(receipt.warehouseId || '1')} · ${escapeHtml(receipt.documentType || 'Documento de llegada')} · ${escapeHtml(receipt.reference || receipt.supplierRemission || 'Sin referencia')}</small><small><b>${escapeHtml(inventoryStateLabel(receipt.qualityStatus || 'released'))}</b></small><small>${(receipt.items || []).map(item => `Aceptadas ${item.quantityAccepted ?? item.quantity}, rechazadas ${item.quantityRejected || 0}${item.lot ? ` · Lote ${item.lot}` : ''}${item.serial ? ` · Serie ${item.serial}` : ''}${item.expiryDate ? ` · Cad. ${item.expiryDate}` : ''}`).join('')}</small>${receipt.shortage ? `<small><b>Faltante: ${receipt.shortage.quantity} uds. · ${receipt.shortage.status === 'cancelled' ? 'Saldo cancelado con autorización' : 'Seguimiento pendiente'}</b>${receipt.shortage.notes ? ` · ${escapeHtml(receipt.shortage.notes)}` : ''}</small>` : ''}</div><span>${receipt.evidence?.length || 0} evidencia(s)</span></article>`).join('') || '<p class="subtitle">No hay recepciones registradas.</p>'}<div class="dossier-subsection"><strong>Facturas de proveedor</strong>${data.supplierInvoices.map(invoice => `<article class="dossier-record compact"><div><strong>${escapeHtml(invoice.folio || invoice.id)}</strong><small>${escapeHtml(invoice.supplierName || 'Proveedor')} · ${escapeHtml(invoice.currency || 'MXN')} · ${dossierDate(invoice.date)}</small></div><span>${dossierMoney(invoice.amountOriginal ?? invoice.amount, invoice.currency || 'MXN')}</span></article>`).join('') || '<small>Factura pendiente o sin relación registrada. La recepción física puede existir sin factura.</small>'}</div></section>`,
       inventory: `<section class="dossier-section"><h3>Almacén, reservas y movimientos</h3>${data.movements.map(movement => `<article class="dossier-record"><div><strong>${movement.type === 'entry' ? 'Entrada' : 'Salida'} ${escapeHtml(movement.id)}</strong><small>Almacén ${escapeHtml(movement.warehouseId || '1')} · ${escapeHtml(movement.reason || 'Movimiento operativo')} · ${escapeHtml(movement.sourceDocumentId || 'Sin documento')}</small>${movement.type === 'entry' ? `<small><b>${escapeHtml(inventoryStateLabel(movement.inventoryState || 'available'))}</b></small>` : ''}</div><span>${movement.type === 'entry' ? '+' : '−'}${movement.quantity} uds.</span></article>`).join('') || '<p class="subtitle">Sin movimientos de almacén todavía.</p>'}<div class="dossier-subsection"><strong>Reservas vigentes</strong>${store.inventoryReservations.filter(item => item.requisitionId === request.id).map(reservation => `<small>Almacén ${escapeHtml(reservation.warehouseId)} · ${reservation.quantity - core.numberValue(reservation.quantityConsumed)} uds. · ${escapeHtml(reservation.status)}</small>`).join('<br>') || '<small>Sin reservas activas.</small>'}</div></section>`,
-      deliveries: `<section class="dossier-section"><h3>Entregas, remisiones y facturación</h3>${data.shipments.map(shipment => `<article class="dossier-record"><div><strong>${escapeHtml(shipment.folio || shipment.id)}</strong><small>${shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial'} · ${dossierDate(shipment.deliveredAt || shipment.date)} · ${escapeHtml(shipment.observations || 'Sin observaciones')}</small></div><span>${(shipment.items || []).reduce((sum, item) => sum + core.numberValue(item.quantity), 0)} uds.</span></article>`).join('') || '<p class="subtitle">No hay remisiones o entregas registradas.</p>'}<div class="dossier-subsection"><strong>Facturación al cliente</strong>${data.customerInvoices.map(invoice => `<article class="dossier-record compact"><div><strong>${escapeHtml(invoice.folio || invoice.accountReference || invoice.id)}</strong><small>${invoice.type === 'account_charge' ? 'Cargo a manejo de cuenta' : 'Factura al cliente'} · ${dossierDate(invoice.date)}</small></div><span>${dossierMoney(invoice.amount, invoice.currency || data.currency)}</span></article>`).join('') || '<small>Factura pendiente.</small>'}</div></section>`,
+      deliveries: `<section class="dossier-section"><h3>Entregas, remisiones y facturación</h3>${data.shipments.map(shipment => `<article class="dossier-record"><div><strong>${escapeHtml(shipment.folio || shipment.id)}</strong><small>${shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial'} · ${dossierDate(shipment.date || shipment.deliveredAt)} · ${escapeHtml(shipment.observations || 'Sin observaciones')}</small></div><span>${(shipment.items || []).reduce((sum, item) => sum + core.numberValue(item.quantity), 0)} uds.</span></article>`).join('') || '<p class="subtitle">No hay remisiones o entregas registradas.</p>'}<div class="dossier-subsection"><strong>Facturación al cliente</strong>${data.customerInvoices.map(invoice => `<article class="dossier-record compact"><div><strong>${escapeHtml(invoice.folio || invoice.accountReference || invoice.id)}</strong><small>${invoice.type === 'account_charge' ? 'Cargo a manejo de cuenta' : 'Factura al cliente'} · ${dossierDate(invoice.date)}</small></div><span>${dossierMoney(invoice.amount, invoice.currency || data.currency)}</span></article>`).join('') || '<small>Factura pendiente.</small>'}</div></section>`,
       documents: `<section class="dossier-section"><h3>Documentos y evidencias</h3><div class="flow-document-actions">${documents || '<small>No hay documentos emitidos todavía.</small>'}</div><div class="dossier-subsection"><strong>Evidencias de recepción</strong>${data.receipts.flatMap(receipt => (receipt.evidence || []).map(evidence => `<article class="dossier-record compact"><div><strong>${escapeHtml(evidence.name || 'Archivo')}</strong><small>${escapeHtml(receipt.id)} · SHA-256 ${escapeHtml((evidence.hash || 'pendiente').slice(0, 18))}</small></div><span>${escapeHtml(evidence.type || 'Archivo')}</span></article>`)).join('') || '<small>Sin evidencias adjuntas.</small>'}</div></section>`,
       timeline: `<section class="dossier-section"><h3>Línea de tiempo auditable</h3><div class="dossier-timeline">${data.audits.map(entry => `<article><time>${dossierDate(entry.at)}</time><div><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><small>${escapeHtml(entry.user || 'Sistema')} · ${escapeHtml(entry.reference || 'Sin documento relacionado')}</small>${entry.notes ? `<p>${escapeHtml(entry.notes)}</p>` : ''}${entry.nextAction ? `<p>Próxima acción: ${escapeHtml(entry.nextAction)}${entry.commitmentDate ? ` · ${escapeHtml(entry.commitmentDate)}` : ''}</p>` : ''}</div></article>`).join('') || '<p class="subtitle">Sin eventos en la bitácora.</p>'}</div></section>`
     };
@@ -1463,7 +1516,7 @@
       return `<article class="dossier-line seller-order-trace-line"><div><strong>${escapeHtml(line.catalog || 'S/C')} · ${escapeHtml(line.description || 'Artículo')}</strong><small>${escapeHtml(line.brandName || 'Sin marca')} · ${escapeHtml(core.STATUS_LABELS[line.status] || line.status || 'En proceso')}</small><div class="order-line-progress"><i style="width:${percent}%"></i></div></div><span>Sol.<b>${requested}</b></span><span>Comp.<b>${purchased}</b></span><span>Rec.<b>${received}</b></span><span>Ent.<b>${delivered}</b></span><span>Pend.<b>${pending}</b></span></article>`;
     }).join('') || '<p class="subtitle">Sin partidas vinculadas.</p>';
     const receipts = data.receipts.map(receipt => `<article class="dossier-record compact"><div><strong>${escapeHtml(receipt.type === 'total' ? 'Recepción total' : 'Recepción parcial')}</strong><small>Almacén ${escapeHtml(receipt.warehouseId || '—')} · ${escapeHtml(receipt.reference || receipt.supplierRemission || receipt.id)}</small></div><span>${(receipt.items || []).reduce((total, item) => total + core.numberValue(item.quantityAccepted ?? item.quantity), 0)} uds.</span></article>`).join('') || '<small>Sin recepciones registradas.</small>';
-    const shipments = data.shipments.map(shipment => `<article class="dossier-record compact"><div><strong>${escapeHtml(shipment.folio || shipment.id)}</strong><small>${shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial'} · ${dossierDate(shipment.deliveredAt || shipment.date)}</small></div><span>${(shipment.items || []).reduce((total, item) => total + core.numberValue(item.quantity), 0)} uds.</span></article>`).join('') || '<small>Sin remisiones registradas.</small>';
+    const shipments = data.shipments.map(shipment => `<article class="dossier-record compact"><div><strong>${escapeHtml(shipment.folio || shipment.id)}</strong><small>${shipment.type === 'total' ? 'Entrega total' : 'Entrega parcial'} · ${dossierDate(shipment.date || shipment.deliveredAt)}</small></div><span>${(shipment.items || []).reduce((total, item) => total + core.numberValue(item.quantity), 0)} uds.</span></article>`).join('') || '<small>Sin remisiones registradas.</small>';
     const timeline = data.audits.slice(0, 8).map(entry => `<article><time>${dossierDate(entry.at)}</time><div><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><small>${escapeHtml(entry.reference || 'Actualización operativa')}</small></div></article>`).join('') || '<p class="subtitle">Aún no hay eventos operativos registrados.</p>';
     activeRequestId = null; activeDossierTab = 'summary'; q('#downloadOrderAudit').hidden = true;
     q('#orderDetailTitle').textContent = `${commercialOrder.id} · Trazabilidad`;
@@ -1581,5 +1634,20 @@
   window.addEventListener('bio:client-order-activated', () => { syncClientOrders(); syncSupplierPurchaseOrders(); renderOrderDashboard(); renderDeliveries(); renderSupplierPurchaseOrders(); });
   window.addEventListener('bio:open-client-dossier', event => { syncClientOrders(); syncSupplierPurchaseOrders(); renderClientDossier(event.detail); });
   window.addEventListener('bio:access-changed', () => { actor = window.BioAccess?.currentUser() || actor; renderOrderDashboard(); renderDeliveries(); renderSupplierPurchaseOrders(); });
-  reconcileHistoricalReceiptInventory(); reconcileHistoricalQuarantineInventory(); reconcileHistoricalAuthorizedShortages(); reconcileHistoricalPurchaseReceipts(); syncClientOrders(); syncSupplierPurchaseOrders(); renderOrderDashboard(); renderDeliveries(); renderSupplierPurchaseOrders(); renderImportSimulation();
+  let workspaceStateInitialized = false;
+  const initializeWorkspaceState = () => {
+    if (workspaceStateInitialized) return;
+    workspaceStateInitialized = true;
+    store = loadStore();
+    reconcileHistoricalDocumentDates(); reconcileHistoricalReceiptInventory(); reconcileHistoricalQuarantineInventory(); reconcileHistoricalAuthorizedShortages(); reconcileHistoricalPurchaseReceipts();
+    syncClientOrders(); syncSupplierPurchaseOrders(); renderOrderDashboard(); renderDeliveries(); renderSupplierPurchaseOrders(); renderImportSimulation();
+  };
+  const persistenceState = window.BioPersistence?.status?.();
+  if (!window.BioPersistence || persistenceState?.hydrated) initializeWorkspaceState();
+  else {
+    renderOrderDashboard(); renderDeliveries(); renderSupplierPurchaseOrders(); renderImportSimulation();
+    window.addEventListener('bio:persistence-changed', event => {
+      if (event.detail?.hydrated || event.detail?.error) initializeWorkspaceState();
+    });
+  }
 })();

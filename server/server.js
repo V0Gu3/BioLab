@@ -243,8 +243,40 @@ function canWriteState(user, state, stateKey) {
 
 const sameValue = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 const stateSectionChanged = (current, next, key) => !sameValue(current?.[key], next?.[key]);
+const folioDate = (value, prefix) => {
+  const match = String(value || '').match(new RegExp(`^${prefix}-(\\d{2})(\\d{2})(\\d{2})-\\d{4,}$`));
+  return match ? `20${match[1]}-${match[2]}-${match[3]}` : '';
+};
+
+function assertDocumentHistoryStable(current = {}, next = {}) {
+  const conflict = message => { throw Object.assign(new Error(message), { status: 409 }); };
+  const assertCollection = ({ key, prefix, dateKey, relationKey }) => {
+    const currentRows = Array.isArray(current[key]) ? current[key] : [], nextRows = Array.isArray(next[key]) ? next[key] : [];
+    const nextById = new Map(nextRows.map(item => [String(item?.id || item?.folio || ''), item]));
+    for (const prior of currentRows) {
+      const id = String(prior?.id || prior?.folio || ''), candidate = nextById.get(id);
+      if (!candidate) conflict(`${id || 'Un documento histórico'} no puede desaparecer del expediente. Consérvalo y registra su cancelación si corresponde.`);
+      const priorFolio = String(prior.folio || prior.id || ''), candidateFolio = String(candidate.folio || candidate.id || '');
+      const identityRepair = candidate.identityReconciliation?.source === 'audit_and_inventory_movement' && String(candidate.identityReconciliation?.originalFolio || priorFolio) === priorFolio;
+      if (candidateFolio !== priorFolio && !identityRepair) conflict(`El folio ${id} es inmutable.`);
+      if (relationKey && String(candidate[relationKey] || '') !== String(prior[relationKey] || '')) conflict(`La relación de ${id} con su pedido es inmutable.`);
+      const canonical = folioDate(candidateFolio, prefix), priorDate = String(prior[dateKey] || '').slice(0, 10), nextDate = String(candidate[dateKey] || '').slice(0, 10);
+      const canonicalRepair = canonical && nextDate === canonical && (priorDate !== canonical || identityRepair);
+      if (priorDate !== nextDate && !canonicalRepair) conflict(`La fecha original de ${id} no puede modificarse.`);
+    }
+    const currentIds = new Set(currentRows.map(item => String(item?.id || item?.folio || '')));
+    for (const candidate of nextRows) {
+      if (currentIds.has(String(candidate?.id || candidate?.folio || ''))) continue;
+      const canonical = folioDate(candidate.folio || candidate.id, prefix), candidateDate = String(candidate[dateKey] || '').slice(0, 10);
+      if (canonical && candidateDate !== canonical) throw Object.assign(new Error(`La fecha de ${candidate.folio || candidate.id} debe coincidir con su folio (${canonical}).`), { status: 400 });
+    }
+  };
+  assertCollection({ key: 'shipments', prefix: 'REM', dateKey: 'date', relationKey: 'requisitionId' });
+  assertCollection({ key: 'supplierOrders', prefix: 'OCP', dateKey: 'createdAt' });
+}
 
 function assertOperationalWriteAllowed(current = {}, next = {}, user, state) {
+  assertDocumentHistoryStable(current, next);
   const changed = key => stateSectionChanged(current, next, key);
   const requirePermission = (permission, label) => {
     if (!can(user, state, permission)) throw Object.assign(new Error(`Tu perfil no tiene permiso para ${label}.`), { status: 403 });
@@ -595,4 +627,4 @@ if (require.main === module) {
   }).catch(error => { console.error(`No fue posible iniciar PROBIOLAB: ${error.message}`); process.exit(1); });
 }
 
-module.exports = { createApp, parseDofUsdIndicator, dofUsdHistoryUrl, dofPublicationMetadata, enforceActivatedOrderLock, enforceRequiredQuotationLock };
+module.exports = { createApp, parseDofUsdIndicator, dofUsdHistoryUrl, dofPublicationMetadata, enforceActivatedOrderLock, enforceRequiredQuotationLock, assertDocumentHistoryStable };
