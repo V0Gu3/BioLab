@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   payload_json JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS seller_number TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_seller_number_unique ON users(seller_number) WHERE seller_number IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_normalized ON users(LOWER(email));
 -- Compatibilidad con bases creadas antes del perfil Desarrollo.
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
@@ -79,9 +81,10 @@ CREATE INDEX IF NOT EXISTS idx_products_search_key ON products(search_key);
 
 CREATE TABLE IF NOT EXISTS clients (
   id TEXT PRIMARY KEY, internal_number TEXT, name TEXT NOT NULL, contact TEXT, email TEXT, phone TEXT, search_key TEXT NOT NULL DEFAULT '',
-  owner_id TEXT, owner_name TEXT, payload_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+  owner_id TEXT, owner_name TEXT, owner_seller_number TEXT, payload_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS search_key TEXT NOT NULL DEFAULT '';
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS owner_seller_number TEXT;
 CREATE INDEX IF NOT EXISTS idx_clients_search ON clients(LOWER(internal_number), LOWER(name), LOWER(contact));
 CREATE INDEX IF NOT EXISTS idx_clients_search_key ON clients(search_key);
 
@@ -141,10 +144,13 @@ CREATE INDEX IF NOT EXISTS idx_movements_reference ON movements(reference, occur
 
 CREATE TABLE IF NOT EXISTS quotations (
   id TEXT PRIMARY KEY, client_id TEXT, client_name TEXT, status TEXT, currency TEXT, subtotal NUMERIC(18,6) NOT NULL DEFAULT 0,
-  tax_amount NUMERIC(18,6) NOT NULL DEFAULT 0, total NUMERIC(18,6) NOT NULL DEFAULT 0, created_at TEXT, created_by TEXT,
+  tax_amount NUMERIC(18,6) NOT NULL DEFAULT 0, total NUMERIC(18,6) NOT NULL DEFAULT 0, created_at TEXT, created_by TEXT, owner_id TEXT, owner_name TEXT, owner_seller_number TEXT,
   payload_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
 ALTER TABLE quotations ADD COLUMN IF NOT EXISTS client_id TEXT;
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS owner_name TEXT;
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS owner_seller_number TEXT;
 CREATE INDEX IF NOT EXISTS idx_quotations_client ON quotations(client_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS quotation_items (
   quotation_id TEXT NOT NULL REFERENCES quotations(id) ON DELETE CASCADE, line_no INTEGER NOT NULL, product_id TEXT, sku TEXT,
@@ -153,12 +159,13 @@ CREATE TABLE IF NOT EXISTS quotation_items (
 );
 
 CREATE TABLE IF NOT EXISTS client_orders (
-  id TEXT PRIMARY KEY, quotation_id TEXT, client_id TEXT, client_name TEXT, owner_id TEXT, owner_name TEXT, seller TEXT, created_by TEXT, status TEXT, currency TEXT, total NUMERIC(18,6) NOT NULL DEFAULT 0,
+  id TEXT PRIMARY KEY, quotation_id TEXT, client_id TEXT, client_name TEXT, owner_id TEXT, owner_name TEXT, owner_seller_number TEXT, seller TEXT, created_by TEXT, status TEXT, currency TEXT, total NUMERIC(18,6) NOT NULL DEFAULT 0,
   created_at TEXT, payload_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
 ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS client_id TEXT;
 ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS owner_id TEXT;
 ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS owner_name TEXT;
+ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS owner_seller_number TEXT;
 ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS seller TEXT;
 ALTER TABLE client_orders ADD COLUMN IF NOT EXISTS created_by TEXT;
 CREATE INDEX IF NOT EXISTS idx_client_orders_client ON client_orders(client_id);

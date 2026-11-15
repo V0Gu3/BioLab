@@ -5,5 +5,6 @@
     const current = access?.currentUserId;
     root.__BIO_WORKSPACE_MODE__ = access?.workspace?.modes?.[current] === 'training' ? 'training' : 'operational';
     root.__BIO_TRAINING__ = root.__BIO_WORKSPACE_MODE__ === 'training';
-  } catch { root.__BIO_WORKSPACE_MODE__ = 'operational'; root.__BIO_TRAINING__ = false; }
+    root.document.documentElement.dataset.workspace = root.__BIO_WORKSPACE_MODE__;
+  } catch { root.__BIO_WORKSPACE_MODE__ = 'operational'; root.__BIO_TRAINING__ = false; root.document.documentElement.dataset.workspace = 'operational'; }
 })(window);

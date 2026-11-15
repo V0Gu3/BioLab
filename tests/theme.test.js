@@ -56,7 +56,7 @@ test('el login recupera en forma local el modo del último usuario identificado'
   assert.match(loginCss, /\.bio-login-page\{margin:0;font-family:Manrope,Arial,sans-serif/);
   assert.match(loginCss, /\.bio-login-card input\{border-color:#359bd3;background:#fdfefe;color:#181a1f/);
   assert.match(loginHtml, /login\.css\?v=20260927-1/);
-  assert.match(loginHtml, /auth\.js\?v=20260927-6/);
+  assert.match(loginHtml, /auth\.js\?v=20261107-1/);
   assert.match(auth, /placeholder="nombre@empresa\.com"/);
   assert.doesNotMatch(auth, /<img src="assets\/probiolab-logo-transparent\.png" alt="" \/>PROBIOLAB/);
 });
@@ -207,8 +207,10 @@ test('todos los modales y menús auxiliares usan la identidad de la paleta activ
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const css = fs.readFileSync(require.resolve('../theme.css'), 'utf8');
   const dialogs = [...html.matchAll(/<dialog\s+id="([^"]+)"/g)].map(match => match[1]);
-  assert.equal(dialogs.length, 21);
+  assert.equal(dialogs.length, 23);
   assert.ok(dialogs.includes('internalOrderActivationDialog'));
+  assert.ok(dialogs.includes('productRetirementDialog'));
+  assert.ok(dialogs.includes('productEditDialog'));
   assert.match(css, /Capa unificada para ventanas y menús de apoyo/);
   assert.match(css, /#movementDialog, #newProductDialog, #actionConfirmDialog, \.system-dialog, \.order-dialog, \.document-preview-dialog/);
   assert.match(css, /Contrato visual de diálogos/);

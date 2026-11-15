@@ -31,3 +31,29 @@ test('la API conserva la comprobación del permiso de auditoría', () => {
   assert.equal(typeof audit.render, 'function');
   assert.match(fs.readFileSync(require.resolve('../audit.js'), 'utf8'), /BioAccess\?\.can\('audit'\)/);
 });
+
+test('la vista de auditoría pagina los registros filtrados sin limitar la exportación', () => {
+  const source = fs.readFileSync(require.resolve('../audit.js'), 'utf8');
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  assert.match(source, /paginate\(visible, auditPage, pageSize\(\)\)/);
+  assert.match(source, /auditPageSize/);
+  assert.match(source, /Página \$\{auditPage\} de \$\{totalPages\}/);
+  assert.match(source, /\.\.\.visible\.map\(item =>/);
+  assert.match(html, /id="auditPagination"/);
+  assert.match(html, /id="auditPrevious"/);
+  assert.match(html, /id="auditNext"/);
+});
+
+test('la paginación limita a 25 registros y ajusta páginas fuera de rango', () => {
+  const audit = loadAudit({});
+  const rows = Array.from({ length: 61 }, (_, index) => ({ id: `AUD-${index + 1}` }));
+  const second = audit.paginate(rows, 2, 25);
+  assert.equal(second.page, 2);
+  assert.equal(second.totalPages, 3);
+  assert.equal(second.first, 25);
+  assert.equal(second.last, 50);
+  assert.equal(second.rows.length, 25);
+  const adjusted = audit.paginate(rows, 99, 25);
+  assert.equal(adjusted.page, 3);
+  assert.equal(adjusted.rows.length, 11);
+});

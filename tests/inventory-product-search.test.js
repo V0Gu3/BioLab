@@ -48,6 +48,15 @@ test('aplicar una lista crea producto maestro sin existencias y relación persis
   assert.doesNotMatch(app, /activateStoredPriceCatalogEntries/);
 });
 
+test('las alertas de inventario solo incluyen artículos con existencias o movimientos reales', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  assert.match(app, /function isInventoryTracked/);
+  assert.match(app, /inventoryHasOperationalHistory/);
+  assert.match(app, /trackedInventoryProducts=products\.filter\(isInventoryTracked\)/);
+  assert.match(html, /id="inventoryLowCount"/);
+});
+
 test('cotizaciones presenta el catálogo vigente de listas sin convertirlo en inventario', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   assert.match(app, /function quotationCatalogCandidates/);
@@ -76,7 +85,8 @@ test('el catálogo de listas aplicadas se consulta por proveedor y conserva su m
 test('el catálogo de productos muestra la divisa una sola vez, en su etiqueta', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   assert.match(app, /const priceAmount=value=>/);
-  assert.match(app, /<strong>\$\{priceAmount\(product\.price\)\}<\/strong><small class="price-currency">\$\{escapeHtml\(product\.priceCurrency\)\}<\/small>/);
+  assert.match(app, /function catalogDisplayPrice\(product,entries=\[\]\)/);
+  assert.match(app, /Sin precio de venta/);
 });
 
 test('el visor de listas recupera renglones de cargas previas conservados en el catálogo', () => {
@@ -94,5 +104,7 @@ test('la nueva cotización encuentra clientes frecuentes y completa sus datos ed
   assert.match(app, /function frequentQuotationClients/);
   assert.match(app, /renderFrequentQuotationClients/);
   assert.match(app, /function selectFrequentQuotationClient/);
+  assert.match(app, /selectFrequentQuotationClientWithValidation/);
+  assert.match(app, /clearFieldError/);
   for (const field of ['client\.client', 'client\.contact', 'client\.location', 'client\.email']) assert.match(app, new RegExp(field));
 });

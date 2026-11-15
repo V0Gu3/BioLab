@@ -14,7 +14,8 @@
   };
   const labels = { document: 'Documento', movement: 'Movimiento', operation: 'Operación', currency: 'Divisas', access: 'Acceso' };
   const icons = { document: 'file-check-2', movement: 'arrow-right-left', operation: 'workflow', currency: 'landmark', access: 'key-round' };
-  let visible = [];
+  let visible = [], auditPage = 1;
+  const pageSize = () => Math.max(1, Number(q('#auditPageSize')?.value || 25));
 
   const record = (category, origin, item, options = {}) => ({
     id: text(item.id || item.folio || `${origin}-${dateOf(item)}`), category, origin,
@@ -52,16 +53,29 @@
     return rows.filter(item => { const key = `${item.category}|${item.id}`; if (seen.has(key)) return false; seen.add(key); return true; }).sort((a, b) => new Date(b.at) - new Date(a.at));
   }
 
-  function filtered() {
+  function filtered(rows = collect()) {
     const term = text(q('#auditSearch')?.value).toLocaleLowerCase('es-MX'), category = q('#auditCategory')?.value || '', from = q('#auditDateFrom')?.value || '', to = q('#auditDateTo')?.value || '';
-    return collect().filter(item => (!category || item.category === category) && (!from || text(item.at).slice(0, 10) >= from) && (!to || text(item.at).slice(0, 10) <= to) && (!term || [item.id, item.title, item.origin, item.reference, item.user, item.detail].some(value => text(value).toLocaleLowerCase('es-MX').includes(term))));
+    return rows.filter(item => (!category || item.category === category) && (!from || text(item.at).slice(0, 10) >= from) && (!to || text(item.at).slice(0, 10) <= to) && (!term || [item.id, item.title, item.origin, item.reference, item.user, item.detail].some(value => text(value).toLocaleLowerCase('es-MX').includes(term))));
   }
 
-  function render() {
+  function paginate(rows, requestedPage = 1, requestedSize = 25) {
+    const size = Math.max(1, Number(requestedSize) || 25), totalPages = Math.max(1, Math.ceil(rows.length / size));
+    const page = Math.min(Math.max(1, Number(requestedPage) || 1), totalPages), first = (page - 1) * size, last = Math.min(first + size, rows.length);
+    return { page, size, totalPages, first, last, rows: rows.slice(first, last) };
+  }
+
+  function render(resetPage = false) {
     if (!q('#auditList') || !root.BioAccess?.can('audit')) return;
-    const all = collect(); visible = filtered();
-    q('#auditTotal').textContent = all.length; q('#auditDocuments').textContent = all.filter(item => item.category === 'document').length; q('#auditMovements').textContent = all.filter(item => item.category === 'movement').length; q('#auditUsers').textContent = new Set(all.map(item => item.user).filter(Boolean)).size; q('#auditResultCount').textContent = `${visible.length} de ${all.length} registros`;
-    q('#auditList').innerHTML = visible.map(item => { const shown = displayDate(item.at); return `<article class="audit-entry"><div class="audit-entry-main"><span class="audit-entry-icon"><i data-lucide="${icons[item.category]}"></i></span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || item.id)}</small><span class="audit-kind">${labels[item.category]}</span></div></div><div><strong>${escapeHtml(item.origin)}</strong><small>${escapeHtml(item.reference)} · ${escapeHtml(item.id)}</small></div><div><strong>${escapeHtml(item.user)}</strong><small>Responsable registrado</small></div><div><strong>${escapeHtml(shown.date)}</strong><small>${escapeHtml(shown.time)}</small></div>${item.downloadKind ? `<button class="audit-download" data-audit-download="${escapeHtml(item.id)}" title="Descargar documento"><i data-lucide="download"></i></button>` : '<span></span>'}</article>`; }).join('') || '<div class="audit-empty"><i data-lucide="file-search"></i><strong>No hay registros con estos filtros</strong><span>Ajusta la búsqueda o el periodo consultado.</span></div>';
+    if (resetPage) auditPage = 1;
+    const all = collect(); visible = filtered(all);
+    const page = paginate(visible, auditPage, pageSize()); auditPage = page.page;
+    const { size, totalPages, first, last, rows: pageRows } = page;
+    q('#auditTotal').textContent = all.length; q('#auditDocuments').textContent = all.filter(item => item.category === 'document').length; q('#auditMovements').textContent = all.filter(item => item.category === 'movement').length; q('#auditUsers').textContent = new Set(all.map(item => item.user).filter(Boolean)).size; q('#auditResultCount').textContent = visible.length ? `Mostrando ${first + 1}–${last} de ${visible.length} registros${visible.length !== all.length ? ` · ${all.length} totales` : ''}` : `0 de ${all.length} registros`;
+    q('#auditList').innerHTML = pageRows.map(item => { const shown = displayDate(item.at); return `<article class="audit-entry"><div class="audit-entry-main"><span class="audit-entry-icon"><i data-lucide="${icons[item.category]}"></i></span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || item.id)}</small><span class="audit-kind">${labels[item.category]}</span></div></div><div><strong>${escapeHtml(item.origin)}</strong><small>${escapeHtml(item.reference)} · ${escapeHtml(item.id)}</small></div><div><strong>${escapeHtml(item.user)}</strong><small>Responsable registrado</small></div><div><strong>${escapeHtml(shown.date)}</strong><small>${escapeHtml(shown.time)}</small></div>${item.downloadKind ? `<button class="audit-download" data-audit-download="${escapeHtml(item.id)}" title="Descargar documento"><i data-lucide="download"></i></button>` : '<span></span>'}</article>`; }).join('') || '<div class="audit-empty"><i data-lucide="file-search"></i><strong>No hay registros con estos filtros</strong><span>Ajusta la búsqueda o el periodo consultado.</span></div>';
+    const pagination = q('#auditPagination'); if (pagination) pagination.hidden = visible.length === 0;
+    if (q('#auditPageInfo')) q('#auditPageInfo').textContent = `Página ${auditPage} de ${totalPages}`;
+    if (q('#auditPrevious')) q('#auditPrevious').disabled = auditPage <= 1;
+    if (q('#auditNext')) q('#auditNext').disabled = auditPage >= totalPages;
     root.lucide?.createIcons();
   }
 
@@ -88,9 +102,11 @@
   }
 
   q('#auditList')?.addEventListener('click', event => { const button = event.target.closest('[data-audit-download]'); if (button) download(visible.find(item => item.id === button.dataset.auditDownload)); });
-  [['auditTotal', ''], ['auditDocuments', 'document'], ['auditMovements', 'movement'], ['auditUsers', 'access']].forEach(([id, category]) => { const card = q(`#${id}`)?.closest('article'); if (!card) return; card.classList.add('interactive-summary'); card.tabIndex = 0; card.setAttribute('role', 'button'); card.addEventListener('click', () => { q('#auditCategory').value = category; render(); q('#auditList').scrollIntoView({ behavior: 'smooth', block: 'start' }); }); card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); card.click(); } }); });
-  ['auditSearch', 'auditDateFrom', 'auditDateTo'].forEach(id => q(`#${id}`)?.addEventListener('input', render)); q('#auditCategory')?.addEventListener('change', render);
-  q('#auditReset')?.addEventListener('click', () => { ['auditSearch', 'auditCategory', 'auditDateFrom', 'auditDateTo'].forEach(id => { q(`#${id}`).value = ''; }); render(); });
+  [['auditTotal', ''], ['auditDocuments', 'document'], ['auditMovements', 'movement'], ['auditUsers', 'access']].forEach(([id, category]) => { const card = q(`#${id}`)?.closest('article'); if (!card) return; card.classList.add('interactive-summary'); card.tabIndex = 0; card.setAttribute('role', 'button'); card.addEventListener('click', () => { q('#auditCategory').value = category; render(true); q('#auditList').scrollIntoView({ behavior: 'smooth', block: 'start' }); }); card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); card.click(); } }); });
+  ['auditSearch', 'auditDateFrom', 'auditDateTo'].forEach(id => q(`#${id}`)?.addEventListener('input', () => render(true))); q('#auditCategory')?.addEventListener('change', () => render(true)); q('#auditPageSize')?.addEventListener('change', () => render(true));
+  q('#auditPrevious')?.addEventListener('click', () => { if (auditPage > 1) { auditPage -= 1; render(); q('#auditList').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  q('#auditNext')?.addEventListener('click', () => { if (auditPage * pageSize() < visible.length) { auditPage += 1; render(); q('#auditList').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  q('#auditReset')?.addEventListener('click', () => { ['auditSearch', 'auditCategory', 'auditDateFrom', 'auditDateTo'].forEach(id => { q(`#${id}`).value = ''; }); render(true); });
   q('#exportAudit')?.addEventListener('click', exportCsv); root.document?.querySelectorAll('[data-view="auditView"]').forEach(link => link.addEventListener('click', render)); root.addEventListener?.('bio:access-changed', render); root.addEventListener?.('bio:fx-changed', render);
-  root.BioAudit = { collect, render, exportCsv, preview: id => download(collect().find(item => item.id === id), true) }; render();
+  root.BioAudit = { collect, paginate, render, exportCsv, preview: id => download(collect().find(item => item.id === id), true) }; render();
 })(window);

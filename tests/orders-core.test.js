@@ -21,7 +21,11 @@ function test(name, fn) {
 }
 
 test('calcula subtotal, IVA configurable y total', () => {
-  assert.deepEqual(core.calculateLineTotals({ quantity: 3, unitPrice: 100, taxRate: 8 }), { subtotal: 300, taxAmount: 24, total: 324 });
+  assert.deepEqual(core.calculateLineTotals({ quantity: 3, unitPrice: 100, taxRate: 8 }), { subtotal: 300, discountTotal: 0, taxable: 300, taxAmount: 24, total: 324 });
+});
+
+test('redondea el precio unitario y aplica descuento antes del IVA', () => {
+  assert.deepEqual(core.calculateLineTotals({ quantity: 2, unitPrice: 667.484, discountAmount: 100, taxRate: 16 }), { subtotal: 1334.96, discountTotal: 100, taxable: 1234.96, taxAmount: 197.59, total: 1432.55 });
 });
 
 test('agrupa una requisición con una y varias partidas', () => {
@@ -152,6 +156,19 @@ test('distribuye la reserva entre almacenes sin comprometer existencias ya reser
   assert.equal(plan.supplyOrigin, 'mixed');
 });
 
+test('una recepción comprometida para otro pedido no queda libre para una reserva nueva', () => {
+  const plan = core.reconcileWarehouseReservations({ available: 1, committed: 1, reservations: [{ id: 'RES-PI-NUEVO', quantity: 1, quantityConsumed: 0, at: '2026-11-10T09:00:00Z' }] });
+  assert.equal(plan.releasedQuantity, 1);
+  assert.deepEqual(plan.allocations, [{ id: 'RES-PI-NUEVO', previous: 1, kept: 0, released: 1 }]);
+  const afterEarlierDelivery = core.reconcileWarehouseReservations({ available: 0, committed: 0, reservations: [{ id: 'RES-PI-NUEVO', quantity: 1, quantityConsumed: 0, at: '2026-11-10T09:00:00Z' }] });
+  assert.equal(afterEarlierDelivery.releasedQuantity, 1);
+});
+
+test('si dos pedidos compiten por stock libre se conserva la reserva más antigua', () => {
+  const plan = core.reconcileWarehouseReservations({ available: 1, committed: 0, reservations: [{ id: 'RES-NUEVA', quantity: 1, at: '2026-11-10T10:00:00Z' }, { id: 'RES-ANTIGUA', quantity: 1, at: '2026-11-10T08:00:00Z' }] });
+  assert.deepEqual(plan.allocations.map(item => [item.id, item.kept, item.released]), [['RES-ANTIGUA', 1, 0], ['RES-NUEVA', 0, 1]]);
+});
+
 test('el surtido mixto queda comprado cuando se cubre únicamente el faltante', () => {
   const line = { quantityRequested: 15, quantityCancelled: 0, reservedQuantity: 5, quantityPurchased: 10, quantityReceived: 0, quantityDelivered: 0, quantityInvoiced: 0, supplyOrigin: 'mixed' };
   assert.equal(core.deriveLineStatus(line), 'purchased');
@@ -183,6 +200,48 @@ test('concilia OC, recepción y factura sin exigir factura para recibir', () => 
   assert.equal(mismatch.status, 'review');
 });
 
+test('calcula el pendiente de recepción por OC aunque una partida esté dividida entre proveedores', () => {
+  const linkA = { supplierOrderId: 'OCP-A', orderLineId: 'L1', quantity: 2 };
+  const linkB = { supplierOrderId: 'OCP-B', orderLineId: 'L1', quantity: 3 };
+  const receipts = [
+    { supplierOrderId: 'OCP-A', items: [{ orderLineId: 'L1', quantityAccepted: 2 }] },
+    { supplierOrderId: 'OCP-B', items: [{ orderLineId: 'L1', quantityAccepted: 1 }] },
+    { supplierOrderId: 'OCP-B', items: [{ orderLineId: 'L1', quantityAccepted: 0 }] },
+  ];
+  assert.equal(core.supplierOrderLinePending({ supplierOrderId: 'OCP-A', link: linkA, receipts }), 0);
+  assert.equal(core.supplierOrderLinePending({ supplierOrderId: 'OCP-B', link: linkB, receipts }), 2);
+});
+
+test('el saldo cancelado de una OC deja de contarse como pendiente de recepción', () => {
+  const link = { supplierOrderId: 'OCP-CANCEL', orderLineId: 'LINE-CANCEL', quantity: 2, quantityCancelled: 1, unitPrice: 100 };
+  const receipts = [{ supplierOrderId: 'OCP-CANCEL', items: [{ orderLineId: 'LINE-CANCEL', quantityAccepted: 1 }] }];
+  assert.equal(core.supplierOrderLinePending({ supplierOrderId: 'OCP-CANCEL', link, receipts }), 0);
+  const reconciliation = core.reconcileSupplierPurchase({ order: { id: 'OCP-CANCEL' }, links: [link], receipts, invoices: [] });
+  assert.equal(reconciliation.orderedQuantity, 1);
+  assert.equal(reconciliation.receivedQuantity, 1);
+  assert.equal(reconciliation.quantityStatus, 'matched');
+});
+
+test('concilia la compra desde una OC confirmada aunque la partida histórica conserve cero', () => {
+  const line = { id: 'LINE-HIST', quantityRequested: 2, quantityPurchased: 0, quantityReceived: 0, quantityDelivered: 0, quantityCancelled: 0, reservedQuantity: 0 };
+  const links = [{ supplierOrderId: 'OCP-HIST', orderLineId: 'LINE-HIST', quantity: 2 }];
+  const supplierOrders = [{ id: 'OCP-HIST', status: 'confirmed', confirmedAt: '2026-11-06' }];
+  const supply = core.effectiveLineSupply({ line, links, supplierOrders, receipts: [] });
+  assert.equal(supply.purchased, 2);
+  assert.equal(supply.pendingPurchase, 0);
+  assert.equal(core.effectiveLineSupply({ line, links, supplierOrders: [{ id: 'OCP-HIST', status: 'draft' }], receipts: [] }).purchased, 0);
+});
+
+test('una recepción conciliada como duplicada no vuelve a sumar unidades', () => {
+  const line = { id: 'LINE-REC', quantityRequested: 2, quantityPurchased: 0, quantityReceived: 0, quantityDelivered: 0, quantityCancelled: 0, reservedQuantity: 0 };
+  const links = [{ supplierOrderId: 'OCP-REC', orderLineId: 'LINE-REC', quantity: 2 }], supplierOrders = [{ id: 'OCP-REC', status: 'received', confirmedAt: '2026-11-06' }];
+  const receipts = [{ id: 'REC-1', supplierOrderId: 'OCP-REC', items: [{ orderLineId: 'LINE-REC', quantityAccepted: 2 }] }, { id: 'REC-2', supplierOrderId: 'OCP-REC', duplicateOf: 'REC-1', status: 'duplicate_ignored', items: [{ orderLineId: 'LINE-REC', quantityAccepted: 2 }] }];
+  const supply = core.effectiveLineSupply({ line, links, supplierOrders, receipts });
+  assert.equal(supply.received, 2);
+  assert.equal(supply.purchased, 2);
+  assert.equal(core.supplierOrderLinePending({ supplierOrderId: 'OCP-REC', link: links[0], receipts }), 0);
+});
+
 test('la importación repetida marca filas como duplicadas', () => {
   const first = simulate([row()]);
   const repeated = simulate([row()], { existingSourceHashes: [first.rows[0].sourceHash] });
@@ -207,6 +266,7 @@ test('aplica permisos mínimos por rol', () => {
   assert.equal(core.hasPermission('receiving', 'receive'), true);
   assert.equal(core.hasPermission('admin', 'cancel'), true);
   assert.equal(core.hasPermission('administrator', 'admin'), true);
+  assert.equal(core.hasPermission('developer', 'edit'), true);
   assert.equal(core.hasPermission('supervisor', 'purchase'), true);
   assert.equal(core.hasPermission('supervisor', 'admin'), false);
   assert.equal(core.hasPermission('seller', 'edit'), true);

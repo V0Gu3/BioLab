@@ -27,7 +27,7 @@
     supplierId: clean(relation.supplierId),
     supplierSku: clean(relation.supplierSku || relation.supplierCode),
     supplierDescription: clean(relation.supplierDescription || relation.description),
-    purchaseUnit: clean(relation.purchaseUnit || relation.unit) || 'unidad',
+    purchaseUnit: clean(relation.purchaseUnit || relation.unit),
     purchasePrice: number(relation.purchasePrice ?? relation.price),
     currency: clean(relation.currency || relation.priceCurrency || 'MXN').toUpperCase(),
     leadTimeDays: Math.max(0, number(relation.leadTimeDays)),

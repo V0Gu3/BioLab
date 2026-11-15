@@ -109,6 +109,60 @@ test('el expediente Bio concentra la cadena operativa sin duplicar sus registros
   assert.match(styles, /\.dossier-timeline/);
 });
 
+test('cancelar un avance, recepción o remisión regresa al expediente de origen', () => {
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(html, /orders\.js\?v=/);
+  assert.match(orders, /const rememberProgressOrigin/);
+  assert.match(orders, /const restoreProgressOrigin/);
+  assert.match(orders, /dialog\.dataset\.originRequestId/);
+  assert.match(orders, /renderOrderDetail\(requestId, tab\)/);
+  assert.match(orders, /rememberProgressOrigin\(\);q\('#orderDetailDialog'\)\.close\(\);openTotalReceiptProgress/);
+  assert.match(orders, /q\('#orderProgressDialog'\)\.addEventListener\('cancel'.*restoreProgressOrigin/);
+});
+
+test('cancelar el selector de evidencia conserva abierto el modal de avance', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(orders, /progressFilePickerUntil/);
+  assert.match(orders, /Date\.now\(\) < progressFilePickerUntil/);
+});
+
+test('la previsualización del expediente carga el generador PDF bajo demanda', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(orders, /async function downloadOrderAudit/);
+  assert.match(orders, /await window\.BioLibraries\?\.pdf\?\.\(\)/);
+  assert.match(orders, /BioFlowDocs\.previewBlob\(doc\.output\('blob'\)/);
+  assert.match(orders, /documentPreviewDialog'\)\?\.open/);
+  assert.match(orders, /catch \(error\)[\s\S]*?No fue posible preparar el expediente/);
+});
+
+test('las operaciones dejan pintar el indicador de proceso antes de guardar', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(orders, /requestAnimationFrame\(\(\) => requestAnimationFrame\(resolve\)\)/);
+  assert.match(orders, /requestAnimationFrame\(refreshDossier\)/);
+  assert.match(orders, /requestIdleCallback\(refreshGlobal/);
+});
+
+test('el avance operativo usa un único envío para evitar bloqueos al guardar', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  const handlers = orders.match(/q\('#orderProgressForm'\)\.addEventListener\('submit'/g) || [];
+  assert.equal(handlers.length, 1);
+  assert.match(orders, /if \(mode === 'tracking'\) return await recordTrackingProgress/);
+  assert.match(orders, /No fue posible registrar la operación/);
+});
+
+test('las operaciones dentro de un modal muestran progreso directamente en su botón', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  assert.match(app, /button-operation-spinner/);
+  assert.match(app, /button\.replaceChildren\(spinner,text\)/);
+  assert.match(app, /button\?\.closest\('dialog\[open\]'\)/);
+  assert.match(app, /operation-dialog-progress/);
+  assert.match(html, /\.button-operation-spinner/);
+  assert.match(html, /\.operation-dialog-progress/);
+  assert.match(html, /\.submit\[aria-busy="true"\]/);
+});
+
 test('Clientes abre el expediente comercial-operativo consolidado de cada cliente', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
@@ -229,4 +283,25 @@ test('el flujo exige aceptación del cliente y prepara compras consolidadas audi
   assert.match(orders, /allocationType:/);
   assert.match(orders, /invoiceRequiredLater/);
   assert.match(orders, /qualityStatus/);
+});
+
+test('la autorización de una OC usa el permiso vigente de compras a proveedor', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(orders, /can\?\.\('supplier_order_manage'\)/);
+  assert.match(orders, /function confirmSupplierOrder\(orderId\)[\s\S]*canManageSupplierOrders\(\)/);
+});
+
+test('la recepción total conserva el pedido de origen y su cantidad pendiente', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(orders, /form\.dataset\.totalReceiptRequestId=requestId/);
+  assert.match(orders, /delete q\('#orderProgressQuantity'\)\.dataset\.formalDefaulted/);
+  assert.match(orders, /applyTotalReceipt\(form\.dataset\.supplierOrderId, form\.dataset\.totalReceiptRequestId/);
+  assert.match(orders, /if\(totalReceipt\)\{quantityInput\.max=quantityInput\.value/);
+  assert.match(orders, /quantityInput\.readOnly=true/);
+  assert.match(orders, /mark\('orderProgressQuantity', mode === 'formal' && !totalReceipt\)/);
+});
+
+test('agregar un producto no deja una notificación de cotización fuera de contexto', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  assert.doesNotMatch(app, /agregado y cotizado en/);
 });

@@ -22,10 +22,16 @@
     email.addEventListener('input', () => applyLoginTheme(themes[normalizeEmail(email.value)] || themes.last?.mode));
   };
   const request = async (path, payload) => {
-    const response = await fetch(path, { method: payload ? 'POST' : 'GET', credentials: 'same-origin', headers: payload ? { 'Content-Type': 'application/json' } : undefined, body: payload ? JSON.stringify(payload) : undefined });
-    const isJson = response.headers.get('content-type')?.includes('application/json'), body = isJson ? await response.json() : {};
-    if (!response.ok) throw Object.assign(new Error(body.error || `El servicio de acceso respondió ${response.status}. Inténtalo de nuevo.`), { setupReady: body.setupReady });
-    if (!isJson) throw new Error('El servicio de acceso devolvió una respuesta inesperada.'); return body;
+    const controller = new AbortController(), timeout = root.setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(path, { method: payload ? 'POST' : 'GET', credentials: 'same-origin', signal: controller.signal, headers: payload ? { 'Content-Type': 'application/json' } : undefined, body: payload ? JSON.stringify(payload) : undefined });
+      const isJson = response.headers.get('content-type')?.includes('application/json'), body = isJson ? await response.json() : {};
+      if (!response.ok) throw Object.assign(new Error(body.error || `El servicio de acceso respondió ${response.status}. Inténtalo de nuevo.`), { setupReady: body.setupReady });
+      if (!isJson) throw new Error('El servicio de acceso devolvió una respuesta inesperada.'); return body;
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('La validación de acceso tardó demasiado. Revisa tu conexión e inténtalo nuevamente.');
+      throw error;
+    } finally { root.clearTimeout(timeout); }
   };
   const passkeySupported = () => root.isSecureContext && !!root.PublicKeyCredential;
   const passkeyEnrollmentKey = userId => `bio-passkey-enrolled-v1:${userId}`;
@@ -47,7 +53,18 @@
     form.addEventListener('submit', async event => { event.preventDefault(); if (submit.disabled) return; const email = emailInput.value, password = passwordInput.value; form.classList.remove('is-error'); form.classList.add('is-loading'); submit.disabled = true; submit.textContent = 'Validando acceso…'; try { const result = await request(setupReady ? '/api/auth/setup' : '/api/auth/login', { email, password }); session = result.user; form.classList.remove('is-loading'); form.classList.add('is-success'); submit.textContent = 'Acceso validado'; rememberLoginTheme(session); root.localStorage.setItem('bio-authenticated', 'true'); root.BioAccess?.setCurrentUser?.(session.id); root.dispatchEvent(new CustomEvent('bio:auth-ready', { detail: session })); await new Promise(resolve => root.setTimeout(resolve, loginSuccessDelayMs)); openApplication(); } catch (failure) { form.classList.remove('is-loading'); form.classList.add('is-error'); error.textContent = failure.message; error.hidden = false; error.style.display = 'flex'; passwordInput.value = ''; submit.disabled = false; submit.textContent = 'Intentar nuevamente'; passwordInput.focus(); } }); const passwordToggle = dialog.querySelector('#bioLoginPasswordToggle'); passwordToggle.addEventListener('click', () => { const visible = passwordInput.type === 'text'; passwordInput.type = visible ? 'password' : 'text'; const label = visible ? 'Mostrar contraseña' : 'Ocultar contraseña'; passwordToggle.setAttribute('aria-label', label); passwordToggle.title = label; passwordToggle.innerHTML = `<i data-lucide="${visible ? 'eye' : 'eye-off'}"></i>`; root.lucide?.createIcons(); passwordInput.focus(); }); dialog.showModal(); root.lucide?.createIcons();
   }
   async function initialize() {
-    try { const result = await request('/api/auth/me'); session = result.user; root.localStorage.setItem('bio-authenticated', 'true'); root.BioAccess?.setCurrentUser?.(session.id); root.dispatchEvent(new CustomEvent('bio:auth-ready', { detail: session })); if (isLoginPage()) openApplication(); else revealApplication(); }
+    try {
+      if (await root.__bioServiceWorkerCleanup === false) return;
+      const result = await request('/api/auth/me');
+      if (!result.authenticated || !result.user) throw Object.assign(new Error('Inicia sesión para continuar.'), { setupReady: result.setupReady });
+      session = result.user; root.localStorage.setItem('bio-authenticated', 'true'); root.BioAccess?.setCurrentUser?.(session.id);
+      // La sesión ya fue confirmada: no mantener la interfaz cubierta mientras
+      // se descargan catálogos y documentos. La hidratación continúa en segundo
+      // plano y conserva la caché local si la red o la base tardan en responder.
+      if (isLoginPage()) { openApplication(); return; }
+      revealApplication();
+      Promise.resolve(root.BioPersistence?.bootstrap?.()).finally(() => root.dispatchEvent(new CustomEvent('bio:auth-ready', { detail: session })));
+    }
     catch (error) { root.localStorage.removeItem('bio-authenticated'); promptLogin(Boolean(error.setupReady)); }
   }
   root.addEventListener('bio:auth-ready', () => {

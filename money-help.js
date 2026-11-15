@@ -14,7 +14,13 @@
       clean = decimal === ',' ? clean.replace(/\./g, '').replace(',', '.') : clean.replace(/,/g, '');
     } else if (comma >= 0) {
       clean = /,\d{1,2}$/.test(clean) ? clean.replace(/\./g, '').replace(',', '.') : clean.replace(/,/g, '');
-    } else if (dot >= 0 && !/\.\d{1,6}$/.test(clean)) clean = clean.replace(/\./g, '');
+    } else if (dot >= 0) {
+      // Los importes de cotizaciones pueden conservar más de seis decimales por
+      // la conversión de divisas. Un único punto siempre representa el decimal;
+      // sólo varios puntos corresponden a separadores de miles.
+      const dots = (clean.match(/\./g) || []).length;
+      if (dots > 1) clean = clean.replace(/\./g, '');
+    }
     const amount = Number(clean);
     return Number.isFinite(amount) ? (negative ? -amount : amount) : null;
   }

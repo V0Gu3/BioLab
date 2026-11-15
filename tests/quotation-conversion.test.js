@@ -15,6 +15,12 @@ test('explica los bloqueos reales antes de convertir una cotización', () => {
   assert.match(result.checks.find(check => check.code === 'quotation_expired').message, /venció/i);
 });
 
+test('reconoce la vigencia con la fecha ISO compartida por pedidos y servidor', () => {
+  assert.equal(conversion.isExpired(quotation({ expiresAtISO: '2026-09-01T23:59:59.000Z' }), { now: new Date('2026-09-02T00:00:00.000Z') }), true);
+  assert.equal(conversion.isExpired(quotation({ expiresAtISO: '2026-09-02T23:59:59.000Z' }), { now: new Date('2026-09-02T12:00:00.000Z') }), false);
+  assert.equal(conversion.isExpired(quotation({ status: 'expired', expiresAtISO: '2099-01-01T00:00:00.000Z' })), true);
+});
+
 test('distingue permiso, conversión duplicada y aceptación posterior', () => {
   const denied = conversion.assess(quotation(), { canConvert: false, now: new Date('2026-09-08T12:00:00.000Z') });
   assert.equal(denied.ok, false);

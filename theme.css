@@ -1591,6 +1591,7 @@ header {
 
 /* Selector de espacio: separa con claridad la operación real del entrenamiento. */
 .workspace { overflow: visible !important; z-index: 25; }
+.workspace::before { pointer-events: none; }
 .workspace-trigger {
   width: 100%;
   display: grid;
@@ -1606,6 +1607,7 @@ header {
   cursor: pointer;
 }
 .workspace-trigger > i { width: 15px; color: rgba(255,255,255,.76); transition: transform .18s ease; }
+.workspace-trigger > * { pointer-events: none; }
 .workspace-trigger[aria-expanded="true"] > i { transform: rotate(180deg); }
 .workspace-menu {
   position: absolute;
@@ -1619,6 +1621,7 @@ header {
   background: color-mix(in srgb, var(--bio-sidebar) 86%, #08121b);
   box-shadow: 0 18px 38px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.08);
   backdrop-filter: blur(16px);
+  pointer-events: auto;
 }
 .workspace-menu > button {
   width: 100%;
@@ -2296,4 +2299,64 @@ html[data-workspace="training"] [data-view="auditView"], html[data-workspace="tr
 .price-provider-table .sale-price-display.sale-price-decreased strong,
 .price-provider-table .sale-price-decreased .sale-price-original {
   color: #cf4a58 !important;
+}
+
+/* Inventario dentro de la edición de producto: componente propio del modal. */
+#productEditDialog .product-edit-stock {
+  display: block !important;
+  margin: 2px 0 0 !important;
+  padding: 14px !important;
+  border: 1px solid var(--bio-border) !important;
+  border-radius: 11px !important;
+  background: var(--bio-surface-soft) !important;
+}
+#productEditDialog .stock-panel-heading { display: flex !important; align-items: center !important; gap: 10px !important; margin: 0 0 11px !important; }
+#productEditDialog .product-edit-stock-icon { display: grid !important; place-items: center !important; flex: 0 0 34px !important; width: 34px !important; height: 34px !important; margin: 0 !important; border-radius: 9px !important; background: var(--bio-primary-soft) !important; color: var(--bio-primary-readable) !important; }
+#productEditDialog .product-edit-stock-icon svg { width: 17px !important; height: 17px !important; }
+#productEditDialog .stock-panel-copy { display: block !important; min-width: 0 !important; }
+#productEditDialog .stock-panel-copy b, #productEditDialog .stock-panel-copy small { display: block !important; }
+#productEditDialog .stock-panel-copy b { color: var(--bio-text) !important; font: 800 12px Manrope, sans-serif !important; }
+#productEditDialog .stock-panel-copy small { margin: 2px 0 0 !important; color: var(--bio-text-muted) !important; font: 500 9px Manrope, sans-serif !important; }
+#productEditDialog .product-edit-stock-summary { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; overflow: hidden !important; border: 1px solid var(--bio-border) !important; border-radius: 9px !important; background: var(--bio-surface-raised) !important; }
+#productEditDialog .stock-panel-metric { display: grid !important; gap: 3px !important; min-width: 0 !important; padding: 10px 12px !important; border-right: 1px solid var(--bio-border) !important; background: var(--bio-surface-raised) !important; }
+#productEditDialog .stock-panel-metric:last-child { border-right: 0 !important; }
+#productEditDialog .stock-panel-metric small { display: block !important; margin: 0 !important; color: var(--bio-text-muted) !important; font: 800 8px "DM Mono", monospace !important; letter-spacing: .35px !important; }
+#productEditDialog .stock-panel-metric strong { display: block !important; margin: 0 !important; color: var(--bio-text) !important; font: 800 16px Manrope, sans-serif !important; letter-spacing: -.3px !important; }
+#productEditDialog .stock-panel-metric strong em { color: var(--bio-text-muted) !important; font: 700 9px Manrope, sans-serif !important; font-style: normal !important; }
+#productEditDialog .product-edit-stock-total { background: var(--bio-primary-soft) !important; }
+#productEditDialog .product-edit-stock-total strong { color: var(--bio-primary-readable) !important; }
+#productEditDialog .stock-panel-footer { display: block !important; margin: 10px 0 0 !important; }
+#productEditDialog .stock-panel-footer small { display: block !important; margin: 0 0 8px !important; color: var(--bio-text-muted) !important; font: 500 9px/1.35 Manrope, sans-serif !important; }
+#productEditDialog #productEditAdjustStock { display: flex !important; align-items: center !important; justify-content: center !important; gap: 7px !important; width: 100% !important; height: 34px !important; margin: 0 !important; border: 1px solid var(--bio-primary) !important; border-radius: 8px !important; padding: 0 12px !important; background: var(--bio-primary-soft) !important; color: var(--bio-primary-readable) !important; font: 800 10px Manrope, sans-serif !important; cursor: pointer !important; }
+#productEditDialog #productEditAdjustStock:hover { filter: brightness(.97) !important; }
+#productEditDialog #productEditAdjustStock svg { width: 14px !important; height: 14px !important; }
+.settings-section-panel[data-settings-panel="commercial"] { display: block; }
+.settings-section-panel[data-settings-panel="commercial"][hidden] { display: none !important; }
+#quotationTermsSettingsForm { padding: 22px !important; }
+#quotationTermsSettingsForm .card-top { gap: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--bio-border, #dfe7e1); }
+#quotationTermsSettingsForm .card-top small { display: block; margin-top: 5px; color: var(--bio-text-muted, #718076); font: 500 11px/1.45 Manrope, sans-serif; }
+#quotationTermsSettingsForm .form-grid { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 16px !important; margin: 20px 0 0 !important; }
+#quotationTermsSettingsForm .field { display: flex !important; min-width: 0; }
+#quotationTermsSettingsForm .field { grid-column: 1 / -1 !important; }
+#quotationTermsSettingsForm textarea { width: 100% !important; min-height: 92px !important; resize: vertical; border: 1px solid var(--bio-border, #d7e0da) !important; border-radius: 9px !important; padding: 11px 12px !important; background: var(--bio-surface, #fff) !important; color: var(--bio-text, #18221d) !important; font: 600 12px/1.5 Manrope, sans-serif !important; }
+#quotationTermsSettingsForm .field:nth-child(4) textarea { min-height: 68px !important; }
+#quotationTermsSettingsForm textarea:focus { outline: 0; border-color: var(--bio-primary, #287faa) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bio-primary, #287faa) 16%, transparent) !important; }
+#quotationTermsSettingsForm .field small { color: var(--bio-text-muted, #718076); font: 500 10px/1.45 Manrope, sans-serif; }
+#quotationTermsSettingsForm .field:first-child > span::after { content: ' *'; color: var(--bio-danger, #c85a66); font-weight: 800; }
+#quotationTermsSettingsForm .quotation-terms-required-note em { color: var(--bio-danger, #c85a66); font-style: normal; font-weight: 800; }
+#quotationTermsSettingsForm .quotation-terms-required-note { margin: 16px 0 0; color: var(--bio-text-muted, #718076); font: 600 11px/1.4 Manrope, sans-serif; }
+#quotationTermsSettingsForm .payment-terms-editor { width: 100%; min-height: 92px; overflow: auto; border: 1px solid var(--bio-border, #d7e0da); border-radius: 9px; padding: 11px 12px; background: var(--bio-surface, #fff); color: var(--bio-text, #18221d); font: 600 12px/1.5 Manrope, sans-serif; white-space: pre-wrap; cursor: text; }
+#quotationTermsSettingsForm .payment-terms-editor:focus { outline: 0; border-color: var(--bio-primary, #287faa); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bio-primary, #287faa) 16%, transparent); }
+#quotationTermsSettingsForm .payment-condition-token { display: inline-block; margin: 0 3px; padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--bio-primary, #287faa) 35%, transparent); border-radius: 5px; background: color-mix(in srgb, var(--bio-primary, #287faa) 10%, transparent); color: var(--bio-primary, #287faa); font-family: 'DM Mono', monospace; font-size: .92em; font-weight: 700; cursor: grab; user-select: none; }
+#quotationTermsSettingsForm .payment-condition-token:active { cursor: grabbing; }
+#quotationTermsSettingsForm .modal-actions { margin: 20px -22px -22px; padding: 14px 22px; border-radius: 0 0 12px 12px; background: var(--bio-surface-raised, #f8fbf9); }
+#quotationTermsSettingsForm .submit { min-width: 160px; justify-content: center; border: 1px solid var(--bio-primary, #287faa); border-radius: 9px; background: var(--bio-primary, #287faa); box-shadow: 0 4px 12px color-mix(in srgb, var(--bio-primary, #287faa) 22%, transparent); color: #fff; font-size: 12px; letter-spacing: .1px; }
+#quotationTermsSettingsForm .submit:hover { filter: brightness(1.04); transform: translateY(-1px); }
+.settings-section-panel[data-settings-panel="commercial"] .module-card + .module-card { margin-top: 16px; padding: 20px 22px; }
+.settings-section-panel[data-settings-panel="commercial"] .fx-audit-list { margin-top: 14px; }
+@media (max-width: 720px) { #quotationTermsSettingsForm .form-grid { grid-template-columns: 1fr !important; } #quotationTermsSettingsForm .field { grid-column: 1 / -1 !important; } #quotationTermsSettingsForm { padding: 17px !important; } #quotationTermsSettingsForm .modal-actions { margin: 18px -17px -17px; padding: 13px 17px; } }
+@media (max-width: 520px) {
+  #productEditDialog .product-edit-stock-summary { grid-template-columns: 1fr !important; }
+  #productEditDialog .stock-panel-metric { border-right: 0 !important; border-bottom: 1px solid var(--bio-border) !important; }
+  #productEditDialog .stock-panel-metric:last-child { border-bottom: 0 !important; }
 }

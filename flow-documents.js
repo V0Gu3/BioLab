@@ -14,6 +14,14 @@
     audit: ['EXPEDIENTE OPERATIVO', 'Cadena documental y trazabilidad completa']
   };
   const clean = value => String(value ?? '').replace(/[→]/g, '->').replace(/[−–—]/g, '-').replace(/Â·/g, '-').replace(/Ã³/g, 'ó').replace(/Ã©/g, 'é').replace(/Ã­a/g, 'ía');
+  const documentDate = value => {
+    if (!value) return 'Sin fecha';
+    const raw = value instanceof Date ? value.toISOString() : String(value).trim();
+    if (!/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(raw)) return clean(raw);
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T12:00:00`) : new Date(raw);
+    if (!Number.isFinite(parsed.getTime())) return 'Sin fecha';
+    return parsed.toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City', day: '2-digit', month: 'short', year: 'numeric' });
+  };
   const number = value => Number(value || 0);
   const money = (value, currency = 'MXN') => {
     try { return number(value).toLocaleString('es-MX', { style: 'currency', currency }); }
@@ -33,10 +41,9 @@
     if (!supplied.length) items.forEach(item => {
       const code = currencyCode(item?.currency || item?.sourceCurrency || data?.currency);
       const current = derived.get(code) || { currency: code, subtotal: 0, taxAmount: 0, total: 0 };
-      const quantity = number(item?.quantity ?? item?.qty ?? 0), unitPrice = number(item?.unitPrice);
-      const lineTotal = item?.total ?? item?.lineTotal;
-      const subtotal = lineTotal == null ? quantity * unitPrice : number(lineTotal);
-      current.subtotal += subtotal; current.total += subtotal; derived.set(code, current);
+      const quantity = number(item?.quantity ?? item?.qty ?? 0), unitPrice = number(item?.unitPrice ?? item?.unitCost ?? item?.purchaseCost ?? item?.cost);
+      const subtotal = item?.subtotal ?? item?.lineSubtotal ?? (quantity * unitPrice), discountTotal = item?.discountTotal ?? item?.lineDiscount ?? 0, taxAmount = item?.taxAmount ?? 0, total = item?.total ?? item?.lineTotal ?? (number(subtotal) - number(discountTotal) + number(taxAmount));
+      current.subtotal += number(subtotal); current.taxAmount += number(taxAmount); current.total += number(total); derived.set(code, current);
     });
     const totals = (supplied.length ? supplied : [...derived.values()]).map(entry => ({
       ...entry,
@@ -120,33 +127,43 @@
     };
     header(false);
     doc.setFillColor(247, 249, 252); doc.roundedRect(16, y - 4, 178, 29, 3, 3, 'F');
-    field('Folio', data.id, 21, 48); field('Fecha', data.date || 'Sin fecha', 75, 36); field('Estado', data.status, 117, 32); field('Moneda', data.currency === 'MULTI' ? 'Multimoneda (totales separados)' : data.currency, 155, 34); y += 38;
+    field('Folio', data.id, 21, 48); field('Fecha', documentDate(data.date), 75, 36); field('Estado', data.status, 117, 32); field('Moneda', data.currency === 'MULTI' ? 'Multimoneda (totales separados)' : data.currency, 155, 34); y += 38;
     doc.setFillColor(250, 251, 253); doc.setDrawColor(226, 230, 237); doc.roundedRect(16, y - 4, 178, 34, 3, 3, 'FD');
-    if (data.clientNumber) {
+    if (kind === 'remision') {
+      field('Cliente / destino', data.client || '-', 21, 54);
+      field('Recibió', data.recipient || data.receivedBy || 'No registrado', 81, 48);
+      field('Proveedor de origen', data.supplier || data.originSupplier || '-', 135, 54);
+    } else if (data.clientNumber) {
       field('Cliente / destino', data.client || data.warehouse || '-', 21, 67);
       field('Número de cliente', data.clientNumber, 92, 32);
-      field('Proveedor / origen', data.supplier || data.origin || '-', 128, 56);
+      field('Proveedor de origen', data.supplier || data.originSupplier || '-', 128, 56);
     } else {
       field('Cliente / destino', data.client || data.warehouse || '-', 21, 77);
-      field('Proveedor / origen', data.supplier || data.origin || '-', 105, 80);
+      field('Proveedor de origen', data.supplier || data.originSupplier || '-', 105, 80);
     }
     doc.setTextColor(104, 114, 130); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text(doc.splitTextToSize(clean([data.reference, data.related].filter(Boolean).join(' - ') || subtitle), 166), 21, y + 21); y += 43;
     const tableHeader = () => {
       doc.setFillColor(49, 87, 164); doc.roundedRect(16, y - 5, 178, 10, 2, 2, 'F');
       doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
-      doc.text('CATALOGO / DESCRIPCION', 20, y + 1); doc.text('CANT.', 139, y + 1, { align: 'right' }); doc.text('P. UNIT.', 164, y + 1, { align: 'right' }); doc.text('IMPORTE', 190, y + 1, { align: 'right' }); y += 12;
+      doc.text('CATALOGO / DESCRIPCION Y ORIGEN', 20, y + 1); doc.text('CANT.', 139, y + 1, { align: 'right' }); doc.text('P. UNIT.', 164, y + 1, { align: 'right' }); doc.text('IMPORTE', 190, y + 1, { align: 'right' }); y += 12;
     };
     doc.setTextColor(32, 39, 51); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('PARTIDAS / OPERACIONES', 16, y); y += 8; tableHeader();
-    const items = data.items.length ? data.items : [{ catalog: data.reference || data.id, description: data.description || subtitle, quantity: data.quantity || 1, unitPrice: data.unitPrice, total: data.total }];
+    const isClientFacing = ['quotation', 'remision'].includes(kind);
+    const items = data.items.length ? data.items : [{ catalog: data.reference || data.id, description: data.description || subtitle, quantity: data.quantity || 1, unitPrice: data.unitPrice, unitCost: data.unitCost, total: data.total }];
     items.forEach((item, index) => {
-      ensure(18); if (y === 43) tableHeader();
-      const description = clean(`${item.catalog || 'S/C'} - ${item.description || 'Sin descripcion'}`), lines = doc.splitTextToSize(description, 104), rowHeight = Math.max(kind === 'audit' ? 13 : 15, lines.length * 4 + (kind === 'audit' ? 6 : 8));
+      const supplier = item.supplier || item.originSupplier || data.supplier || data.originSupplier;
+      const unitCost = item.unitCost ?? item.purchaseCost ?? item.cost;
+      const itemCurrency = currencyCode(item.currency || item.sourceCurrency || (data.currency === 'MULTI' ? null : data.currency));
+      const provenance = [supplier ? `Proveedor de origen: ${supplier}` : '', !isClientFacing && unitCost != null ? `Costo unitario: ${moneyWithCode(unitCost, item.costCurrency || itemCurrency)}` : ''].filter(Boolean).join(' · ');
+      const description = clean(`${item.catalog || 'S/C'} - ${item.description || 'Sin descripcion'}`), lines = doc.splitTextToSize(description, 104), provenanceLines = provenance ? doc.splitTextToSize(clean(provenance), 104) : [], rowHeight = Math.max(kind === 'audit' ? 13 : 15, lines.length * 4 + provenanceLines.length * 3.3 + (kind === 'audit' ? 6 : 8));
+      ensure(rowHeight + 3); if (y === 43) tableHeader();
       if (index % 2 === 0) { doc.setFillColor(249, 250, 252); doc.rect(16, y - 5, 178, rowHeight, 'F'); }
       doc.setTextColor(30, 37, 48); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.text(lines, 20, y + 1);
-      const itemCurrency = currencyCode(item.currency || item.sourceCurrency || (data.currency === 'MULTI' ? null : data.currency));
+      if (provenanceLines.length) { doc.setTextColor(104, 114, 130); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2); doc.text(provenanceLines, 20, y + lines.length * 4 + 2); }
       doc.setTextColor(59, 68, 82); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text(clean(item.quantity ?? 0), 139, y + 1, { align: 'right' });
-      doc.text(item.unitPrice == null ? '-' : moneyWithCode(item.unitPrice, itemCurrency), 164, y + 1, { align: 'right' });
-      const lineTotal = item.total ?? item.lineTotal;
+      const unitPrice = item.unitPrice ?? unitCost;
+      doc.text(unitPrice == null ? '-' : moneyWithCode(unitPrice, itemCurrency), 164, y + 1, { align: 'right' });
+      const lineTotal = item.subtotal ?? item.lineSubtotal ?? item.costTotal ?? (unitPrice != null ? number(item.quantity) * number(unitPrice) : null);
       doc.setFont('helvetica', 'bold'); doc.text(lineTotal == null ? '-' : moneyWithCode(lineTotal, itemCurrency), 190, y + 1, { align: 'right' }); y += rowHeight;
     });
     if (Array.isArray(data.totalsByCurrency) && data.totalsByCurrency.length > 1) {
@@ -165,7 +182,8 @@
       const amountCurrency = singleTotal?.currency || data.currency;
       const totalLine = (label, value, bold) => { doc.setTextColor(98, 108, 124); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(bold ? 9 : 7.5); doc.text(`${label} ${amountCurrency}`, 121, y); doc.setTextColor(25, 31, 42); doc.text(moneyWithCode(value, amountCurrency), 190, y, { align: 'right' }); y += bold ? 9 : 7; };
       if (data.subtotal != null || singleTotal) totalLine('Subtotal', singleTotal?.subtotal ?? data.subtotal, false);
-      if (data.tax != null || singleTotal?.taxAmount) totalLine('Impuestos', singleTotal?.taxAmount ?? data.tax, false);
+      const discountTotal=singleTotal?.discountTotal??data.discountTotal;if(Number(discountTotal||0))totalLine('Descuento',-Number(discountTotal),false);
+      if (data.tax != null || singleTotal) totalLine(data.taxRate==null?'IVA':`IVA ${number(data.taxRate)}%`, singleTotal?.taxAmount ?? data.tax ?? 0, false);
       totalLine('TOTAL', singleTotal?.total ?? data.total, true);
     }
     ensure(34); y += 3; doc.setFillColor(239, 244, 253); doc.roundedRect(16, y, 178, 24, 3, 3, 'F');
@@ -180,7 +198,8 @@
 
   async function download(kind, payload, options = {}) {
     await loadBrandLogo();
-    const PDFClass = options.PDFClass || (typeof window !== 'undefined' && window.jspdf?.jsPDF);
+    if (!options.PDFClass && !root?.jspdf?.jsPDF && root?.BioLibraries?.pdf) await root.BioLibraries.pdf();
+    const PDFClass = options.PDFClass || root?.jspdf?.jsPDF;
     const doc = create(kind, payload, PDFClass);
     doc.save(options.filename || filename(kind, payload.id));
     return doc;
@@ -209,6 +228,7 @@
 
   async function preview(kind, payload, options = {}) {
     await loadBrandLogo();
+    if (!options.PDFClass && !root?.jspdf?.jsPDF && root?.BioLibraries?.pdf) await root.BioLibraries.pdf();
     const PDFClass = options.PDFClass || root?.jspdf?.jsPDF;
     const doc = create(kind, payload, PDFClass);
     return present(doc, { ...options, title: TYPES[kind][0], folio: payload.id, filename: options.filename || filename(kind, payload.id) });
@@ -220,5 +240,5 @@
     root.document.addEventListener('close', event => { if (event.target?.id !== 'documentPreviewDialog') return; const dialog = event.target, frame = root.document.querySelector('#documentPreviewFrame'); root.document.querySelector('#documentPreviewPages')?.remove(); if (frame) { frame.removeAttribute('src'); frame.hidden = false; } if (dialog.dataset.objectUrl) URL.revokeObjectURL(dialog.dataset.objectUrl); delete dialog.dataset.objectUrl; }, true);
   }
 
-  return { TYPES, create, download, preview, previewBlob, present, filename, drawHeader, loadBrandLogo, DOCUMENT_STYLE, monetaryProfile, moneyWithCode };
+  return { TYPES, create, download, preview, previewBlob, present, filename, drawHeader, loadBrandLogo, DOCUMENT_STYLE, monetaryProfile, moneyWithCode, documentDate };
 });

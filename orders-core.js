@@ -25,6 +25,7 @@
     delivery: ['read', 'deliver'], cancellation: ['read', 'cancel'],
     admin: ['read', 'edit', 'purchase', 'receive', 'inventory', 'invoice', 'deliver', 'cancel', 'admin'],
     administrator: ['read', 'edit', 'purchase', 'receive', 'inventory', 'invoice', 'deliver', 'cancel', 'admin'],
+    developer: ['read', 'edit', 'purchase', 'receive', 'inventory', 'invoice', 'deliver', 'cancel', 'admin'],
     supervisor: ['read', 'edit', 'purchase', 'receive', 'inventory', 'invoice', 'deliver', 'cancel'],
     seller: ['read', 'edit'],
   });
@@ -82,10 +83,14 @@
     }
     return { type: 'standard', folio: raw, accountReference: null, observation: null };
   };
-  const calculateLineTotals = ({ quantity = 0, unitPrice = 0, taxRate = 0 }) => {
-    const subtotal = Math.round(numberValue(quantity) * numberValue(unitPrice) * 100) / 100;
-    const taxAmount = Math.round(subtotal * numberValue(taxRate) / 100 * 100) / 100;
-    return { subtotal, taxAmount, total: Math.round((subtotal + taxAmount) * 100) / 100 };
+  const roundMoney = value => Math.round((numberValue(value) + Number.EPSILON) * 100) / 100;
+  const calculateLineTotals = ({ quantity = 0, unitPrice = 0, taxRate = 0, discount = 0, discountAmount = null }) => {
+    const normalizedUnitPrice = roundMoney(Math.max(0, numberValue(unitPrice)));
+    const subtotal = roundMoney(numberValue(quantity) * normalizedUnitPrice);
+    const discountTotal = discountAmount == null ? roundMoney(subtotal * numberValue(discount) / 100) : roundMoney(Math.min(subtotal, Math.max(0, numberValue(discountAmount))));
+    const taxable = roundMoney(subtotal - discountTotal);
+    const taxAmount = roundMoney(taxable * numberValue(taxRate) / 100);
+    return { subtotal, discountTotal, taxable, taxAmount, total: roundMoney(taxable + taxAmount) };
   };
   const validateProgress = ({ authorized, current = 0, amount, allowOverride = false }) => {
     const max = numberValue(authorized);
@@ -123,19 +128,61 @@
     return { requested: demand, allocations, reservedQuantity, quantityToPurchase, supplyOrigin: reservedQuantity > 0 && quantityToPurchase > 0 ? 'mixed' : reservedQuantity > 0 ? 'inventory' : 'supplier' };
   };
 
+  const reconcileWarehouseReservations = ({ available = 0, committed = 0, reservations = [] }) => {
+    let capacity = Math.max(0, numberValue(available) - numberValue(committed));
+    const allocations = [...reservations].sort((left, right) => String(left.at || '').localeCompare(String(right.at || '')) || String(left.id || '').localeCompare(String(right.id || ''))).map(reservation => {
+      const previous = Math.max(0, numberValue(reservation.quantity) - numberValue(reservation.quantityConsumed));
+      const kept = Math.min(previous, capacity), released = Math.max(0, previous - kept);
+      capacity -= kept;
+      return { id: reservation.id, previous, kept, released };
+    });
+    return { freeCapacity: capacity, releasedQuantity: allocations.reduce((sum, allocation) => sum + allocation.released, 0), allocations };
+  };
+
   const reconcileSupplierPurchase = ({ order, links = [], receipts = [], invoices = [] }) => {
     if (!order) return { status: 'missing_order', orderedQuantity: 0, receivedQuantity: 0, orderedAmount: 0, invoicedAmount: 0 };
     const scopedLinks = links.filter(link => String(link.supplierOrderId) === String(order.id));
     const lineIds = new Set(scopedLinks.map(link => String(link.orderLineId)));
-    const scopedReceipts = receipts.filter(receipt => String(receipt.supplierOrderId) === String(order.id));
+    const scopedReceipts = receipts.filter(receipt => String(receipt.supplierOrderId) === String(order.id) && !receipt.duplicateOf && receipt.status !== 'duplicate_ignored');
     const scopedInvoices = invoices.filter(invoice => (invoice.supplierOrderIds || []).map(String).includes(String(order.id)));
-    const orderedQuantity = scopedLinks.reduce((sum, link) => sum + numberValue(link.quantity), 0);
-    const receivedQuantity = scopedReceipts.flatMap(receipt => receipt.items || []).filter(item => lineIds.has(String(item.orderLineId))).reduce((sum, item) => sum + Math.max(0, numberValue(item.quantity) - numberValue(item.quantityRejected)), 0);
-    const orderedAmount = Math.round(scopedLinks.reduce((sum, link) => sum + numberValue(link.quantity) * numberValue(link.unitPrice), 0) * 100) / 100;
+    const effectiveLinkQuantity = link => Math.max(0, numberValue(link.quantity) - numberValue(link.quantityCancelled));
+    const orderedQuantity = scopedLinks.reduce((sum, link) => sum + effectiveLinkQuantity(link), 0);
+    const receivedQuantity = scopedReceipts.flatMap(receipt => receipt.items || []).filter(item => lineIds.has(String(item.orderLineId))).reduce((sum, item) => sum + Math.max(0, item.quantityAccepted == null ? numberValue(item.quantity) - numberValue(item.quantityRejected) : numberValue(item.quantityAccepted)), 0);
+    const orderedAmount = Math.round(scopedLinks.reduce((sum, link) => sum + effectiveLinkQuantity(link) * numberValue(link.unitPrice), 0) * 100) / 100;
     const invoicedAmount = Math.round(scopedInvoices.reduce((sum, invoice) => sum + numberValue(invoice.amountOriginal ?? invoice.amount ?? invoice.total), 0) * 100) / 100;
     const quantityStatus = receivedQuantity === 0 ? 'pending_receipt' : receivedQuantity < orderedQuantity ? 'partial' : receivedQuantity === orderedQuantity ? 'matched' : 'over_received';
     const invoiceStatus = !scopedInvoices.length ? 'pending_invoice' : Math.abs(invoicedAmount - orderedAmount) < 0.01 ? 'matched' : 'amount_mismatch';
     return { status: ['over_received', 'amount_mismatch'].includes(quantityStatus) || invoiceStatus === 'amount_mismatch' ? 'review' : quantityStatus === 'matched' && invoiceStatus === 'matched' ? 'matched' : 'pending', quantityStatus, invoiceStatus, orderedQuantity, receivedQuantity, pendingQuantity: Math.max(0, orderedQuantity - receivedQuantity), orderedAmount, invoicedAmount, amountDifference: Math.round((invoicedAmount - orderedAmount) * 100) / 100, receiptIds: scopedReceipts.map(receipt => receipt.id), invoiceIds: scopedInvoices.map(invoice => invoice.id || invoice.folio) };
+  };
+
+  // La cantidad recibida se concilia contra cada partida de una OC concreta.
+  // Una misma partida del pedido puede repartirse entre varias OC, por lo que
+  // usar el acumulado global de quantityReceived puede ocultar pendientes o
+  // volver a recibir cantidades que pertenecen a otra OC.
+  const supplierOrderLinePending = ({ supplierOrderId, link, receipts = [] }) => {
+    if (!link || String(link.supplierOrderId) !== String(supplierOrderId)) return 0;
+    const ordered = Math.max(0, numberValue(link.quantity) - numberValue(link.quantityCancelled));
+    const received = receipts
+      .filter(receipt => String(receipt.supplierOrderId) === String(supplierOrderId) && !receipt.duplicateOf && receipt.status !== 'duplicate_ignored')
+      .flatMap(receipt => receipt.items || [])
+      .filter(item => String(item.orderLineId) === String(link.orderLineId))
+      .reduce((sum, item) => sum + Math.max(0, item.quantityAccepted == null ? numberValue(item.quantity) - numberValue(item.quantityRejected) : numberValue(item.quantityAccepted)), 0);
+    return Math.max(0, ordered - received);
+  };
+
+  const effectiveLineSupply = ({ line, links = [], supplierOrders = [], receipts = [] }) => {
+    if (!line) return { authorized: 0, reserved: 0, purchaseRequired: 0, linked: 0, received: 0, purchased: 0, pendingPurchase: 0 };
+    const authorized = Math.max(0, numberValue(line.quantityRequested) - numberValue(line.quantityCancelled));
+    const reserved = Math.min(authorized, numberValue(line.reservedQuantity));
+    const purchaseRequired = Math.max(0, authorized - reserved);
+    const confirmedOrderIds = new Set(supplierOrders.filter(order => order && order.status !== 'draft' && order.status !== 'cancelled' && (order.locked || order.confirmedAt || ['confirmed', 'partially_received', 'received', 'purchased'].includes(order.status))).map(order => String(order.id)));
+    const lineLinks = links.filter(link => String(link.orderLineId) === String(line.id) && confirmedOrderIds.has(String(link.supplierOrderId)));
+    const linked = lineLinks.reduce((sum, link) => sum + Math.max(0, numberValue(link.quantity) - numberValue(link.quantityCancelled)), 0);
+    const linkedOrderIds = new Set(lineLinks.map(link => String(link.supplierOrderId)));
+    const received = receipts.filter(receipt => !receipt.duplicateOf && receipt.status !== 'duplicate_ignored' && (!receipt.supplierOrderId || linkedOrderIds.has(String(receipt.supplierOrderId)))).flatMap(receipt => receipt.items || []).filter(item => String(item.orderLineId) === String(line.id)).reduce((sum, item) => sum + Math.max(0, item.quantityAccepted == null ? numberValue(item.quantity) - numberValue(item.quantityRejected) : numberValue(item.quantityAccepted)), 0);
+    const deliveredFromPurchase = Math.max(0, numberValue(line.quantityDelivered) - reserved);
+    const purchased = Math.min(purchaseRequired, Math.max(numberValue(line.quantityPurchased), numberValue(line.quantityReceived), linked, received, deliveredFromPurchase));
+    return { authorized, reserved, purchaseRequired, linked, received: Math.min(purchaseRequired, Math.max(numberValue(line.quantityReceived), received)), purchased, pendingPurchase: Math.max(0, purchaseRequired - purchased) };
   };
 
   const groupSupplierPurchaseLines = ({ lines = [], products = [], suppliers = [], relations = [], existingLineIds = [] }) => {
@@ -414,7 +461,7 @@
   return {
     ORDER_STATUSES, STATUS_LABELS, ROLE_PERMISSIONS, hasPermission, DEFAULT_MAPPING, normalizeText, cleanText, numberValue,
     hashString, excelDateToISO, parseSupplierAmount, classifyBilling, calculateLineTotals,
-    validateProgress, validateSupplierPurchaseGate, planMixedFulfillment, planWarehouseFulfillment, reconcileSupplierPurchase, groupSupplierPurchaseLines, deriveLineStatus, deriveRequisitionStatus, simulateImport,
+    validateProgress, validateSupplierPurchaseGate, planMixedFulfillment, planWarehouseFulfillment, reconcileWarehouseReservations, reconcileSupplierPurchase, supplierOrderLinePending, effectiveLineSupply, groupSupplierPurchaseLines, deriveLineStatus, deriveRequisitionStatus, simulateImport,
     createEmptyStore, materializeImport,
   };
 });

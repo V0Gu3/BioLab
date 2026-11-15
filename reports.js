@@ -7,6 +7,7 @@
   const label = value => ({ draft: 'Borrador', confirmed: 'Activado', purchasing: 'En compra', partially_purchased: 'Compra parcial', partially_received: 'Recepción parcial', received: 'Recibido', ready_to_deliver: 'Listo para entregar', partially_delivered: 'Parcial', delivered: 'Entregado', closed: 'Finalizado', cancelled: 'Cancelado', none: 'Sin entrega', partial: 'Entrega parcial', complete: 'Entrega completa' }[value] || value || 'Sin estado');
   const className = value => value === 'complete' || ['delivered', 'closed'].includes(value) ? 'ok' : value === 'cancelled' ? 'out' : value === 'partial' ? 'warning' : 'neutral';
   const toast = message => window.showToast?.(message);
+  const inTraining = () => window.__BIO_TRAINING__ === true;
   let page = 1, latest = { records: [], pagination: { page: 1, pages: 1 } }, timer;
   const currentMonth = new Date().toISOString().slice(0, 7);
 
@@ -33,6 +34,25 @@
     if (includePaging) { query.set('page', String(page)); query.set('pageSize', '50'); }
     return query;
   }
+  function trainingState() {
+    const read = key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } };
+    return Object.fromEntries(['nexo-order-operations-v1', 'nexo-commercial-orders', 'nexo-clients'].map(key => [key, read(key)]).filter(([, value]) => value !== null));
+  }
+  async function reportData(includePaging = true) {
+    if (inTraining()) {
+      const core = window.BioInternalOrdersReport;
+      if (!core) throw new Error('No fue posible preparar el reporte local de capacitación. Actualiza la página e inténtalo nuevamente.');
+      const filters = Object.fromEntries(params(false));
+      const report = core.buildInternalOrdersReport(trainingState(), null, filters);
+      if (!includePaging) return { ...report, pagination: { page: 1, pageSize: report.records.length, total: report.records.length, pages: 1 } };
+      return core.paginateReport(report, page, 50);
+    }
+    const query = params(includePaging); if (!includePaging) query.set('export', 'all');
+    const response = await fetch(`/api/reports/internal-orders?${query}`, { credentials: 'same-origin' }), raw = await response.text(); let body;
+    try { body = JSON.parse(raw); } catch { throw new Error('El servicio de reportes no respondió en el formato esperado. Actualiza la página e inténtalo nuevamente.'); }
+    if (!response.ok) throw new Error(body.error || 'No fue posible consultar el reporte.');
+    return body;
+  }
   function render() {
     const summary = latest.summary || {};
     $('#internalOrdersTotal').textContent = summary.total || 0; $('#internalOrdersInProgress').textContent = summary.inProgress || 0; $('#internalOrdersPartial').textContent = summary.partial || 0; $('#internalOrdersComplete').textContent = summary.complete || 0; $('#internalOrdersNone').textContent = summary.none || 0;
@@ -40,13 +60,13 @@
     $('#internalOrdersCount').textContent = `${pagination.total || 0} pedido${pagination.total === 1 ? '' : 's'}`;
     $('#internalOrdersPage').textContent = `Página ${pagination.page} de ${pagination.pages}`;
     $('#internalOrdersPrevious').disabled = pagination.page <= 1; $('#internalOrdersNext').disabled = pagination.page >= pagination.pages;
-    $('#internalOrdersList').innerHTML = latest.records.map(record => `<article class="internal-orders-row"><div><strong>${escapeHtml(record.id)}</strong><small>${date(record.date)} · ${escapeHtml(record.quotationId || 'Sin cotización')}</small></div><div><strong>${escapeHtml(record.clientNumber ? `${record.clientNumber} · ${record.client}` : record.client)}</strong><small>${escapeHtml(record.seller || 'Sin vendedor')} · Importe ${money(record.amount, record.currency)}</small></div><span>${record.products.length} producto${record.products.length === 1 ? '' : 's'}</span><span>${record.purchaseOrders.map(order => escapeHtml(order.id)).join('<br>') || 'Sin OC'}</span><span>${record.delivered} de ${record.requested}<small>${record.pending} pendiente${record.pending === 1 ? '' : 's'}</small></span><span>${record.remissions.map(remission => escapeHtml(remission.id)).join('<br>') || 'Sin remisión'}</span><span><b class="status ${className(record.deliveryStatus)}">${label(record.deliveryStatus)}</b><small>${escapeHtml(label(record.status))}</small></span><button class="quotation-download" data-internal-order-detail="${escapeHtml(record.id)}" title="Ver detalle"><i data-lucide="eye"></i></button></article>`).join('') || '<div class="quotation-history-empty">No hay pedidos internos que coincidan con los filtros.</div>';
+    $('#internalOrdersList').innerHTML = latest.records.map(record => `<article class="internal-orders-row"><div><strong>${escapeHtml(record.id)}</strong><small>${date(record.date)} · ${escapeHtml(record.quotationId || 'Sin cotización')}</small></div><div><strong>${escapeHtml(record.clientNumber ? `${record.clientNumber} · ${record.client}` : record.client)}</strong><small>${escapeHtml(record.seller || 'Sin vendedor')} · ${escapeHtml(record.amountLabel || 'Total con IVA')} ${record.currency === 'MULTI' ? 'por divisa' : money(record.amount, record.currency)}</small></div><span>${record.products.length} producto${record.products.length === 1 ? '' : 's'}</span><span>${record.purchaseOrders.map(order => escapeHtml(order.id)).join('<br>') || 'Sin OC'}</span><span>${record.delivered} de ${record.requested}<small>${record.pending} pendiente${record.pending === 1 ? '' : 's'}</small></span><span>${record.remissions.map(remission => escapeHtml(remission.id)).join('<br>') || 'Sin remisión'}</span><span><b class="status ${className(record.deliveryStatus)}">${label(record.deliveryStatus)}</b><small>${escapeHtml(label(record.status))}</small></span><button class="quotation-download" data-internal-order-detail="${escapeHtml(record.id)}" title="Ver detalle"><i data-lucide="eye"></i></button></article>`).join('') || '<div class="quotation-history-empty">No hay pedidos internos que coincidan con los filtros.</div>';
     window.lucide?.createIcons();
   }
   async function load() {
     const list = $('#internalOrdersList'); if (!list) return;
     list.setAttribute('aria-busy', 'true');
-    try { const response = await fetch(`/api/reports/internal-orders?${params()}`, { credentials: 'same-origin' }), raw = await response.text(); let body; try { body = JSON.parse(raw); } catch { throw new Error('El servicio de reportes no respondió en el formato esperado. Actualiza la página e inténtalo nuevamente.'); } if (!response.ok) throw new Error(body.error || 'No fue posible consultar el reporte.'); latest = body; render(); }
+    try { latest = await reportData(true); render(); }
     catch (error) { list.innerHTML = `<div class="quotation-history-empty">${escapeHtml(error.message)}</div>`; }
     finally { list.removeAttribute('aria-busy'); }
   }
@@ -120,7 +140,7 @@
   async function exportReport() {
     if (!window.XLSX) return toast('No fue posible cargar el generador de Excel.');
     const button = $('#internalOrdersExport'), finish = window.BioOperationProgress?.start('Preparando reporte de pedidos internos…', button);
-    try { const response = await fetch(`/api/reports/internal-orders?${params(false)}&export=all`, { credentials: 'same-origin' }), raw = await response.text(); let body; try { body = JSON.parse(raw); } catch { throw new Error('El servicio de reportes no respondió en el formato esperado.'); } if (!response.ok) throw new Error(body.error || 'No fue posible descargar el reporte.'); const records = body.records || [];
+    try { const body = await reportData(false), records = body.records || [];
       const summary = records.map(record => ({ 'Pedido Interno': record.id, 'Fecha Pedido': record.date, 'Cotización origen': record.quotationId, 'Número Cliente': record.clientNumber, Cliente: record.client, Vendedor: record.seller, 'Estado Pedido': label(record.status), 'Estado Entrega': label(record.deliveryStatus), 'Cantidad Productos': record.products.length, 'Unidades solicitadas': record.requested, 'Unidades entregadas': record.delivered, 'Unidades pendientes': record.pending, 'OC Proveedor relacionadas': record.purchaseOrders.map(order => order.id).join(' / '), Remisiones: record.remissions.map(remission => remission.id).join(' / ') }));
       const products = records.flatMap(record => record.products.map(product => ({ 'Pedido Interno': record.id, 'Número Cliente': record.clientNumber, Cliente: record.client, SKU: product.sku, Producto: product.product, Unidad: product.unit, 'Cantidad solicitada': product.requested, 'Cantidad comprada': product.purchased, 'Cantidad entregada': product.delivered, Pendiente: product.pending, 'Estado entrega': label(product.deliveryStatus), Sobreentrega: product.overDelivery })));
       const purchases = records.flatMap(record => record.purchaseOrders.flatMap(order => order.items.map(item => ({ 'Pedido Interno': record.id, 'OC Proveedor': order.id, Proveedor: order.supplier, SKU: item.product?.sku || '', Producto: item.product?.product || '', 'Cantidad comprada': item.quantity, 'Fecha OC': order.date, 'Estado OC': label(order.status) }))));

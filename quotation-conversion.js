@@ -4,6 +4,12 @@
   root.BioQuotationConversion=api;
 })(typeof window!=='undefined'?window:globalThis,function(){
   const validDate=value=>{const date=new Date(value);return !Number.isNaN(date.getTime())?date:null};
+  const expirationDate=quotation=>validDate(quotation?.expiresAtISO)||validDate(quotation?.expiresAt);
+  function isExpired(quotation,{now=new Date(),missingIsExpired=false}={}){
+    if(['expired','vencida'].includes(String(quotation?.status||'').trim().toLowerCase()))return true;
+    const expires=expirationDate(quotation);
+    return expires?expires.getTime()<now.getTime():missingIsExpired;
+  }
   const itemIsComplete=item=>Number(item?.quantity)>0&&Number.isFinite(Number(item?.unitPrice))&&Number(item?.unitPrice)>=0;
   const check=(state,code,message,section,action,role,fix)=>({state,code,message,section,action,role,fix});
   function assess(quotation,{canConvert=true,now=new Date()}={}){
@@ -12,8 +18,7 @@
     if(!canConvert)checks.push(check('blocking','permission_denied','No tienes permiso para convertir esta cotización. Solicita autorización a un supervisor o administrador.','Permisos','Solicita el permiso “Convertir cotizaciones en OC”.','Supervisor o administrador'));
     if(quotation.status==='cancelled')checks.push(check('blocking','quotation_cancelled','La cotización está cancelada y no puede convertirse.','Historial de cotizaciones','Genera una nueva cotización si la operación continúa.',null,'new'));
     if(quotation.commercialOrderId)checks.push(check('blocking','already_converted',`La cotización ya fue convertida al pedido interno ${quotation.commercialOrderId}.`,'Pedidos internos','Abre el pedido vinculado para continuar el flujo.',null,'order'));
-    const expires=validDate(quotation.expiresAtISO);
-    if(!quotation.commercialOrderId&&(!expires||expires.getTime()<now.getTime()))checks.push(check('blocking','quotation_expired',`La cotización venció el ${quotation.expiresAt||'día registrado'}. Actualiza la vigencia o genera una nueva versión.`,'Vigencia','Genera una nueva cotización con vigencia vigente.',null,'new'));
+    if(!quotation.commercialOrderId&&isExpired(quotation,{now,missingIsExpired:true}))checks.push(check('blocking','quotation_expired',`La cotización venció el ${quotation.expiresAt||'día registrado'}. Actualiza la vigencia o genera una nueva versión.`,'Vigencia','Genera una nueva cotización con vigencia vigente.',null,'new'));
     const items=Array.isArray(quotation.items)?quotation.items:[];
     if(!items.length)checks.push(check('blocking','missing_items','La cotización no tiene productos para convertir.','Productos','Agrega al menos una partida con cantidad y precio válidos.',null,'new'));
     const invalidItems=items.filter(item=>!itemIsComplete(item));
@@ -25,5 +30,5 @@
     if(!checks.some(item=>item.state==='blocking'))checks.unshift(check('correct','ready','Cotización vigente, con cliente y partidas válidas para generar el pedido interno.','Conversión','Puedes generar el pedido interno.'));
     return {ok:!checks.some(item=>item.state==='blocking'),checks};
   }
-  return {assess};
+  return {assess,isExpired};
 });

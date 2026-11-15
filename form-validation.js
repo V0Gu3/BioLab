@@ -19,7 +19,10 @@
   function messageFor(field) {
     if (field.validity.valueMissing) return `${fieldName(field)} es obligatorio.`;
     if (field.validity.typeMismatch) return field.type === 'email' ? 'Captura un correo válido.' : `${fieldName(field)} no tiene un formato válido.`;
-    if (field.validity.rangeUnderflow) return field.min === '0' ? `${fieldName(field)} no puede ser menor que cero.` : `Captura una cantidad mayor que cero.`;
+    if (field.validity.rangeUnderflow) {
+      if (field.type === 'date') return 'Selecciona una fecha de hoy o posterior.';
+      return field.min === '0' ? `${fieldName(field)} no puede ser menor que cero.` : `Captura una cantidad mayor que cero.`;
+    }
     if (field.validity.rangeOverflow) return `${fieldName(field)} supera el máximo permitido.`;
     if (field.validity.stepMismatch || field.validity.badInput) return `Captura un valor válido para ${fieldName(field).toLowerCase()}.`;
     return field.validationMessage || `${fieldName(field)} requiere revisión.`;
@@ -52,6 +55,7 @@
     if (!invalid.length) return true;
     const banner = document.createElement('div'); banner.className = 'form-validation-notice'; banner.setAttribute('role', 'alert'); banner.innerHTML = '<i data-lucide="triangle-alert"></i>Revisa los campos obligatorios marcados en rojo.'; form.querySelector('.modal-body, .order-dialog-body, .quotation-builder')?.prepend(banner); window.lucide?.createIcons();
     if (focus) { invalid[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); invalid[0].focus({ preventScroll: true }); }
+    if (typeof window.showToast === 'function') window.showToast(messageFor(invalid[0]));
     return false;
   }
   function hydrate(form) {
@@ -61,7 +65,7 @@
     if (form.id === 'movementForm') markRequired(form.querySelector('#movementProductSearch'), true);
     form.querySelectorAll(controlSelector).forEach(field => { const kind = contactKind(field); if (kind === 'email') { field.type = 'email'; field.autocomplete ||= 'email'; } if (kind === 'phone') { field.type = 'tel'; field.inputMode = 'tel'; field.autocomplete ||= 'tel'; } });
     form.querySelectorAll(requiredControlSelector).forEach(field => markRequired(field, true));
-    if (form.querySelector(requiredControlSelector)) { const legend = document.createElement('small'); legend.className = 'form-required-legend'; legend.textContent = '* Campos obligatorios'; form.querySelector('.modal-body, .order-dialog-body, .quotation-builder')?.prepend(legend); }
+    if (form.querySelector(requiredControlSelector) && form.dataset.requiredLegend !== 'custom') { const legend = document.createElement('small'); legend.className = 'form-required-legend'; legend.textContent = '* Campos obligatorios'; form.querySelector('.modal-body, .order-dialog-body, .quotation-builder')?.prepend(legend); }
   }
   document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('form').forEach(hydrate));
   document.addEventListener('invalid', event => { if (event.target.matches?.(controlSelector)) { event.preventDefault(); setFieldError(event.target, messageFor(event.target)); } }, true);

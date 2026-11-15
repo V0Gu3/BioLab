@@ -16,9 +16,9 @@ function loadFx(fetch) {
   return window.BioFX;
 }
 
-test('consulta Banco de México como fuente principal y calcula tasas contra MXN', async () => {
-  let request;
-  const fx = loadFx(async (url, options) => { request = { url, options }; return { ok: true, json: async () => ({ bmx: { series: [
+test('prioriza el USD del Diario Oficial y completa CAD/EUR con Banco de México', async () => {
+  const calls = [];
+  const fx = loadFx(async (url, options) => { calls.push({ url, options }); if (url === '/api/fx/dof-usd') return { ok: true, json: async () => ({ usd: 18.4888, rateDate: '2026-08-28' }) }; return { ok: true, json: async () => ({ bmx: { series: [
     { idSerie: 'SF43718', datos: [{ fecha: '28/08/2026', dato: '17.0000' }] },
     { idSerie: 'SF60632', datos: [{ fecha: '28/08/2026', dato: '12.5000' }] },
     { idSerie: 'SF46410', datos: [{ fecha: '28/08/2026', dato: '20.0000' }] }
@@ -26,29 +26,30 @@ test('consulta Banco de México como fuente principal y calcula tasas contra MXN
   assert.equal(fx.setBanxicoToken('TOKEN-VALIDO-123').ok, true);
   const record = await fx.ensureDaily();
   assert.equal(record.sourceType, 'official_primary');
-  assert.equal(record.rates.USD, 17);
+  assert.equal(record.rates.USD, 18.4888);
   assert.equal(record.rates.CAD, 12.5);
   assert.equal(record.rates.EUR, 20);
-  assert.match(request.url, /^https:\/\/www\.banxico\.org\.mx\/SieAPIRest\/service\/v1\/series\/SF43718,SF60632,SF46410\/datos\/oportuno\?token=TOKEN-VALIDO-123$/);
-  assert.equal(fx.protectedPrice(100, 'USD', 'MXN').unitPrice, 2040);
+  assert.equal(record.componentSources.USD, 'Diario Oficial de la Federación · USD');
+  assert.match(calls[1].url, /^https:\/\/www\.banxico\.org\.mx\/SieAPIRest\/service\/v1\/series\/SF43718,SF60632,SF46410\/datos\/oportuno\?token=TOKEN-VALIDO-123$/);
+  assert.equal(fx.protectedPrice(100, 'USD', 'MXN').unitPrice, 2218.656);
   const refreshed = await fx.ensureDaily({ force: true, confirmationRequired: false });
   assert.equal(refreshed.validated, true);
   assert.equal(fx.getState().audit.some(entry => entry.event === 'daily_rates_registered'), true);
 });
 
-test('usa el Banco Central Europeo cuando Banxico no tiene token', async () => {
-  const fx = loadFx(async () => ({ ok: true, text: async () => officialCsv }));
+test('usa el Banco Central Europeo cuando el Diario Oficial no está disponible y Banxico no tiene token', async () => {
+  const fx = loadFx(async url => url === '/api/fx/dof-usd' ? { ok: false, json: async () => ({ error: 'No disponible' }) } : ({ ok: true, text: async () => officialCsv }));
   const record = await fx.ensureDaily();
   assert.equal(record.sourceType, 'official_secondary');
   assert.equal(record.rates.USD, 10);
   assert.equal(record.rates.CAD, 5);
   assert.equal(record.rates.EUR, 20);
-  assert.equal(fx.getState().audit.some(entry => entry.event === 'rate_source_failed' && entry.source === 'banxico'), true);
+  assert.equal(fx.getState().audit.some(entry => entry.event === 'daily_rates_registered'), true);
 });
 
 test('permite desactivar Banxico sin almacenar ni enviar un token al navegador', async () => {
   const calls = [];
-  const fx = loadFx(async url => { calls.push(url); return { ok: true, text: async () => officialCsv }; });
+  const fx = loadFx(async url => { calls.push(url); if (url === '/api/fx/dof-usd') return { ok: false, json: async () => ({ error: 'No disponible' }) }; return { ok: true, text: async () => officialCsv }; });
   assert.equal(fx.setBanxicoEnabled(false).ok, true);
   const record = await fx.ensureDaily();
   assert.equal(record.sourceType, 'official_secondary');
@@ -58,12 +59,12 @@ test('permite desactivar Banxico sin almacenar ni enviar un token al navegador',
 });
 
 test('usa Frankfurter cuando falla también la fuente oficial secundaria', async () => {
-  let attempt = 0;
-  const fx = loadFx(async () => { attempt += 1; if (attempt === 1) throw new Error('Sin fuente oficial'); return { ok: true, json: async () => ({ date: '2026-08-28', rates: { USD: 2, CAD: 4, MXN: 20 } }) }; });
+  const calls = [];
+  const fx = loadFx(async url => { calls.push(url); if (url === '/api/fx/dof-usd') return { ok: false, json: async () => ({ error: 'No disponible' }) }; if (url.includes('ecb.europa.eu')) throw new Error('Sin fuente oficial'); return { ok: true, json: async () => ({ date: '2026-08-28', rates: { USD: 2, CAD: 4, MXN: 20 } }) }; });
   const record = await fx.ensureDaily();
   assert.equal(record.sourceType, 'trusted_tertiary');
-  assert.equal(attempt, 2);
-  assert.equal(fx.getState().audit.some(entry => entry.event === 'rate_source_failed'), true);
+  assert.equal(calls.length, 3);
+  assert.equal(fx.getState().audit.some(entry => entry.event === 'daily_rates_registered'), true);
 });
 
 test('la captura manual exige motivo y conserva auditoría', () => {
@@ -90,12 +91,19 @@ test('la solicitud diaria se programa para el primer segundo del siguiente día 
   assert.match(source, /visibilitychange[\s\S]*?checkDailyAdministratorPrompt/);
   assert.match(source, /id="openDailyFxSelection"/);
   assert.match(source, /promptDailyAdministrator\(\{ force: true \}\)/);
+  assert.match(source, /const canManageDailyFx/);
+  assert.match(source, /BioAccess\?\.can\?\.\('system_config'\)/);
+  assert.match(source, /sessionStorage\?\.getItem\(PROMPT_STORAGE_KEY\)/);
+  assert.match(source, /dailyPromptWasShown\(key\)/);
+  assert.match(source, /Último registro confirmado:/);
+  assert.doesNotMatch(source, /Último registro: \$\{dateOf\(record\)\}/);
 });
 
-test('la solicitud diaria consulta las tres fuentes y conserva la fuente elegida', async () => {
+test('la solicitud diaria consulta el Diario Oficial y conserva la fuente elegida', async () => {
   const calls = [];
   const fx = loadFx(async url => {
     calls.push(url);
+    if (url === '/api/fx/dof-usd') return { ok: true, json: async () => ({ usd: 18.5, rateDate: '2026-09-12' }) };
     if (url.includes('banxico.org.mx')) return { ok: true, json: async () => ({ bmx: { series: [
       { idSerie: 'SF43718', datos: [{ fecha: '12/09/2026', dato: '18.1000' }] },
       { idSerie: 'SF60632', datos: [{ fecha: '12/09/2026', dato: '13.2000' }] },
@@ -106,13 +114,14 @@ test('la solicitud diaria consulta las tres fuentes y conserva la fuente elegida
   });
   assert.equal(fx.setBanxicoToken('TOKEN-VALIDO-123').ok, true);
   const candidates = await fx.consultDailySources();
-  assert.deepEqual(Array.from(candidates, candidate => candidate.key), ['banxico', 'ecb', 'frankfurter']);
-  assert.equal(calls.length, 3);
-  const selected = candidates[1];
+  assert.deepEqual(Array.from(candidates, candidate => candidate.key), ['dof', 'banxico', 'ecb', 'frankfurter']);
+  assert.equal(calls.length, 4);
+  assert.equal(candidates[0].rates.USD, 18.5);
+  const selected = candidates[2];
   const result = fx.confirmDaily({ rates: selected.rates, source: selected.source, sourceType: selected.sourceType, method: selected.method, endpoint: selected.endpoint, selectedSourceKey: selected.key, sourceCandidates: candidates });
   assert.equal(result.ok, true);
   assert.equal(fx.todayRecord().selectedSourceKey, 'ecb');
-  assert.equal(fx.todayRecord().sourceCandidates.length, 3);
+  assert.equal(fx.todayRecord().sourceCandidates.length, 4);
 });
 
 test('la tasa protegida aplica el porcentaje comercial sobre la tasa confirmada', () => {
@@ -148,5 +157,19 @@ test('una sincronización fallida conserva el último registro válido y deja el
   assert.equal(await fx.ensureDaily({ force: true }), null);
   assert.equal(fx.todayRecord().id, prior);
   const failures = fx.getState().audit.filter(entry => entry.event === 'rate_source_failed');
-  assert.deepEqual(Array.from(failures, entry => entry.source), ['frankfurter', 'ecb', 'banxico']);
+  assert.deepEqual(Array.from(failures, entry => entry.source), ['frankfurter', 'ecb', 'banxico', 'dof']);
+});
+
+test('actualiza USD desde el Diario Oficial aunque CAD y EUR deban conservarse temporalmente', async () => {
+  const fx = loadFx(async url => {
+    if (url === '/api/fx/dof-usd') return { ok: true, json: async () => ({ usd: 18.425, rateDate: '2026-10-16' }) };
+    throw new Error('Sin conexión a la fuente complementaria');
+  });
+  assert.equal(fx.saveManual({ USD: 18.5221, CAD: 13.2, EUR: 21.4, reason: 'Tasas previas válidas' }).ok, true);
+  const record = await fx.ensureDaily({ force: true });
+  assert.equal(record.rates.USD, 18.425);
+  assert.equal(record.rates.CAD, 13.2);
+  assert.equal(record.rates.EUR, 21.4);
+  assert.equal(record.method, 'automatic_dof_usd_retained_rates');
+  assert.equal(record.componentSources.USD, 'Diario Oficial de la Federación · USD');
 });

@@ -20,6 +20,7 @@ test('interpreta montos en los formatos utilizados por Bio', () => {
   assert.equal(help.parseAmount('$1,250.50'), 1250.5);
   assert.equal(help.parseAmount('EUR 1.250,50'), 1250.5);
   assert.equal(help.parseAmount('− $320.00'), -320);
+  assert.equal(help.parseAmount('4104.30454225'), 4104.30454225);
   assert.equal(help.amountFromText('USD $100.00 → MXN $1,700.00'), 1700);
 });
 

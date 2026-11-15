@@ -26,10 +26,39 @@ test('consolida remisiones, varias OC y no duplica cantidades por relaciones N:N
   assert.deepEqual(record.products.map(product => [product.sku, product.purchased, product.delivered, product.pending]), [['SKU-A', 10, 10, 0], ['SKU-B', 5, 5, 0]]);
 });
 
-test('filtra por periodo y protege la cartera del vendedor en el backend', () => {
+test('el reporte cuenta compras confirmadas, descuenta saldos cancelados e ignora propuestas', () => {
+  const input = state(), operations = input['nexo-order-operations-v1'];
+  operations.orderLines[0].quantityPurchased = 0;
+  operations.orderLines[0].quantityReceived = 0;
+  operations.shipments = [];
+  operations.supplierOrderLines[0].quantityCancelled = 1;
+  operations.supplierOrders.push({ id: 'OC-DRAFT', supplierName: 'Proveedor borrador', status: 'draft' });
+  operations.supplierOrderLines.push({ id: 'SOL-DRAFT', supplierOrderId: 'OC-DRAFT', requisitionId: 'PI-001', orderLineId: 'LIN-A', quantity: 25 });
+  const [record] = buildInternalOrdersReport(input, { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }).records;
+  assert.equal(record.products.find(product => product.lineId === 'LIN-A').purchased, 9);
+  assert.equal(record.purchaseOrders.some(order => order.id === 'OC-DRAFT'), false);
+});
+
+test('reporta el mismo total con IVA congelado en el pedido interno', () => {
+  const input = state();
+  input['nexo-commercial-orders'][0] = { ...input['nexo-commercial-orders'][0], currency: 'EUR', subtotal: 47.15, taxRate: 16, taxAmount: 7.54, total: 54.69, totalsByCurrency: [{ currency: 'EUR', subtotal: 47.15, discountTotal: 0, taxable: 47.15, taxAmount: 7.54, total: 54.69 }] };
+  const [record] = buildInternalOrdersReport(input, { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }).records;
+  assert.equal(record.amount, 54.69);
+  assert.equal(record.currency, 'EUR');
+  assert.equal(record.amountLabel, 'Total con IVA');
+});
+
+test('el reporte no vuelve a sumar partidas ni altera un centavo del total congelado', () => {
+  const input = state();
+  input['nexo-commercial-orders'][0] = { ...input['nexo-commercial-orders'][0], currency: 'MXN', subtotal: 11950.62, taxRate: 16, taxAmount: 1912.1, total: 13862.72, totalsByCurrency: [{ currency: 'MXN', subtotal: 11950.62, discountTotal: 0, taxable: 11950.62, taxAmount: 1912.1, total: 13862.72 }] };
+  const [record] = buildInternalOrdersReport(input, { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }).records;
+  assert.equal(record.amount, 13862.72);
+});
+
+test('filtra por periodo y permite consultar pedidos internos de toda la operación', () => {
   const report = buildInternalOrdersReport(state(), { id: 'USR-SELLER', role: 'seller', name: 'Vendedora' }, { month: '04', year: '2026' });
   assert.equal(report.records.length, 1);
-  assert.equal(buildInternalOrdersReport(state(), { id: 'USR-OTHER', role: 'seller', name: 'Otro' }).records.length, 0);
+  assert.equal(buildInternalOrdersReport(state(), { id: 'USR-OTHER', role: 'seller', name: 'Otro' }).records.length, 1);
   assert.equal(buildInternalOrdersReport(state(), { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }, { month: '03', year: '2026' }).records.length, 0);
   assert.equal(buildInternalOrdersReport(state(), { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }, { product: 'PRO-A' }).records.length, 1);
   assert.equal(buildInternalOrdersReport(state(), { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }, { product: 'PRO-X' }).records.length, 0);

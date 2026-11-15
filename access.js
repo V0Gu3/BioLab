@@ -16,15 +16,15 @@
     developer: { id: 'developer', name: 'Desarrollo', description: 'Acceso técnico total, incluida la restauración controlada de datos operativos.', permissions: ALL },
     auditor: { id: 'auditor', name: 'Auditor', description: 'Consulta la trazabilidad, documentos y bitácoras sin modificar la operación.', permissions: ['dashboard_view', 'audit', 'sandbox'] },
     supervisor: { id: 'supervisor', name: 'Supervisor', description: 'Supervisa y confirma la operación completa, sin administrar seguridad ni auditoría.', permissions: ALL.filter(permission => !['audit', 'user_manage', 'system_config'].includes(permission)) },
-    seller: { id: 'seller', name: 'Vendedor', description: 'Consulta existencias y catálogo; administra únicamente su cartera, cotizaciones y pedidos internos, sin intervenir almacén ni compras.', permissions: ['dashboard_view', 'inventory_view', 'catalog_view', 'quotation_view', 'quotation_manage', 'client_view', 'client_manage', 'client_order_view', 'client_order_manage', 'client_order_activate', 'reports', 'sandbox'] }
+    seller: { id: 'seller', name: 'Vendedor', description: 'Consulta las cotizaciones y pedidos internos de toda la operación; administra únicamente su propia cartera y sus documentos, sin intervenir almacén ni compras.', permissions: ['dashboard_view', 'inventory_view', 'catalog_view', 'quotation_view', 'quotation_manage', 'client_view', 'client_manage', 'client_order_view', 'client_order_manage', 'client_order_activate', 'reports', 'sandbox'] }
   });
   const defaults = () => ({
-    version: 3,
+    version: 4,
     currentUserId: 'USR-001',
     users: [
       { id: 'USR-001', name: 'José Velasco', email: 'administracion@probiolab.mx', role: 'administrator', status: 'active', createdAt: new Date().toISOString() },
       { id: 'USR-002', name: 'Usuario Supervisor', email: 'supervision@probiolab.mx', role: 'supervisor', status: 'active', createdAt: new Date().toISOString() },
-      { id: 'USR-003', name: 'Usuario Vendedor', email: 'ventas@probiolab.mx', role: 'seller', status: 'active', createdAt: new Date().toISOString() },
+      { id: 'USR-003', name: 'Usuario Vendedor', email: 'ventas@probiolab.mx', role: 'seller', sellerNumber: 'V-001', status: 'active', createdAt: new Date().toISOString() },
       { id: 'USR-004', name: 'Usuario Auditor', email: 'auditoria@probiolab.mx', role: 'auditor', status: 'active', createdAt: new Date().toISOString() }
     ],
     roleOverrides: {},
@@ -34,13 +34,23 @@
   const load = () => {
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if ([1, 2, 3].includes(parsed?.version) && Array.isArray(parsed.users)) {
+      if ([1, 2, 3, 4].includes(parsed?.version) && Array.isArray(parsed.users)) {
         if (!parsed.users.some(user => user.role === 'auditor')) {
           const next = Math.max(0, ...parsed.users.map(user => Number(String(user.id || '').match(/\d+/)?.[0]) || 0)) + 1;
           parsed.users.push({ id: `USR-${String(next).padStart(3, '0')}`, name: 'Usuario Auditor', email: 'auditoria@probiolab.mx', role: 'auditor', status: 'active', createdAt: new Date().toISOString() });
           localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
         }
-        parsed.version = 3;
+        const sellerSequence = (() => {
+          const used = new Set();
+          parsed.users.filter(user => user.role === 'seller').forEach(user => {
+            const value = String(user.sellerNumber || '').trim().toUpperCase();
+            if (/^V-\d{3,}$/.test(value)) { user.sellerNumber = value; used.add(Number(value.slice(2))); }
+          });
+          let next = 1;
+          return () => { while (used.has(next)) next += 1; used.add(next); return `V-${String(next++).padStart(3, '0')}`; };
+        })();
+        parsed.users.forEach(user => { if (user.role === 'seller' && !user.sellerNumber) user.sellerNumber = sellerSequence(); });
+        parsed.version = 4;
         parsed.roleOverrides = parsed.roleOverrides && typeof parsed.roleOverrides === 'object' ? parsed.roleOverrides : {};
         parsed.workspace = parsed.workspace && typeof parsed.workspace === 'object' ? parsed.workspace : {};
         parsed.audit = Array.isArray(parsed.audit) ? parsed.audit : [];
@@ -131,8 +141,15 @@
     const canKeepReset = role === 'developer';
     const permissionGrants = [...new Set((input.permissionGrants || []).filter(permission => ALL.includes(permission) && permission !== 'user_manage' && (canKeepReset || permission !== 'system_reset')))];
     const permissionDenials = [...new Set((input.permissionDenials || []).filter(permission => ALL.includes(permission) && permission !== 'user_manage' && (canKeepReset || permission !== 'system_reset')))];
-    if (existing) Object.assign(existing, { name, email, role, status: input.status || 'active', permissionGrants, permissionDenials, updatedAt: new Date().toISOString() });
-    else state.users.push({ id: `USR-${String(state.users.length + 1).padStart(3, '0')}`, name, email, role, status: input.status || 'active', permissionGrants, permissionDenials, createdAt: new Date().toISOString() });
+    const nextSellerNumber = () => {
+      const used = new Set(state.users.map(user => Number(String(user.sellerNumber || '').match(/^V-(\d+)$/)?.[1] || 0)).filter(Boolean));
+      let next = 1; while (used.has(next)) next += 1; return `V-${String(next).padStart(3, '0')}`;
+    };
+    const requestedSellerNumber = String(input.sellerNumber || '').trim().toUpperCase();
+    const sellerNumber = role === 'seller' ? (existing?.sellerNumber || (/^V-\d{3,}$/.test(requestedSellerNumber) ? requestedSellerNumber : nextSellerNumber())) : (existing?.sellerNumber || '');
+    if (sellerNumber && state.users.some(user => user.id !== input.id && user.sellerNumber === sellerNumber)) return { ok: false, message: 'El número de vendedor ya está asignado a otro usuario.' };
+    if (existing) Object.assign(existing, { name, email, role, sellerNumber, status: input.status || 'active', permissionGrants, permissionDenials, updatedAt: new Date().toISOString() });
+    else state.users.push({ id: `USR-${String(state.users.length + 1).padStart(3, '0')}`, name, email, role, sellerNumber, status: input.status || 'active', permissionGrants, permissionDenials, createdAt: new Date().toISOString() });
     persist({ type: existing ? 'user_updated' : 'user_created', entityId: existing?.id || state.users.at(-1).id, before, after: existing ? { ...existing } : { ...state.users.at(-1) }, reason: String(input.reason || '').trim() || undefined });
     return { ok: true };
   };

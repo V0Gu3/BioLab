@@ -9,15 +9,23 @@
   const clients = () => data('nexo-clients');
   const quotations = () => data('nexo-sales-quotations');
   const products = () => data('nexo-products');
-  const quoteStatus = quote => String(quote.status || '').toLowerCase() === 'expired' || (quote.expiresAt && new Date(`${quote.expiresAt}T23:59:59`) < new Date()) ? 'Vencida' : 'Vigente';
+  const inTraining = () => window.__BIO_TRAINING__ === true || document.documentElement.dataset.workspace === 'training';
+  const quoteExpired = quote => window.BioQuotationConversion?.isExpired(quote) === true;
+  const quoteStatus = quote => quoteExpired(quote) ? 'Vencida' : 'Vigente';
   const sameValue = (left, right) => String(left ?? '') === String(right ?? '');
   const normalized = value => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
   function quotationCountFor(client) {
     return quotations().filter(quote => {
       const belongsToClient = String(quote.clientId || '') === String(client.id) || normalized(quote.client) === normalized(client.name);
-      return belongsToClient && !['cancelled', 'required'].includes(normalized(quote.status)) && !quote.locked;
+      return belongsToClient && !['cancelled', 'required'].includes(normalized(quote.status)) && !quote.locked && !quoteExpired(quote);
     }).length;
+  }
+  function availableQuotationsFor(client) {
+    return quotations().filter(quote => {
+      const belongsToClient = String(quote.clientId || '') === String(client.id) || normalized(quote.client) === normalized(client.name);
+      return belongsToClient && !['cancelled', 'required'].includes(normalized(quote.status)) && !quote.locked && !quoteExpired(quote);
+    });
   }
 
   function reset() {
@@ -42,6 +50,13 @@
     if (state.client && state.client.id !== client.id && state.items.length && !window.confirm('Cambiar de cliente eliminará las cotizaciones y partidas del borrador. ¿Deseas continuar?')) return;
     state.id = null; state.client = client; state.quotations = []; state.selected.clear(); state.items = []; state.conditionsAuto = ''; state.conditionsEdited = false; state.paymentEdited = false; $('#internalOrderClientSearch').value = ''; $('#internalOrderObservations').value = '';
     renderClients(); renderSelectedClient(); $('#internalOrderQuotationResults').innerHTML = '<p class="empty-state">Cargando cotizaciones del cliente…</p>'; renderLines();
+    // Pruebas nunca consulta pedidos ni cotizaciones operativas. La selección
+    // se resuelve desde el conjunto de capacitación ya descargado al navegador.
+    if (inTraining()) {
+      state.quotations = availableQuotationsFor(client);
+      renderQuotes();
+      return;
+    }
     try {
       const response = await fetch(`/api/internal-orders/clients/${encodeURIComponent(client.id)}/quotations`, { credentials: 'same-origin' });
       const body = await response.json(); if (!response.ok) throw new Error(body.error || 'No fue posible cargar cotizaciones.');
@@ -56,9 +71,11 @@
   }
   function quoteLine(quote, item, position) {
     const currency = String(item.currency || item.sourceCurrency || quote.currency || 'MXN').toUpperCase();
-    return { id: `PIL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, productId: item.productId || null, number: item.number || '', sku: item.sku || '', name: item.name || item.description || 'Producto', description: item.description || item.name || '', unit: item.unit || 'unidad', quantity: Number(item.quantity || 0), unitPrice: Number(item.unitPrice || 0), purchaseCost: null, currency, supplierId: item.supplierId || null, supplierRelationId: item.supplierRelationId || null, observations: '', sourceType: 'quotation', sources: [{ sourceType: 'quotation', quotationId: quote.id, quotationLineNo: position + 1, originalQuantity: Number(item.quantity || 0), originalUnitPrice: Number(item.unitPrice || 0), currency }] };
+    const discount = Math.max(0, Number(item.discount || 0)), taxRate = quote.taxRate == null ? 16 : Math.max(0, Number(quote.taxRate || 0));
+    const discountTotal = item.discountTotal ?? item.lineDiscount ?? item.discountAmount ?? null;
+    return { id: `PIL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, productId: item.productId || null, number: item.number || '', sku: item.sku || '', name: item.name || item.description || 'Producto', description: item.description || item.name || '', unit: item.unit || 'unidad', quantity: Number(item.quantity || 0), unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)), discount, discountTotal, taxRate, purchaseCost: null, currency, supplierId: item.supplierId || null, supplierRelationId: item.supplierRelationId || null, observations: '', sourceType: 'quotation', sources: [{ sourceType: 'quotation', quotationId: quote.id, quotationLineNo: position + 1, originalQuantity: Number(item.quantity || 0), originalUnitPrice: Number(Number(item.unitPrice || 0).toFixed(2)), discount, discountTotal, taxRate, currency }] };
   }
-  function compatible(left, right) { return left.sourceType === 'quotation' && right.sourceType === 'quotation' && ['productId', 'sku', 'unit', 'currency', 'unitPrice', 'supplierId'].every(key => sameValue(left[key], right[key])); }
+  function compatible(left, right) { return left.sourceType === 'quotation' && right.sourceType === 'quotation' && ['productId', 'sku', 'unit', 'currency', 'unitPrice', 'discount', 'taxRate', 'supplierId'].every(key => sameValue(left[key], right[key])); }
   function localizedDate(date) { return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }); }
   function paymentDateFor(quote, date) { const days = Math.max(0, Number(quote.creditDays || 0)); if (!days) return null; const due = new Date(date); due.setDate(due.getDate() + days); return due; }
   function inheritedConditions() {
@@ -98,15 +115,15 @@
     const manual = state.items.filter(item => item.sourceType === 'manual'); let next = [...manual];
     state.quotations.filter(quote => state.selected.has(String(quote.id))).forEach(quote => (quote.items || []).forEach((item, index) => {
       const line = quoteLine(quote, item, index), existing = next.find(candidate => compatible(candidate, line));
-      if (existing) { existing.quantity += line.quantity; existing.sources.push(...line.sources); } else next.push(line);
+      if (existing) { existing.quantity += line.quantity;if(existing.discountTotal!=null&&line.discountTotal!=null)existing.discountTotal=Number((Number(existing.discountTotal)+Number(line.discountTotal)).toFixed(2));else existing.discountTotal=null;existing.sources.push(...line.sources); } else next.push(line);
     }));
     state.items = next; syncInheritedConditions(); syncPaymentControls(); renderLines();
   }
-  function totals() { const buckets = new Map(); state.items.forEach(item => buckets.set(item.currency, (buckets.get(item.currency) || 0) + Number(item.quantity || 0) * Number(item.unitPrice || 0))); return [...buckets].map(([currency, total]) => `${currency} ${total.toLocaleString('es-MX', { style: 'currency', currency })}`).join(' · '); }
+  function totals() { const round=value=>Math.round((Number(value||0)+Number.EPSILON)*100)/100,buckets = new Map(); state.items.forEach(item => { const subtotal = round(Number(item.quantity || 0) * round(item.unitPrice)), discountTotal=item.discountTotal==null?round(subtotal*Number(item.discount||0)/100):round(item.discountTotal), taxable = round(subtotal-discountTotal), total = round(taxable+round(taxable*Number(item.taxRate ?? 16)/100)); buckets.set(item.currency, round((buckets.get(item.currency) || 0) + total)); }); return [...buckets].map(([currency, total]) => `${currency} ${total.toLocaleString('es-MX', { style: 'currency', currency })} con IVA`).join(' · '); }
   function priceDirection(item) { const original = Number(item.sources?.find(source => source.sourceType === 'quotation')?.originalUnitPrice); const current = Number(item.unitPrice); return Number.isFinite(original) && original > 0 ? current > original ? 'price-up' : current < original ? 'price-down' : '' : ''; }
   function renderLines() {
     const target = $('#internalOrderLines');
-    target.innerHTML = state.items.length ? state.items.map((item, index) => `<article class="internal-order-line"><div><strong>${esc(item.number || item.sku || 'MANUAL')} · ${esc(item.name)}</strong><small>${esc(item.unit)} · ${esc(item.currency)} · ${item.sources.filter(source => source.sourceType === 'quotation').map(source => esc(source.quotationId)).filter((value, position, rows) => rows.indexOf(value) === position).join(', ') || 'Partida manual'}</small></div><label>Cantidad<input type="number" min="0.000001" step="any" data-internal-line="${index}" data-internal-field="quantity" value="${Number(item.quantity)}" /></label><label class="internal-order-price ${priceDirection(item)}">Precio venta<input type="number" min="0" step="any" data-internal-line="${index}" data-internal-field="unitPrice" value="${Number(item.unitPrice)}" /><small class="internal-order-price-change">${priceDirection(item) === 'price-up' ? 'Precio aumentado' : priceDirection(item) === 'price-down' ? 'Precio disminuido' : ''}</small></label><button type="button" data-remove-internal-line="${index}" aria-label="Quitar partida"><i data-lucide="trash-2"></i></button></article>`).join('') : '<p class="empty-state">Selecciona cotizaciones para incorporar sus partidas.</p>';
+    target.innerHTML = state.items.length ? state.items.map((item, index) => `<article class="internal-order-line"><div><strong>${esc(item.number || item.sku || 'MANUAL')} · ${esc(item.name)}</strong><small>${esc(item.unit)} · ${esc(item.currency)} · ${item.sources.filter(source => source.sourceType === 'quotation').map(source => esc(source.quotationId)).filter((value, position, rows) => rows.indexOf(value) === position).join(', ') || 'Partida manual'}</small></div><label>Cantidad<input type="number" min="0.000001" step="any" data-internal-line="${index}" data-internal-field="quantity" value="${Number(item.quantity)}" /></label><label class="internal-order-price ${priceDirection(item)}">Precio venta<input type="number" min="0" step="0.01" data-internal-line="${index}" data-internal-field="unitPrice" value="${Number(item.unitPrice || 0).toFixed(2)}" /><small class="internal-order-price-change">${priceDirection(item) === 'price-up' ? 'Precio aumentado' : priceDirection(item) === 'price-down' ? 'Precio disminuido' : ''}</small></label><button type="button" data-remove-internal-line="${index}" aria-label="Quitar partida"><i data-lucide="trash-2"></i></button></article>`).join('') : '<p class="empty-state">Selecciona cotizaciones para incorporar sus partidas.</p>';
     $('#internalOrderSummary').textContent = state.items.length ? `${state.items.length} partida${state.items.length === 1 ? '' : 's'} · ${totals()}` : 'Sin partidas.';
     window.lucide?.createIcons();
   }
@@ -116,14 +133,21 @@
     target.innerHTML = products().filter(product => [product.number, product.sku, product.name, product.brand].some(value => String(value || '').toLowerCase().includes(query))).slice(0, 8).map(product => `<button type="button" data-internal-product="${esc(product.id)}"><strong>${esc(product.number || product.sku || '')} · ${esc(product.name)}</strong><small>${esc(product.unit || 'unidad')} · ${esc(product.priceCurrency || product.salePriceCurrency || 'MXN')}</small></button>`).join('') || '<p class="empty-state">No hay coincidencias en el catálogo.</p>';
   }
   function addManual(product) {
-    state.items.push({ id: `PIL-${Date.now()}-manual`, productId: product.id, number: product.number || '', sku: product.sku || '', name: product.name, description: product.description || product.name, unit: product.unit || 'unidad', quantity: 1, unitPrice: Number(product.salePrice || 0), purchaseCost: null, currency: String(product.salePriceCurrency || product.priceCurrency || 'MXN').toUpperCase(), supplierId: product.supplierId || null, supplierRelationId: null, observations: '', sourceType: 'manual', sources: [{ sourceType: 'manual', quotationId: null, quotationLineNo: null, originalQuantity: null, originalUnitPrice: null, currency: String(product.priceCurrency || 'MXN').toUpperCase() }] });
+    const selectedQuote = state.quotations.find(quote => state.selected.has(String(quote.id))), taxRate = selectedQuote?.taxRate == null ? 16 : Math.max(0, Number(selectedQuote.taxRate || 0));
+    state.items.push({ id: `PIL-${Date.now()}-manual`, productId: product.id, number: product.number || '', sku: product.sku || '', name: product.name, description: product.description || product.name, unit: product.unit || 'unidad', quantity: 1, unitPrice: Number(product.salePrice || 0), discount: 0, taxRate, purchaseCost: null, currency: String(product.salePriceCurrency || product.priceCurrency || 'MXN').toUpperCase(), supplierId: product.supplierId || null, supplierRelationId: null, observations: '', sourceType: 'manual', sources: [{ sourceType: 'manual', quotationId: null, quotationLineNo: null, originalQuantity: null, originalUnitPrice: null, discount: 0, taxRate, currency: String(product.priceCurrency || 'MXN').toUpperCase() }] });
     $('#internalOrderProductSearch').value = ''; $('#internalOrderProductResults').innerHTML = ''; renderLines();
   }
   function payload() { return { clientId: state.client?.id, quotationIds: [...state.selected], items: state.items, observations: $('#internalOrderObservations').value.trim(), commercialTermsOverride: paymentTermsOverride() }; }
   function reflectSavedOrder(order) {
-    const saved = data('nexo-commercial-orders'), next = [order, ...saved.filter(item => String(item.id) !== String(order.id))];
-    localStorage.setItem('nexo-commercial-orders', JSON.stringify(next));
-    try { const index = commercialOrders.findIndex(item => String(item.id) === String(order.id)); if (index >= 0) commercialOrders[index] = order; else commercialOrders.unshift(order); renderCommercialOrders($('#commercialOrderSearch')?.value || ''); } catch { /* La recarga recuperará el estado si la vista aún no se inicializó. */ }
+    const reflect = () => {
+      const saved = data('nexo-commercial-orders'), next = [order, ...saved.filter(item => String(item.id) !== String(order.id))];
+      localStorage.setItem('nexo-commercial-orders', JSON.stringify(next));
+      try { const index = commercialOrders.findIndex(item => String(item.id) === String(order.id)); if (index >= 0) commercialOrders[index] = order; else commercialOrders.unshift(order); renderCommercialOrders($('#commercialOrderSearch')?.value || ''); } catch { /* La recarga recuperará el estado si la vista aún no se inicializó. */ }
+    };
+    // Crear/activar ya quedó confirmado por su endpoint transaccional. Reflejar
+    // esa respuesta en pantalla no debe generar un segundo PUT de estado total:
+    // una respuesta borrador retrasada podría degradar un pedido ya activado.
+    return window.BioPersistence?.suspendWrites ? window.BioPersistence.suspendWrites(reflect) : reflect();
   }
   async function continueAfterActivation(order) {
     reflectSavedOrder(order);
@@ -173,7 +197,7 @@
   $('#internalOrderProductSearch').addEventListener('input', renderProducts);
   $('#internalOrderProductResults').addEventListener('click', event => { const button = event.target.closest('[data-internal-product]'); if (button) addManual(products().find(item => String(item.id) === button.dataset.internalProduct)); });
   $('#internalOrderObservations').addEventListener('input', () => { state.conditionsEdited = $('#internalOrderObservations').value !== state.conditionsAuto; });
-  $('#internalOrderLines').addEventListener('input', event => { const input = event.target, index = Number(input.dataset.internalLine); if (!Number.isInteger(index) || !input.dataset.internalField) return; state.items[index][input.dataset.internalField] = input.value === '' ? null : Number(input.value); if (input.dataset.internalField === 'unitPrice') { const label = input.closest('.internal-order-price'), direction = priceDirection(state.items[index]); label.classList.toggle('price-up', direction === 'price-up'); label.classList.toggle('price-down', direction === 'price-down'); label.querySelector('.internal-order-price-change').textContent = direction === 'price-up' ? 'Precio aumentado' : direction === 'price-down' ? 'Precio disminuido' : ''; } $('#internalOrderSummary').textContent = `${state.items.length} partidas · ${totals()}`; });
+  $('#internalOrderLines').addEventListener('input', event => { const input = event.target, index = Number(input.dataset.internalLine); if (!Number.isInteger(index) || !input.dataset.internalField) return; const numericValue=input.value===''?null:Number(input.value);state.items[index][input.dataset.internalField]=input.dataset.internalField==='unitPrice'&&numericValue!==null?Math.round(numericValue*100)/100:numericValue; if (input.dataset.internalField === 'unitPrice') { const label = input.closest('.internal-order-price'), direction = priceDirection(state.items[index]); label.classList.toggle('price-up', direction === 'price-up'); label.classList.toggle('price-down', direction === 'price-down'); label.querySelector('.internal-order-price-change').textContent = direction === 'price-up' ? 'Precio aumentado' : direction === 'price-down' ? 'Precio disminuido' : ''; } $('#internalOrderSummary').textContent = `${state.items.length} partidas · ${totals()}`; });
   ['#internalOrderPaymentMethod', '#internalOrderCreditDays'].forEach(selector => $(selector).addEventListener('change', () => { state.paymentEdited = true; syncPaymentControls(); }));
   $('#internalOrderLines').addEventListener('click', event => { const button = event.target.closest('[data-remove-internal-line]'); if (!button) return; state.items.splice(Number(button.dataset.removeInternalLine), 1); renderLines(); });
   $('#saveInternalOrderDraft').addEventListener('click', () => persist(false));
