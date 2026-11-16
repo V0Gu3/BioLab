@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
 const internalOrders = fs.readFileSync(require.resolve('../internal-orders.js'), 'utf8');
+const formValidation = fs.readFileSync(require.resolve('../form-validation.js'), 'utf8');
 const reports = fs.readFileSync(require.resolve('../reports.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const modalTheme = fs.readFileSync(require.resolve('../modal-theme.css'), 'utf8');
@@ -186,6 +187,17 @@ test('Ciclo 5 punto 17 presenta estados, recepciones y folios operativos legible
   assert.match(app, /id:item\.folio\|\|item\.id/);
   assert.match(orders, /Captura el folio impreso en la remisión del proveedor/);
   assert.doesNotMatch(orders, /reference\.value = file\.name/);
+});
+
+test('Ciclo 5 punto 18 sincroniza contadores y corrige textos comerciales', () => {
+  assert.match(internalOrders, /availableQuotations: availableQuotationsFor\(client\)/);
+  assert.match(internalOrders, /state\.quotations = availableQuotationsFor\(client\)/);
+  assert.doesNotMatch(internalOrders, /fetch\(`\/api\/internal-orders\/clients\/\$\{encodeURIComponent\(client\.id\)\}\/quotations/);
+  assert.match(orders, /dossierTab\('timeline','Línea de tiempo',timelineEntries\.length/);
+  assert.match(app, /differenceCount===1\?'la 1 diferencia detectada'/);
+  assert.match(app, /showToast\.lastMessage===message/);
+  assert.match(formValidation, /El descuento\$\{product \? ` de \$\{product\}` : ''\} no puede superar el/);
+  assert.doesNotMatch(internalOrders, /`\$\{currency\} \$\{total\.toLocaleString/);
 });
 
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {

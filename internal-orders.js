@@ -16,12 +16,6 @@
   const sameValue = (left, right) => String(left ?? '') === String(right ?? '');
   const normalized = value => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-  function quotationCountFor(client) {
-    return quotations().filter(quote => {
-      const belongsToClient = String(quote.clientId || '') === String(client.id) || normalized(quote.client) === normalized(client.name);
-      return belongsToClient && !['cancelled', 'required'].includes(normalized(quote.status)) && !quote.locked && !quote.internalOrderId && !quote.commercialOrderId && !quotationAlreadyConverted(quote) && !quoteExpired(quote);
-    }).length;
-  }
   function availableQuotationsFor(client) {
     return quotations().filter(quote => {
       const belongsToClient = String(quote.clientId || '') === String(client.id) || normalized(quote.client) === normalized(client.name);
@@ -36,11 +30,11 @@
   }
   function renderClients() {
     const term = $('#internalOrderClientSearch').value.trim().toLowerCase();
-    const eligible = clients().map(client => ({ client, quotationCount: quotationCountFor(client) })).filter(({ client, quotationCount }) => !client.retired && !client.blocked && normalized(client.status) !== 'inactive' && quotationCount > 0);
+    const eligible = clients().map(client => ({ client, availableQuotations: availableQuotationsFor(client) })).filter(({ client, availableQuotations }) => !client.retired && !client.blocked && normalized(client.status) !== 'inactive' && availableQuotations.length > 0);
     const matches = eligible.filter(({ client }) => !term || [client.internalNumber, client.name, client.contact, client.rfc].some(value => normalized(value).includes(normalized(term))));
     const rows = matches.slice(0, 8), total = matches.length;
     const heading = term ? `Coincidencias con cotización (${total})` : `Clientes activos con cotización (${total})`;
-    $('#internalOrderClientResults').innerHTML = rows.length ? `<p class="internal-order-client-results-title">${heading}${total > rows.length ? ' · escribe para acotar la búsqueda' : ''}</p>${rows.map(({ client, quotationCount }) => `<button type="button" data-internal-client="${esc(client.id)}"><strong>${esc(client.internalNumber || 'Sin número')} · ${esc(client.name)}</strong><small>${esc(client.contact || client.rfc || 'Sin contacto')} · ${quotationCount === 1 ? '1 cotización disponible' : `${quotationCount} cotizaciones disponibles`}</small></button>`).join('')}` : `<p class="empty-state">${term ? 'No hay clientes activos con cotizaciones que coincidan con la búsqueda.' : 'No hay clientes activos con cotizaciones disponibles.'}</p>`;
+    $('#internalOrderClientResults').innerHTML = rows.length ? `<p class="internal-order-client-results-title">${heading}${total > rows.length ? ' · escribe para acotar la búsqueda' : ''}</p>${rows.map(({ client, availableQuotations }) => { const quotationCount = availableQuotations.length; return `<button type="button" data-internal-client="${esc(client.id)}"><strong>${esc(client.internalNumber || 'Sin número')} · ${esc(client.name)}</strong><small>${esc(client.contact || client.rfc || 'Sin contacto')} · ${quotationCount === 1 ? '1 cotización disponible' : `${quotationCount} cotizaciones disponibles`}</small></button>`; }).join('')}` : `<p class="empty-state">${term ? 'No hay clientes activos con cotizaciones que coincidan con la búsqueda.' : 'No hay clientes activos con cotizaciones disponibles.'}</p>`;
   }
   function renderSelectedClient() {
     const box = $('#internalOrderClientSelected'); box.hidden = !state.client;
@@ -51,18 +45,15 @@
     if (state.client && state.client.id !== client.id && state.items.length && !window.confirm('Cambiar de cliente eliminará las cotizaciones y partidas del borrador. ¿Deseas continuar?')) return;
     state.id = null; state.client = client; state.quotations = []; state.selected.clear(); state.items = []; state.conditionsAuto = ''; state.conditionsEdited = false; state.paymentEdited = false; $('#internalOrderClientSearch').value = ''; $('#internalOrderObservations').value = '';
     renderClients(); renderSelectedClient(); $('#internalOrderQuotationResults').innerHTML = '<p class="empty-state">Cargando cotizaciones del cliente…</p>'; renderLines();
-    // Pruebas nunca consulta pedidos ni cotizaciones operativas. La selección
-    // se resuelve desde el conjunto de capacitación ya descargado al navegador.
+    // El contador y el detalle usan la misma colección ya sincronizada. Esto evita
+    // discrepancias visuales y una consulta adicional por cada selección de cliente.
     if (inTraining()) {
       state.quotations = availableQuotationsFor(client);
       renderQuotes();
       return;
     }
-    try {
-      const response = await fetch(`/api/internal-orders/clients/${encodeURIComponent(client.id)}/quotations`, { credentials: 'same-origin' });
-      const body = await response.json(); if (!response.ok) throw new Error(body.error || 'No fue posible cargar cotizaciones.');
-      state.quotations = body.data || []; renderQuotes();
-    } catch (error) { $('#internalOrderQuotationResults').innerHTML = `<p class="empty-state">${esc(error.message)}</p>`; }
+    state.quotations = availableQuotationsFor(client);
+    renderQuotes();
   }
   function renderQuotes() {
     const target = $('#internalOrderQuotationResults');
@@ -85,7 +76,7 @@
     const blocks = selected.map(quote => {
       const due = paymentDateFor(quote, today), payment = String(quote.paymentTerms || '').trim(), policy = String(quote.pricePolicy || '').trim(), cancellation = String(quote.cancellationPolicy || '').trim(), instructions = String(quote.notes || '').trim();
       const lines = [`CONDICIONES HEREDADAS DE ${quote.id}`, `Pedido interno emitido el ${orderDate}.`];
-      if (due) lines.push(`Pago: ${quote.paymentMethod === 'credit' || !quote.paymentMethod ? `crédito de ${Number(quote.creditDays)} días naturales; fecha compromiso ${localizedDate(due)}.` : `fecha compromiso ${localizedDate(due)}.`}`);
+      if (due) { const days = Number(quote.creditDays); lines.push(`Pago: ${quote.paymentMethod === 'credit' || !quote.paymentMethod ? `crédito de ${days} ${days === 1 ? 'día natural' : 'días naturales'}; fecha compromiso ${localizedDate(due)}.` : `fecha compromiso ${localizedDate(due)}.`}`); }
       else if (quote.paymentMethod) lines.push(`Forma de pago: ${quote.paymentMethod === 'cash' ? 'contado / transferencia.' : `${quote.paymentMethod}.`}`);
       if (payment) lines.push(`Condiciones de pago: ${payment}`);
       if (policy) lines.push(`Política de precios: ${policy}`);
@@ -106,7 +97,7 @@
     if (first && !state.paymentEdited) {
       $('#internalOrderPaymentMethod').value = first.paymentMethod === 'cash' ? 'cash' : 'credit';
       const days = Math.max(0, Number(first.creditDays || 0)), select = $('#internalOrderCreditDays');
-      if (![...select.options].some(option => Number(option.value) === days)) select.insertAdjacentHTML('beforeend', `<option value="${days}">${days} días</option>`);
+      if (![...select.options].some(option => Number(option.value) === days)) select.insertAdjacentHTML('beforeend', `<option value="${days}">${days} ${days === 1 ? 'día' : 'días'}</option>`);
       select.value = String(days);
     }
     const credit = $('#internalOrderPaymentMethod').value === 'credit', field = $('#internalOrderCreditDaysField');
@@ -120,7 +111,7 @@
     }));
     state.items = next; syncInheritedConditions(); syncPaymentControls(); renderLines();
   }
-  function totals() { const round=value=>Math.round((Number(value||0)+Number.EPSILON)*100)/100,buckets = new Map(); state.items.forEach(item => { const subtotal = round(Number(item.quantity || 0) * round(item.unitPrice)), discountTotal=item.discountTotal==null?round(subtotal*Number(item.discount||0)/100):round(item.discountTotal), taxable = round(subtotal-discountTotal), total = round(taxable+round(taxable*Number(item.taxRate ?? 16)/100)); buckets.set(item.currency, round((buckets.get(item.currency) || 0) + total)); }); return [...buckets].map(([currency, total]) => `${currency} ${total.toLocaleString('es-MX', { style: 'currency', currency })} con IVA`).join(' · '); }
+  function totals() { const round=value=>Math.round((Number(value||0)+Number.EPSILON)*100)/100,buckets = new Map(); state.items.forEach(item => { const subtotal = round(Number(item.quantity || 0) * round(item.unitPrice)), discountTotal=item.discountTotal==null?round(subtotal*Number(item.discount||0)/100):round(item.discountTotal), taxable = round(subtotal-discountTotal), total = round(taxable+round(taxable*Number(item.taxRate ?? 16)/100)); buckets.set(item.currency, round((buckets.get(item.currency) || 0) + total)); }); return [...buckets].map(([currency, total]) => `${total.toLocaleString('es-MX', { style: 'currency', currency })} con IVA`).join(' · '); }
   function priceDirection(item) { const original = Number(item.sources?.find(source => source.sourceType === 'quotation')?.originalUnitPrice); const current = Number(item.unitPrice); return Number.isFinite(original) && original > 0 ? current > original ? 'price-up' : current < original ? 'price-down' : '' : ''; }
   function quotedQuantity(item) { return (item.sources || []).filter(source => source.sourceType === 'quotation').reduce((sum, source) => sum + Number(source.originalQuantity || 0), 0); }
   function quantityVariance(item) { const quoted = quotedQuantity(item), requested = Number(item.quantity || 0); return quoted > 0 && Math.abs(requested - quoted) > 0.000001 ? { itemId: item.id, productId: item.productId || null, catalog: item.number || item.sku || '', description: item.name || item.description || 'Producto', quotedQuantity: quoted, requestedQuantity: requested } : null; }

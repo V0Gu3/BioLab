@@ -23,7 +23,13 @@
       if (field.type === 'date') return 'Selecciona una fecha de hoy o posterior.';
       return field.min === '0' ? `${fieldName(field)} no puede ser menor que cero.` : `Captura una cantidad mayor que cero.`;
     }
-    if (field.validity.rangeOverflow) return `${fieldName(field)} supera el máximo permitido.`;
+    if (field.validity.rangeOverflow) {
+      if (field.dataset.field === 'discount' || /descuento/i.test(`${field.id || ''} ${field.name || ''} ${field.getAttribute('aria-label') || ''}`)) {
+        const product = String(field.getAttribute('aria-label') || '').replace(/^descuento\s+de\s+/i, '').trim();
+        return `El descuento${product ? ` de ${product}` : ''} no puede superar el ${field.max || 100}%.`;
+      }
+      return `${fieldName(field)} supera el máximo permitido.`;
+    }
     if (field.validity.stepMismatch || field.validity.badInput) return `Captura un valor válido para ${fieldName(field).toLowerCase()}.`;
     return field.validationMessage || `${fieldName(field)} requiere revisión.`;
   }
