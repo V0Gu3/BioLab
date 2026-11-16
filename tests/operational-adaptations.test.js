@@ -9,6 +9,7 @@ const reports = fs.readFileSync(require.resolve('../reports.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const modalTheme = fs.readFileSync(require.resolve('../modal-theme.css'), 'utf8');
 const styles = fs.readFileSync(require.resolve('../styles.css'), 'utf8');
+const orderStyles = fs.readFileSync(require.resolve('../orders.css'), 'utf8');
 
 test('el resumen permite consultar hoy y el último mes cerrado por día', () => {
   assert.match(html, /id="dashboardPeriod"/);
@@ -95,6 +96,15 @@ test('cancelar saldo autorizado cierra el faltante y deja trazabilidad', () => {
   assert.match(orders, /receipt\.type = 'partial'/);
   assert.match(orders, /reconcileHistoricalAuthorizedShortages/);
   assert.match(orders, /Saldo faltante cancelado con autorización/);
+});
+
+test('Ciclo 5 punto 9 muestra el tratamiento de una recepción parcial fuera de Datos adicionales', () => {
+  assert.match(orders, /id="receiptShortageField" class="receipt-shortage-required" hidden/);
+  assert.match(orders, /Recepción parcial: indica cómo se atenderá el faltante/);
+  assert.doesNotMatch(orders, /\['receiptDocumentType'[\s\S]*?'receiptShortageResolution'\]\.forEach/);
+  assert.doesNotMatch(orders, /details\.append\(shortage\)/);
+  assert.match(orders, /q\('#receiptShortageField'\)\.hidden = !receipt/);
+  assert.match(orderStyles, /\.receipt-shortage-required\[hidden\]\{display:none!important\}/);
 });
 
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
