@@ -132,6 +132,18 @@ test('Ciclo 5 puntos 11 y 12 limpian pedidos nuevos y controlan cambios contra c
   assert.match(internalOrderStyles, /\.internal-order-line\.quantity-changed/);
 });
 
+test('Ciclo 5 punto 13 concilia existencias con movimientos sin alterar el stock', () => {
+  assert.match(app, /function inventoryLedgerBalances/);
+  assert.match(app, /function reconcileInventoryMovementLedger/);
+  assert.match(app, /type==='traspaso'/);
+  assert.match(app, /inventory-opening:\$\{product\.id\}:\$\{warehouseId\}:\$\{actual\}:\$\{recorded\}/);
+  assert.match(app, /movement\.source==='inventory-reconciliation'/);
+  assert.match(app, /Conciliación de existencia histórica/);
+  assert.match(app, /actualStock:actual,recordedBalance:recorded,adjustment:delta/);
+  assert.match(app, /reconcileInventoryMovementLedger\(\);save\(\)/);
+  assert.doesNotMatch(app, /reconcileInventoryMovementLedger[\s\S]{0,180}product\[`a\$\{warehouseId\}`\]\s*=/);
+});
+
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
   assert.match(orders, /const committedReceiptsByWarehouse/);
   assert.match(orders, /occupied\[warehouseId\].*reservations\[warehouseId\].*commitments\[warehouseId\]/);
