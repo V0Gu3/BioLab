@@ -248,9 +248,9 @@ test('seguimiento separa bitácora manual de recepciones y remisiones formales',
   assert.match(orders, /Define cómo se resolverá el faltante/);
   assert.match(orders, /La recepción requiere al menos la remisión/);
   assert.match(orders, /La remisión requiere quién recibe y evidencia/);
-  assert.match(orders, /Folio de remisión; se toma del archivo adjunto/);
+  assert.match(orders, /Captura el folio impreso en la remisión del proveedor/);
   assert.doesNotMatch(orders, /No se puede liberar la entrega: faltan/);
-  assert.match(orders, /reference\.value = file\.name/);
+  assert.doesNotMatch(orders, /reference\.value = file\.name/);
   assert.match(orders, /formalTypes\[type\] \|\| 'Guardar operación'/);
   assert.match(orders, /returnToDossierAfterOperation/);
   assert.match(orders, /dossier-operation-notice/);

@@ -172,6 +172,22 @@ test('Ciclo 5 punto 16 muestra acuses de entrega dentro del expediente', () => {
   assert.match(orders, /Sin evidencias de entrega adjuntas/);
 });
 
+test('Ciclo 5 punto 17 presenta estados, recepciones y folios operativos legibles', () => {
+  assert.match(orders, /const supplierOrderStatusLabel/);
+  assert.match(orders, /supplier_remission:'Remisión del proveedor'/);
+  assert.match(orders, /supplier_invoice:'Factura del proveedor'/);
+  assert.match(orders, /const receiptTypeLabel/);
+  assert.match(orders, /receiptAction=rejectedTotal>0\?'receipt_partial':'receipt_total'/);
+  assert.match(orders, /acceptedQuantity>0\)next\.inventoryMovements\.push/);
+  assert.match(orders, /Sin entrada de almacén/);
+  assert.match(orders, /inventoryMovementFolio\(next,'entry',at\)/);
+  assert.match(orders, /inventoryMovementFolio\(next,'exit',at\)/);
+  assert.match(orders, /function reconcileOperationalMovementFolios/);
+  assert.match(app, /id:item\.folio\|\|item\.id/);
+  assert.match(orders, /Captura el folio impreso en la remisión del proveedor/);
+  assert.doesNotMatch(orders, /reference\.value = file\.name/);
+});
+
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
   assert.match(orders, /const committedReceiptsByWarehouse/);
   assert.match(orders, /occupied\[warehouseId\].*reservations\[warehouseId\].*commitments\[warehouseId\]/);
