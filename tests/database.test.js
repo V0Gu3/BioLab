@@ -70,11 +70,30 @@ test('pedido interno conserva relaciones N:N y el origen de cada partida', async
     assert.equal(Number((await db.query('SELECT COUNT(*) total FROM internal_order_item_sources WHERE internal_order_id=$1', [order.id])).rows[0].total), 2);
     assert.equal(order.commercialTerms.find(term => term.quotationId === 'COT-260830-0002').creditDays, 30);
     assert.ok(order.commercialTerms.find(term => term.quotationId === 'COT-260830-0002').paymentDueDate);
+    const convertedState = await readState(db), convertedQuotes = convertedState['nexo-sales-quotations'].filter(quotation => ['COT-260830-0001', 'COT-260830-0002'].includes(quotation.id));
+    assert.ok(convertedQuotes.every(quotation => quotation.commercialOrderId === order.id && quotation.internalOrderId === order.id));
+    assert.deepEqual(await listClientQuotations(db, 'CLI-1', actor), []);
     const activated = await activateInternalOrder(db, order.id, { acceptance: { reference: 'OC-CLIENTE-1' } }, actor);
     assert.equal(activated.activatedSnapshot.totalsByCurrency[0].total, 417.6);
     const activatedState = await readState(db), requiredQuotes = activatedState['nexo-sales-quotations'].filter(quotation => ['COT-260830-0001', 'COT-260830-0002'].includes(quotation.id));
     assert.ok(requiredQuotes.every(quotation => quotation.status === 'required' && quotation.locked === true && quotation.internalOrderId === order.id));
-    await assert.rejects(createInternalOrder(db, { clientId: 'CLI-1', quotationIds: ['COT-260830-0001'], items: [] }, actor), /ya está requerida/i);
+    await assert.rejects(createInternalOrder(db, { clientId: 'CLI-1', quotationIds: ['COT-260830-0001'], items: [] }, actor), /ya (?:está requerida|fue convertida)/i);
+  } finally { await db.end(); }
+});
+
+test('una cantidad distinta a la cotizada exige confirmación y conserva evidencia', async () => {
+  const db = await createTestDatabase();
+  try {
+    const state = fixture(), actor = { id: 'USR-001', name: 'Administrador', role: 'administrator' };
+    state['nexo-clients'] = [{ id: 'CLI-1', internalNumber: 'C-00001', name: 'Cliente Uno', ownerId: 'USR-001', ownerName: 'Administrador' }];
+    state['nexo-sales-quotations'][0] = { ...state['nexo-sales-quotations'][0], clientId: 'CLI-1', expiresAtISO: '2099-08-31T23:59:59.000Z' };
+    await importSnapshot(db, state);
+    const input = { clientId: 'CLI-1', quotationIds: ['COT-260830-0001'], items: [{ productId: 1, sku: 'SKU-1', name: 'Reactivo', unit: 'pieza', quantity: 2, unitPrice: 120, currency: 'MXN', sources: [{ quotationId: 'COT-260830-0001', quotationLineNo: 1 }] }] };
+    await assert.rejects(createInternalOrder(db, input, actor), /Confirma la diferencia/);
+    const order = await createInternalOrder(db, { ...input, quantityVarianceAcknowledgement: { confirmed: true, confirmedAt: '2026-11-10T09:00:00.000Z', confirmedBy: actor.name } }, actor);
+    assert.equal(order.quantityVarianceAcknowledgement.variances[0].quotedQuantity, 1);
+    assert.equal(order.quantityVarianceAcknowledgement.variances[0].requestedQuantity, 2);
+    assert.ok(order.timeline.some(event => event.status === 'quantity_variance_confirmed'));
   } finally { await db.end(); }
 });
 

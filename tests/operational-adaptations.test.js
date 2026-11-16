@@ -10,6 +10,7 @@ const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const modalTheme = fs.readFileSync(require.resolve('../modal-theme.css'), 'utf8');
 const styles = fs.readFileSync(require.resolve('../styles.css'), 'utf8');
 const orderStyles = fs.readFileSync(require.resolve('../orders.css'), 'utf8');
+const internalOrderStyles = fs.readFileSync(require.resolve('../internal-orders.css'), 'utf8');
 
 test('el resumen permite consultar hoy y el último mes cerrado por día', () => {
   assert.match(html, /id="dashboardPeriod"/);
@@ -117,6 +118,18 @@ test('Ciclo 5 punto 10 muestra errores sobre la ventana y limita la remisión a 
   assert.match(orders, /const formalLimit = delivery \? Math\.min\(remaining, deliveryAvailable\)/);
   assert.match(orders, /Disponible para entregar: \$\{formalLimit\} uds\./);
   assert.match(orders, /catalogAdjustments = planCatalogDeduction[\s\S]*if \(!catalogAdjustments\)[\s\S]*const evidenceFiles/);
+});
+
+test('Ciclo 5 puntos 11 y 12 limpian pedidos nuevos y controlan cambios contra cotización', () => {
+  assert.match(internalOrders, /openingExisting/);
+  assert.match(internalOrders, /Nuevo pedido interno quedó listo para una captura nueva/);
+  assert.match(internalOrders, /reflectQuotationConversion/);
+  assert.match(internalOrders, /bio:quotation-converted/);
+  assert.match(app, /window\.addEventListener\('bio:quotation-converted'/);
+  assert.match(internalOrders, /function quantityVariances/);
+  assert.match(internalOrders, /Las cantidades del pedido son distintas a las aceptadas/);
+  assert.match(internalOrders, /quantityVarianceAcknowledgement/);
+  assert.match(internalOrderStyles, /\.internal-order-line\.quantity-changed/);
 });
 
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
