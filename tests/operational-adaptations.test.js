@@ -6,6 +6,7 @@ const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
 const internalOrders = fs.readFileSync(require.resolve('../internal-orders.js'), 'utf8');
 const formValidation = fs.readFileSync(require.resolve('../form-validation.js'), 'utf8');
+const settings = fs.readFileSync(require.resolve('../settings.js'), 'utf8');
 const reports = fs.readFileSync(require.resolve('../reports.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const modalTheme = fs.readFileSync(require.resolve('../modal-theme.css'), 'utf8');
@@ -198,6 +199,14 @@ test('Ciclo 5 punto 18 sincroniza contadores y corrige textos comerciales', () =
   assert.match(app, /showToast\.lastMessage===message/);
   assert.match(formValidation, /El descuento\$\{product \? ` de \$\{product\}` : ''\} no puede superar el/);
   assert.doesNotMatch(internalOrders, /`\$\{currency\} \$\{total\.toLocaleString/);
+});
+
+test('el restablecimiento evita autocompletar el correo en la frase de confirmación', () => {
+  assert.match(settings, /name="resetPhrase" type="text" required readonly autocomplete="one-time-code"/);
+  assert.match(settings, /Escribe aquí exactamente <b>RESTABLECER SISTEMA<\/b>/);
+  assert.match(settings, /body\.confirmation = body\.resetPhrase; delete body\.resetPhrase; delete body\.resetUsername/);
+  assert.match(settings, /if\(!confirmationField\.readOnly\)return/);
+  assert.doesNotMatch(settings, /name="confirmation" required autocomplete="off"/);
 });
 
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
