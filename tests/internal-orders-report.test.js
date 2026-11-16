@@ -46,6 +46,19 @@ test('reporta el mismo total con IVA congelado en el pedido interno', () => {
   assert.equal(record.amount, 54.69);
   assert.equal(record.currency, 'EUR');
   assert.equal(record.amountLabel, 'Total con IVA');
+  assert.deepEqual(record.financialTotals, [{ currency: 'EUR', subtotal: 47.15, discountTotal: 0, taxable: 47.15, taxAmount: 7.54, total: 54.69 }]);
+});
+
+test('conserva importes de partidas, compras y el nombre visible de la evidencia', () => {
+  const input = state(), operations = input['nexo-order-operations-v1'];
+  operations.orderLines[0] = { ...operations.orderLines[0], currency: 'MXN', unitPrice: 100, subtotal: 1000, taxRate: 16, taxAmount: 160, total: 1160 };
+  operations.supplierOrders[0] = { ...operations.supplierOrders[0], currency: 'USD' };
+  operations.supplierOrderLines[0] = { ...operations.supplierOrderLines[0], unitPrice: 25, currency: 'USD' };
+  operations.shipments[0] = { ...operations.shipments[0], evidenceId: 'DELIVERY-TECHNICAL-ID', evidence: [{ name: 'acuse-cliente.pdf', type: 'application/pdf' }] };
+  const [record] = buildInternalOrdersReport(input, { id: 'USR-ADMIN', role: 'administrator', name: 'Admin' }).records;
+  assert.deepEqual({ currency: record.products[0].currency, unitPrice: record.products[0].unitPrice, subtotal: record.products[0].subtotal, taxAmount: record.products[0].taxAmount, total: record.products[0].total }, { currency: 'MXN', unitPrice: 100, subtotal: 1000, taxAmount: 160, total: 1160 });
+  assert.deepEqual({ currency: record.purchaseOrders[0].items[0].currency, unitPrice: record.purchaseOrders[0].items[0].unitPrice, subtotal: record.purchaseOrders[0].items[0].subtotal }, { currency: 'USD', unitPrice: 25, subtotal: 150 });
+  assert.equal(record.remissions[0].evidenceName, 'acuse-cliente.pdf');
 });
 
 test('el reporte no vuelve a sumar partidas ni altera un centavo del total congelado', () => {

@@ -144,6 +144,34 @@ test('Ciclo 5 punto 13 concilia existencias con movimientos sin alterar el stock
   assert.doesNotMatch(app, /reconcileInventoryMovementLedger[\s\S]{0,180}product\[`a\$\{warehouseId\}`\]\s*=/);
 });
 
+test('Ciclo 5 punto 14 calcula pendientes desde los registros operativos correctos', () => {
+  assert.match(app, /trackedProducts=products\.filter\(product=>product\.active!==false&&isInventoryTracked\(product\)\)/);
+  assert.match(app, /\['draft','pending'\]\.includes\(String\(order\.status/);
+  assert.match(app, /pendingReceiptOrders=supplierOrders\.filter/);
+  assert.match(app, /ordered>received/);
+  assert.match(app, /órdenes con recepción pendiente/);
+  assert.doesNotMatch(app, /products\.filter\(product=>\['low','out'\]\.includes\(status\(product\)\[1\]\)\)\.length} productos requieren atención/);
+});
+
+test('Ciclo 5 punto 15 exporta importes en español y evidencia legible', () => {
+  assert.match(reports, /pending: 'Pendiente de activar'/);
+  assert.match(reports, /active: 'Activo'/);
+  assert.match(reports, /Moneda: financial\.currency, Subtotal: financial\.subtotal, Descuento: financial\.discountTotal, IVA: financial\.taxAmount, Total: financial\.total/);
+  assert.match(reports, /'Precio unitario': item\.unitPrice, Subtotal: item\.subtotal, IVA: item\.taxAmount, Total: item\.total/);
+  assert.match(reports, /Evidencia: remission\.evidenceName \|\| 'Sin evidencia'/);
+  assert.doesNotMatch(reports, /Evidencia: remission\.evidenceId \|\| ''/);
+});
+
+test('Ciclo 5 punto 16 muestra acuses de entrega dentro del expediente', () => {
+  assert.match(orders, /Evidencias de entrega y acuses del cliente/);
+  assert.match(orders, /data\.shipments\.flatMap\(shipment => \(shipment\.evidence \|\| \[\]\)/);
+  assert.match(orders, /shipment\.recipient \|\| 'No especificado'/);
+  assert.match(orders, /data-dossier-evidence-owner/);
+  assert.match(orders, /function previewDossierEvidence/);
+  assert.match(orders, /BioMediaStore\?\.get/);
+  assert.match(orders, /Sin evidencias de entrega adjuntas/);
+});
+
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
   assert.match(orders, /const committedReceiptsByWarehouse/);
   assert.match(orders, /occupied\[warehouseId\].*reservations\[warehouseId\].*commitments\[warehouseId\]/);
