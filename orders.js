@@ -73,10 +73,10 @@
     const date = value ? new Date(value) : null;
     return date && !Number.isNaN(date.getTime()) ? date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha y hora';
   };
-  const notify = message => {
-    if (typeof window.showToast === 'function') return window.showToast(message);
+  const notify = (message, kind) => {
+    if (typeof window.showToast === 'function') return window.showToast(message, kind);
     const toast = q('#toast');
-    toast.textContent = message; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
+    toast.textContent = `${kind === 'error' ? '⚠ ' : ''}${message}`; toast.className = `show ${kind || ''}`; setTimeout(() => toast.classList.remove('show'), 3000);
   };
   const operationLabel = type => ({ receipt: 'Recepción', delivery: 'Remisión y salida', invoice: 'Factura al cliente', account_charge: 'Cargo a manejo de cuenta', cancel: 'Cancelación', purchase: 'Compra a proveedor', reserve: 'Reserva de inventario', tracking: 'Seguimiento' }[type] || 'Operación');
   const auditActionLabel = action => ({
@@ -978,8 +978,10 @@
     q('#orderProgressReference').readOnly = mode === 'formal' && type === 'delivery';
     const line = store.orderLines.find(item => item.id === q('#orderProgressLineId').value); if (!line || mode !== 'formal') return;
     const remaining = type === 'receipt' ? Math.max(0, core.numberValue(line.quantityPurchased) - core.numberValue(line.quantityReceived)) : type === 'delivery' ? Math.max(0, core.numberValue(line.quantityRequested) - core.numberValue(line.quantityCancelled) - core.numberValue(line.quantityDelivered)) : type === 'invoice' ? Math.max(0, core.numberValue(line.quantityRequested) - core.numberValue(line.quantityInvoiced)) : Math.max(0, core.numberValue(line.quantityRequested) - core.numberValue(line.quantityCancelled));
+    const deliveryAvailable = delivery ? Math.max(0, core.numberValue(line.reservedQuantity) - core.numberValue(line.quantityDelivered) + core.numberValue(line.quantityAvailableReceived == null ? line.quantityReceived : line.quantityAvailableReceived)) : remaining;
+    const formalLimit = delivery ? Math.min(remaining, deliveryAvailable) : remaining;
     const quantityInput=q('#orderProgressQuantity'),quantityLabel=formField('orderProgressQuantity')?.querySelector('span');
-    if(totalReceipt){quantityInput.max=quantityInput.value||Math.max(1,remaining);quantityInput.readOnly=true;quantityInput.setAttribute('aria-readonly','true');if(quantityLabel)quantityLabel.textContent='Cantidad total a recibir';q('#orderProgressRemaining').textContent='La recepción incluirá todas las partidas pendientes.';}else{quantityInput.readOnly=false;quantityInput.removeAttribute('aria-readonly');if(quantityLabel)quantityLabel.textContent='Cantidad de este avance';quantityInput.max=Math.max(1,remaining);if(!quantityInput.dataset.formalDefaulted){quantityInput.value=Math.max(1,remaining);quantityInput.dataset.formalDefaulted='true';}q('#orderProgressRemaining').textContent=`Pendiente formal: ${remaining} uds.`;}
+    if(totalReceipt){quantityInput.max=quantityInput.value||Math.max(1,remaining);quantityInput.readOnly=true;quantityInput.setAttribute('aria-readonly','true');if(quantityLabel)quantityLabel.textContent='Cantidad total a recibir';q('#orderProgressRemaining').textContent='La recepción incluirá todas las partidas pendientes.';}else{quantityInput.readOnly=false;quantityInput.removeAttribute('aria-readonly');if(quantityLabel)quantityLabel.textContent=delivery?'Cantidad disponible para entregar':'Cantidad de este avance';quantityInput.max=Math.max(0,formalLimit);if(!quantityInput.dataset.formalDefaulted){quantityInput.value=formalLimit;quantityInput.dataset.formalDefaulted='true';}q('#orderProgressRemaining').textContent=delivery?`Pendiente: ${remaining} uds. · Disponible para entregar: ${formalLimit} uds.`:`Pendiente formal: ${remaining} uds.`;}
     q('#receiptShortageField').hidden = !receipt || Math.max(0, Number(q('#orderProgressQuantity').value || 0) - Number(q('#receiptRejectedQuantity').value || 0)) >= remaining;
     mark('receiptShortageResolution', !q('#receiptShortageField').hidden); mark('receiptShortageCommitment', !q('#receiptShortageField').hidden); mark('receiptShortageNotes', !q('#receiptShortageField').hidden && ['other_supplier', 'substitution', 'supplier_unavailable', 'authorized_cancellation'].includes(q('#receiptShortageResolution').value));
   };
@@ -1294,12 +1296,12 @@
       if (acceptedQuantity > 0) next.inventoryMovements.push({ id: receiptMovementId, requisitionId: request.id, orderLineId: line.id, warehouseId: receipt.warehouseId, productId: line.productId, catalog: line.catalog, type: 'entry', quantity: acceptedQuantity, inventoryState: receipt.qualityStatus === 'released' ? 'available' : receipt.qualityStatus, reason: request.type === 'internal_stock' ? 'Recepción para stock' : 'Entrada contra OC a proveedor', sourceDocumentType: 'receipt', sourceDocumentId: id, user: actor.name, at, reconciliationStatus: supplierOrder?.reconciliation?.status || (line.productId ? 'pending_invoice' : 'pending_product_match') });
     }
     if (type === 'delivery') {
+      const reservations = next.inventoryReservations.filter(item => item.orderLineId === line.id && item.status === 'active'), preferredWarehouses = reservations.map(item => String(item.warehouseId || '1'));
+      catalogAdjustments = planCatalogDeduction(line.productId, quantity, [...preferredWarehouses, line.deliveryWarehouse || '1']);
+      if (!catalogAdjustments) return notify('La existencia física de los almacenes no alcanza para registrar esta salida. Revisa recepciones y reservas.', 'error');
       const evidenceFiles = [...(deliveryData.evidenceFiles || [])], evidence = evidenceFiles.map(file => ({ name: file.name, size: file.size, type: file.type, version: 1, origin: 'delivery_confirmation' }));
       if (evidenceFiles.length > 5 || !evidenceFiles.every(file => (file.type === 'application/pdf' || file.type.startsWith('image/')) && file.size <= 5 * 1024 * 1024)) return notify('Las evidencias de entrega deben ser imágenes o PDF de máximo 5 MB y hasta cinco archivos.');
       if (window.BioMediaStore) { try { const stored = await window.BioMediaStore.store('movementEvidence', 'movementId', id, evidenceFiles); stored.forEach((record, index) => { evidence[index].id = record.id; evidence[index].hash = record.hash; }); } catch { return notify('No fue posible conservar la evidencia; la remisión no se generó.'); } }
-      const reservations = next.inventoryReservations.filter(item => item.orderLineId === line.id && item.status === 'active'), preferredWarehouses = reservations.map(item => String(item.warehouseId || '1'));
-      catalogAdjustments = planCatalogDeduction(line.productId, quantity, [...preferredWarehouses, line.deliveryWarehouse || '1']);
-      if (!catalogAdjustments) return notify('La existencia física de los almacenes no alcanza para registrar esta salida. Revisa recepciones y reservas.');
       next.shipments.push({ id, folio: reference || id, date: localDateKey(), scheduledAt: deliveryData.scheduledAt || null, requisitionId: request.id, items: [{ orderLineId: line.id, quantity }], deliveredAt: at, recipient: deliveryData.recipient, type: line.quantityDelivered >= line.quantityRequested ? 'total' : 'partial', evidenceId: evidence[0]?.id || null, evidence, observations: notes });
       let remainingToConsume = quantity; const reservedByWarehouse = {};
       reservations.forEach(reservation => { const availableReservation = Math.max(0, core.numberValue(reservation.quantity) - core.numberValue(reservation.quantityConsumed)), used = Math.min(remainingToConsume, availableReservation), warehouseId = String(reservation.warehouseId || '1'); reservation.quantityConsumed = core.numberValue(reservation.quantityConsumed) + used; remainingToConsume -= used; reservedByWarehouse[warehouseId] = core.numberValue(reservedByWarehouse[warehouseId]) + used; if (reservation.quantityConsumed >= core.numberValue(reservation.quantity)) reservation.status = 'consumed'; });

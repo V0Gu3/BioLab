@@ -107,6 +107,18 @@ test('Ciclo 5 punto 9 muestra el tratamiento de una recepción parcial fuera de 
   assert.match(orderStyles, /\.receipt-shortage-required\[hidden\]\{display:none!important\}/);
 });
 
+test('Ciclo 5 punto 10 muestra errores sobre la ventana y limita la remisión a existencia disponible', () => {
+  assert.match(app, /document\.querySelectorAll\('dialog\[open\]'\)/);
+  assert.match(app, /host\.append\(el\)/);
+  assert.match(app, /kind==='error'\?'alert':'status'/);
+  assert.match(app, /ya existe\|supera\|sin existencia\|insuficiente/);
+  assert.match(styles, /dialog\[open\]>#toast\{position:absolute!important/);
+  assert.match(orders, /const deliveryAvailable = delivery \? Math\.max/);
+  assert.match(orders, /const formalLimit = delivery \? Math\.min\(remaining, deliveryAvailable\)/);
+  assert.match(orders, /Disponible para entregar: \$\{formalLimit\} uds\./);
+  assert.match(orders, /catalogAdjustments = planCatalogDeduction[\s\S]*if \(!catalogAdjustments\)[\s\S]*const evidenceFiles/);
+});
+
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
   assert.match(orders, /const committedReceiptsByWarehouse/);
   assert.match(orders, /occupied\[warehouseId\].*reservations\[warehouseId\].*commitments\[warehouseId\]/);
