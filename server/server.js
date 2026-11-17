@@ -241,6 +241,26 @@ function canWriteState(user, state, stateKey) {
   return can(user, state, STATE_PERMISSIONS[stateKey]);
 }
 
+// La autorización depende únicamente de la configuración de acceso. Leer el
+// resto de app_state para cada petición trasladaba catálogos y expedientes
+// completos desde PostgreSQL aunque no participaran en la decisión.
+async function readPermissionState(db) {
+  return readStateKeys(db, ['nexo-access-v1']);
+}
+
+async function readWriteContext(db, stateKeys, workspace = 'operational') {
+  const keys = [...new Set((stateKeys || []).filter(key => STATE_KEYS.includes(key)))];
+  const workspaceKeys = keys.filter(key => key !== 'nexo-access-v1');
+  const [permissionState, workspaceState] = await Promise.all([
+    readPermissionState(db),
+    workspaceKeys.length ? readStateKeys(db, workspaceKeys, workspace) : Promise.resolve({})
+  ]);
+  return {
+    permissionState,
+    currentState: { ...workspaceState, 'nexo-access-v1': permissionState['nexo-access-v1'] || {} }
+  };
+}
+
 const sameValue = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 const stateSectionChanged = (current, next, key) => !sameValue(current?.[key], next?.[key]);
 const folioDate = (value, prefix) => {
@@ -442,11 +462,11 @@ async function createApp(options = {}) {
         if (!authenticated) return sendJson(response, 401, { ok: false, error: 'Inicia sesión para guardar cambios.' });
         const workspace = requestedWorkspace(request), body = await readJson(request), entries = Object.entries(body.state || {});
         if (!entries.length || entries.length > STATE_KEYS.length || entries.some(([key]) => !STATE_KEYS.includes(key))) return sendJson(response, 400, { ok: false, error: 'El lote de cambios no es válido.' });
-        const operationalState = await readState(db), currentState = workspace === 'training' ? { ...emptyTrainingState(), ...(await readState(db, 'training')), 'nexo-access-v1': operationalState['nexo-access-v1'] } : operationalState, prepared = [];
+        const { permissionState, currentState } = await readWriteContext(db, entries.map(([key]) => key), workspace), prepared = [];
         for (const [stateKey, candidate] of entries) {
           const permission = STATE_PERMISSIONS[stateKey];
-          if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, operationalState, stateKey)) return sendJson(response, 403, { ok: false, error: `Tu perfil no tiene permiso para modificar ${stateKey}.` });
-          if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], candidate, authenticated, operationalState);
+          if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: `Tu perfil no tiene permiso para modificar ${stateKey}.` });
+          if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], candidate, authenticated, permissionState);
           if (stateKey === 'nexo-access-v1') enforceAccessStatePolicy(currentState, candidate, authenticated);
           const payload = authenticated.role === 'seller' && SELLER_WRITE_OWNED_KEYS.has(stateKey) ? mergeSellerPortfolio(currentState[stateKey], candidate, authenticated, stateKey) : candidate;
           if (stateKey === 'nexo-sales-quotations') enforceRequiredQuotationLock(currentState, payload);
@@ -459,10 +479,10 @@ async function createApp(options = {}) {
       }
       if (request.method === 'PUT' && pathname.startsWith('/api/state/')) {
         if (!authenticated) return sendJson(response, 401, { ok: false, error: 'Inicia sesión para guardar cambios.' });
-        const workspace = requestedWorkspace(request), stateKey = pathname.slice('/api/state/'.length), operationalState = await readState(db), currentState = workspace === 'training' ? { ...emptyTrainingState(), ...(await readState(db, 'training')), 'nexo-access-v1': operationalState['nexo-access-v1'] } : operationalState, permission = STATE_PERMISSIONS[stateKey];
-        if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, operationalState, stateKey)) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para modificar esta información.' });
+        const workspace = requestedWorkspace(request), stateKey = pathname.slice('/api/state/'.length), permission = STATE_PERMISSIONS[stateKey], { permissionState, currentState } = await readWriteContext(db, [stateKey], workspace);
+        if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para modificar esta información.' });
         const body = await readJson(request);
-        if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], body.payload, authenticated, operationalState);
+        if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], body.payload, authenticated, permissionState);
         if (stateKey === 'nexo-access-v1') enforceAccessStatePolicy(currentState, body.payload, authenticated);
         const payload = authenticated.role === 'seller' && SELLER_WRITE_OWNED_KEYS.has(stateKey) ? mergeSellerPortfolio(currentState[stateKey], body.payload, authenticated, stateKey) : body.payload;
         if (stateKey === 'nexo-sales-quotations') enforceRequiredQuotationLock(currentState, payload);
@@ -472,13 +492,13 @@ async function createApp(options = {}) {
         return sendJson(response, 200, { ok: true, revision });
       }
       if (request.method === 'POST' && pathname.startsWith('/api/auth/users/') && pathname.endsWith('/password')) {
-        const currentState = await readState(db); if (!can(authenticated, currentState, 'user_manage')) return sendJson(response, 403, { ok: false, error: 'Solo un administrador puede asignar contraseñas.' });
+        const currentState = await readPermissionState(db); if (!can(authenticated, currentState, 'user_manage')) return sendJson(response, 403, { ok: false, error: 'Solo un administrador puede asignar contraseñas.' });
         const userId = pathname.slice('/api/auth/users/'.length, -'/password'.length), target = (currentState['nexo-access-v1']?.users || []).find(user => String(user.id) === String(userId));
         if (target?.role === 'developer' && authenticated.role !== 'developer') return sendJson(response, 403, { ok: false, error: 'Solo Desarrollo puede restablecer una cuenta de Desarrollo.' });
         const body = await readJson(request); await setPassword(db, userId, body.password); return sendJson(response, 200, { ok: true });
       }
       if (request.method === 'DELETE' && /^\/api\/auth\/users\/[^/]+$/.test(pathname)) {
-        const currentState = await readState(db); if (!can(authenticated, currentState, 'user_manage')) return sendJson(response, 403, { ok: false, error: 'Solo un administrador puede eliminar usuarios.' });
+        const currentState = await readPermissionState(db); if (!can(authenticated, currentState, 'user_manage')) return sendJson(response, 403, { ok: false, error: 'Solo un administrador puede eliminar usuarios.' });
         const userId = pathname.slice('/api/auth/users/'.length), body = await readJson(request), reason = String(body.reason || '').trim(), access = currentState['nexo-access-v1'] || {}, users = Array.isArray(access.users) ? access.users : [], target = users.find(user => user.id === userId);
         if (!reason) return sendJson(response, 400, { ok: false, error: 'La justificación de la eliminación es obligatoria.' });
         if (!target) return sendJson(response, 404, { ok: false, error: 'El usuario no existe.' });
@@ -497,7 +517,7 @@ async function createApp(options = {}) {
         return sendJson(response, 201, { ok: true, ...result });
       }
       if (request.method === 'POST' && pathname === '/api/system/reset') {
-        const currentState = await readState(db);
+        const currentState = await readPermissionState(db);
         if (!can(authenticated, currentState, 'system_reset')) return sendJson(response, 403, { ok: false, error: 'Solo el perfil de Desarrollo puede restablecer datos operativos.' });
         const body = await readJson(request);
         if (body.mode === 'generate-approval') { const token=crypto.randomBytes(18).toString('base64url'), hash=crypto.createHash('sha256').update(token).digest('hex'), id=`RESET-${Date.now()}`; await db.query('INSERT INTO approval_requests(id,action_type,entity_type,justification,payload_json,status,requested_by_id,requested_by_name,requested_at,reviewed_by_id,reviewed_by_name,reviewed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP,$7,$8,CURRENT_TIMESTAMP)',[id,'system_reset','system','Aprobación de emergencia generada por Desarrollo.',JSON.stringify({hash,expiresAt:new Date(Date.now()+15*60*1000).toISOString()}),'approved',authenticated.id,authenticated.name]); return sendJson(response,201,{ok:true,token,expiresAt:new Date(Date.now()+15*60*1000).toISOString()}); }
@@ -518,25 +538,25 @@ async function createApp(options = {}) {
         return sendJson(response, assessment.ok ? 200 : 422, { ok: assessment.ok, assessment });
       }
       if (request.method === 'GET' && pathname === '/api/audit') {
-        const currentState = await readState(db); if (!can(authenticated, currentState, 'audit')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar auditoría.' });
+        const currentState = await readPermissionState(db); if (!can(authenticated, currentState, 'audit')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar auditoría.' });
         return sendJson(response, 200, { ok: true, data: await listAudit(db, url.searchParams.get('limit')) });
       }
       if (request.method === 'GET' && pathname === '/api/dashboard/executive') {
-        const currentState = await readState(db); if (!can(authenticated, currentState, 'reports')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar el tablero.' });
+        const currentState = await readPermissionState(db); if (!can(authenticated, currentState, 'reports')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar el tablero.' });
         return sendJson(response, 200, { ok: true, data: await executiveDashboard(db, authenticated, url.searchParams.get('period') || 'today') });
       }
       if (request.method === 'GET' && pathname === '/api/alerts') {
-        const currentState = await readState(db); if (!can(authenticated, currentState, 'dashboard_view')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar alertas.' });
+        const currentState = await readPermissionState(db); if (!can(authenticated, currentState, 'dashboard_view')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar alertas.' });
         return sendJson(response, 200, { ok: true, data: await operationalAlerts(db, authenticated) });
       }
       if (request.method === 'GET' && pathname === '/api/approvals') {
-        const currentState = await readState(db), isReviewer = ['administrator', 'supervisor'].includes(authenticated?.role);
+        const isReviewer = ['administrator', 'supervisor'].includes(authenticated?.role);
         if (!authenticated) return sendJson(response, 401, { ok: false, error: 'Inicia sesión para consultar aprobaciones.' });
         const data = await listApprovals(db, isReviewer ? { status: url.searchParams.get('status') || '' } : { requestedById: authenticated.id, status: url.searchParams.get('status') || '' });
         return sendJson(response, 200, { ok: true, data });
       }
       if (request.method === 'POST' && pathname === '/api/approvals') {
-        const currentState = await readState(db), body = await readJson(request);
+        const currentState = await readPermissionState(db), body = await readJson(request);
         const permissions = { high_discount: 'quotation_manage', sale_price_change: 'system_config', cancellation: 'client_order_manage', client_transfer: 'client_manage', warehouse_exit: 'inventory_manage' }, needed = permissions[body.actionType];
         if (!needed || !can(authenticated, currentState, needed)) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para solicitar esta aprobación.' });
         return sendJson(response, 201, { ok: true, data: await createApproval(db, { ...body, actor: authenticated }) });
@@ -547,30 +567,30 @@ async function createApp(options = {}) {
         return sendJson(response, 200, { ok: true, data: await decideApproval(db, id, body, authenticated) });
       }
       if (request.method === 'GET' && /^\/api\/internal-orders\/clients\/[^/]+\/quotations$/.test(pathname)) {
-        const currentState = await readState(db), workspace = requestedWorkspace(request);
+        const currentState = await readPermissionState(db), workspace = requestedWorkspace(request);
         if (!can(authenticated, currentState, 'client_order_manage') || !can(authenticated, currentState, 'quotation_view')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para preparar pedidos internos.' });
         const clientId = pathname.slice('/api/internal-orders/clients/'.length, -'/quotations'.length);
         return sendJson(response, 200, { ok: true, data: await listClientQuotations(db, clientId, authenticated, workspace) });
       }
       if (request.method === 'POST' && pathname === '/api/internal-orders') {
-        const currentState = await readState(db), workspace = requestedWorkspace(request);
+        const currentState = await readPermissionState(db), workspace = requestedWorkspace(request);
         if (!can(authenticated, currentState, 'client_order_manage')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para crear pedidos internos.' });
         return sendJson(response, 201, { ok: true, data: await createInternalOrder(db, await readJson(request), authenticated, workspace) });
       }
       if (request.method === 'PUT' && /^\/api\/internal-orders\/[^/]+$/.test(pathname)) {
-        const currentState = await readState(db), workspace = requestedWorkspace(request);
+        const currentState = await readPermissionState(db), workspace = requestedWorkspace(request);
         if (!can(authenticated, currentState, 'client_order_manage')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para editar pedidos internos.' });
         const id = pathname.slice('/api/internal-orders/'.length);
         return sendJson(response, 200, { ok: true, data: await updateInternalOrder(db, id, await readJson(request), authenticated, workspace) });
       }
       if (request.method === 'POST' && /^\/api\/internal-orders\/[^/]+\/activate$/.test(pathname)) {
-        const currentState = await readState(db), workspace = requestedWorkspace(request);
+        const currentState = await readPermissionState(db), workspace = requestedWorkspace(request);
         if (!can(authenticated, currentState, 'client_order_activate')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para activar pedidos internos.' });
         const id = pathname.slice('/api/internal-orders/'.length, -'/activate'.length);
         return sendJson(response, 200, { ok: true, data: await activateInternalOrder(db, id, await readJson(request), authenticated, workspace) });
       }
       if (request.method === 'GET' && pathname === '/api/search/internal-orders') {
-        const currentState = await readState(db);
+        const currentState = await readPermissionState(db);
         if (!can(authenticated, currentState, 'client_view') || !can(authenticated, currentState, 'catalog_view')) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para buscar pedidos internos.' });
         const data = await searchInternalOrderTargets(db, authenticated, url.searchParams.get('q'), url.searchParams.get('limit'));
         return sendJson(response, 200, { ok: true, data });
@@ -583,7 +603,7 @@ async function createApp(options = {}) {
         return sendJson(response, 200, { ok: true, ...paginateReport(report, url.searchParams.get('page'), url.searchParams.get('pageSize')) });
       }
       if (request.method === 'GET' && pathname.startsWith('/api/')) {
-        const resource = pathname.slice('/api/'.length), resourcePermissions = { products: 'catalog_view', suppliers: 'supplier_view', movements: 'inventory_manage', quotations: 'quotation_view', 'client-orders': 'client_order_view', requisitions: 'supplier_order_view', 'supplier-orders': 'supplier_order_view', receipts: 'receive', shipments: 'deliver', documents: 'audit' }, permission = resourcePermissions[resource], currentState = await readState(db);
+        const resource = pathname.slice('/api/'.length), resourcePermissions = { products: 'catalog_view', suppliers: 'supplier_view', movements: 'inventory_manage', quotations: 'quotation_view', 'client-orders': 'client_order_view', requisitions: 'supplier_order_view', 'supplier-orders': 'supplier_order_view', receipts: 'receive', shipments: 'deliver', documents: 'audit' }, permission = resourcePermissions[resource], currentState = await readPermissionState(db);
         if (!permission || !can(authenticated, currentState, permission)) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para consultar este recurso.' });
         const data = await listResource(db, resource), safeData = authenticated?.role === 'seller' && ['products', 'quotations', 'client-orders'].includes(resource) ? data.map(withoutListPrice) : data;
         if (safeData) return sendJson(response, 200, { ok: true, data: safeData, count: safeData.length });

@@ -713,13 +713,13 @@ function normalizeInternalOrderItems(items, quotations, products, relations) {
   }).filter(item => item.quantity > 0);
 }
 async function listClientQuotations(db, clientId, user, workspace = 'operational') {
-  const state = await readState(db, workspace), client = (state['nexo-clients'] || []).find(item => String(item.id) === String(clientId));
+  const state = await readStateKeys(db, ['nexo-clients', 'nexo-commercial-orders', 'nexo-sales-quotations'], workspace), client = (state['nexo-clients'] || []).find(item => String(item.id) === String(clientId));
   if (!client || !userOwnsClient(client, user)) throw Object.assign(new Error('El cliente no está disponible para tu cartera.'), { status: 404 });
   const convertedIds = new Set((state['nexo-commercial-orders'] || []).filter(order => String(order.status || '').toLowerCase() !== 'cancelled').flatMap(order => (order.quotationIds || [order.quotationId]).filter(Boolean).map(String)));
   return (state['nexo-sales-quotations'] || []).filter(quotation => !['cancelled', 'required'].includes(String(quotation.status || '').toLowerCase()) && !quotation.locked && !quotation.internalOrderId && !quotation.commercialOrderId && !convertedIds.has(String(quotation.id)) && !quotationIsExpired(quotation) && quotationBelongsToClient(quotation, client)).map(quotation => ({ ...quotation, clientId: client.id }));
 }
 async function createInternalOrder(db, input, user, workspace = 'operational') {
-  const state = await readState(db, workspace), client = (state['nexo-clients'] || []).find(item => String(item.id) === String(input.clientId));
+  const state = await readStateKeys(db, ['nexo-clients', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-products', 'nexo-product-supplier-relations'], workspace), client = (state['nexo-clients'] || []).find(item => String(item.id) === String(input.clientId));
   if (!client || !userOwnsClient(client, user)) throw Object.assign(new Error('Selecciona un cliente de tu cartera.'), { status: 400 });
   const selectedIds = [...new Set(Array.isArray(input.quotationIds) ? input.quotationIds.map(String) : [])], quotations = (state['nexo-sales-quotations'] || []).filter(quotation => selectedIds.includes(String(quotation.id)));
   const previousOrder = (state['nexo-commercial-orders'] || []).find(order => String(order.status || '').toLowerCase() !== 'cancelled' && (order.quotationIds || [order.quotationId]).filter(Boolean).map(String).some(id => selectedIds.includes(id)));
@@ -734,7 +734,7 @@ async function createInternalOrder(db, input, user, workspace = 'operational') {
   await saveStates(db, [['nexo-commercial-orders', [order, ...orders]], ['nexo-sales-quotations', convertedQuotations]], user.name, user.id, workspace); return order;
 }
 async function updateInternalOrder(db, id, input, user, workspace = 'operational') {
-  const state = await readState(db, workspace), orders = Array.isArray(state['nexo-commercial-orders']) ? state['nexo-commercial-orders'] : [], current = orders.find(order => String(order.id) === String(id));
+  const state = await readStateKeys(db, ['nexo-clients', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-products', 'nexo-product-supplier-relations'], workspace), orders = Array.isArray(state['nexo-commercial-orders']) ? state['nexo-commercial-orders'] : [], current = orders.find(order => String(order.id) === String(id));
   if (!current || !userOwnsClient({ ownerId: current.ownerId, ownerName: current.ownerName }, user)) throw Object.assign(new Error('El pedido interno no está disponible.'), { status: 404 });
   if (current.status !== 'draft') throw Object.assign(new Error('Un pedido interno activado no puede editarse.'), { status: 409 });
   const selectedIds = [...new Set(Array.isArray(input.quotationIds) ? input.quotationIds.map(String) : current.quotationIds || [current.quotationId])], quotations = (state['nexo-sales-quotations'] || []).filter(quotation => selectedIds.includes(String(quotation.id))), client = (state['nexo-clients'] || []).find(item => String(item.id) === String(current.clientId));
@@ -747,7 +747,7 @@ async function updateInternalOrder(db, id, input, user, workspace = 'operational
   await saveStates(db, [['nexo-commercial-orders', orders.map(order => String(order.id) === String(id) ? next : order)], ['nexo-sales-quotations', linkedQuotations]], user.name, user.id, workspace); return next;
 }
 async function activateInternalOrder(db, id, input, user, workspace = 'operational') {
-  const state = await readState(db, workspace), orders = Array.isArray(state['nexo-commercial-orders']) ? state['nexo-commercial-orders'] : [], current = orders.find(order => String(order.id) === String(id));
+  const state = await readStateKeys(db, ['nexo-sales-quotations', 'nexo-commercial-orders'], workspace), orders = Array.isArray(state['nexo-commercial-orders']) ? state['nexo-commercial-orders'] : [], current = orders.find(order => String(order.id) === String(id));
   if (!current || !userOwnsClient({ ownerId: current.ownerId, ownerName: current.ownerName }, user)) throw Object.assign(new Error('El pedido interno no está disponible.'), { status: 404 });
   if (current.status !== 'draft') throw Object.assign(new Error('El pedido interno ya fue activado.'), { status: 409 });
   const now = new Date().toISOString(), acceptance = input.acceptance && typeof input.acceptance === 'object' ? input.acceptance : null;

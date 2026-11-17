@@ -30,6 +30,22 @@ test('activar un pedido refleja la respuesta sin reenviar un estado completo obs
   assert.match(source, /suspendWrites\(reflect\)/);
 });
 
+test('los guardados y permisos evitan descargar estados completos innecesarios', () => {
+  const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const db = fs.readFileSync(require.resolve('../server/db.js'), 'utf8');
+  const server = fs.readFileSync(require.resolve('../server/server.js'), 'utf8');
+  const batchRoute = server.slice(server.indexOf("pathname === '/api/state-batch'"), server.indexOf("pathname.startsWith('/api/state/')"));
+  const stateRoute = server.slice(server.indexOf("pathname.startsWith('/api/state/')"), server.indexOf("pathname.startsWith('/api/auth/users/')"));
+  assert.match(server, /async function readPermissionState[\s\S]*?readStateKeys\(db, \['nexo-access-v1'\]\)/);
+  assert.match(batchRoute, /readWriteContext/); assert.doesNotMatch(batchRoute, /readState\(db/);
+  assert.match(stateRoute, /readWriteContext/); assert.doesNotMatch(stateRoute, /readState\(db/);
+  assert.match(db, /listClientQuotations[\s\S]*?readStateKeys/);
+  assert.match(db, /createInternalOrder[\s\S]*?readStateKeys/);
+  assert.doesNotMatch(app, /bio:persistence-changed[^\n]*refreshOperationalInsights/);
+  assert.match(app, /operationalInsightsLastRefresh<30000/);
+  assert.match(app, /view==='panel'\)refreshOperationalInsights/);
+});
+
 test('las condiciones comerciales predeterminadas se sincronizan y se versionan sin alterar cotizaciones previas', () => {
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   const db = fs.readFileSync(require.resolve('../server/db.js'), 'utf8');

@@ -62,7 +62,7 @@ test('pruebas no consulta paneles operativos y el service worker nunca cachea la
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   const reports = fs.readFileSync(require.resolve('../reports.js'), 'utf8');
   const worker = fs.readFileSync(require.resolve('../service-worker.js'), 'utf8');
-  assert.match(app, /refreshOperationalInsights\(\)[\s\S]*?window\.__BIO_TRAINING__/);
+  assert.match(app, /refreshOperationalInsights\(options=\{\}\)[\s\S]*?window\.__BIO_TRAINING__/);
   assert.match(reports, /if \(inTraining\(\)\) \{[\s\S]*?buildInternalOrdersReport\(trainingState\(\)/);
   assert.match(reports, /async function reportData[\s\S]*?if \(inTraining\(\)\)[\s\S]*?return core\.paginateReport/);
   assert.doesNotMatch(reports, /reporte consolidado consulta exclusivamente la operación real/);
