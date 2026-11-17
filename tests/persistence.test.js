@@ -21,7 +21,16 @@ test('carga la persistencia antes que acceso y conserva modo local sin API', () 
   assert.doesNotMatch(source, /error\.status === 409[\s\S]{0,240}nativeRemove\.call\(root\.localStorage, activeWorkspaceKey\(\)\)/);
   assert.match(source, /cached\?\.revisions && result\?\.revision/);
   assert.match(source, /root\.BioAuth\?\.user/);
+  assert.match(source, /return \{ changed \}/);
   assert.match(source, /Base central conectada/); assert.match(source, /Persistencia local/);
+});
+
+test('una hidratación distinta recarga una sola vez para descartar variables locales obsoletas', () => {
+  const auth = fs.readFileSync(require.resolve('../auth.js'), 'utf8');
+  assert.match(auth, /bio-hydration-reload-v1/);
+  assert.match(auth, /result\?\.changed/);
+  assert.match(auth, /sessionStorage\.setItem[\s\S]*?location\.reload/);
+  assert.match(auth, /sessionStorage\.removeItem/);
 });
 
 test('activar un pedido refleja la respuesta sin reenviar un estado completo obsoleto', () => {

@@ -110,7 +110,11 @@
         const response = await fetch('/api/system/reset', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'No fue posible restablecer el sistema.');
-        close(); toast(result.message || 'Los datos operativos fueron restablecidos.'); window.setTimeout(() => window.location.reload(), 900);
+        close();
+        window.BioPersistence?.suspendWrites?.(() => window.BioAccess?.setWorkspaceMode?.('operational'));
+        window.BioPersistence?.clearLocalState?.({ keepAccess: true });
+        toast(result.message || 'Los datos operativos fueron restablecidos.');
+        window.setTimeout(() => window.location.reload(), 900);
       } catch (error) {
         submit.disabled = false; submit.innerHTML = 'Restablecer sistema <i data-lucide="shield-alert"></i>'; window.lucide?.createIcons(); feedback.textContent = error.message || 'No fue posible restablecer el sistema.'; feedback.hidden = false;
       }

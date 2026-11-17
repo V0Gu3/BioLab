@@ -209,6 +209,17 @@ test('el restablecimiento evita autocompletar el correo en la frase de confirmac
   assert.doesNotMatch(settings, /name="confirmation" required autocomplete="off"/);
 });
 
+test('el restablecimiento vuelve a Operativo y descarta el inventario local anterior', () => {
+  const settings = fs.readFileSync(require.resolve('../settings.js'), 'utf8');
+  const persistence = fs.readFileSync(require.resolve('../persistence.js'), 'utf8');
+  assert.match(settings, /setWorkspaceMode\?\.\('operational'\)/);
+  assert.match(settings, /clearLocalState\?\.\(\{ keepAccess: true \}\)/);
+  assert.match(persistence, /function clearLocalState/);
+  assert.match(persistence, /pending\.clear\(\)/);
+  assert.match(persistence, /nexo-bootstrap-cache-v2:/);
+  assert.match(persistence, /nexo-bootstrap-active-workspace-v1:/);
+});
+
 test('las reservas futuras excluyen recepciones comprometidas y liberan faltantes hacia compras', () => {
   assert.match(orders, /const committedReceiptsByWarehouse/);
   assert.match(orders, /occupied\[warehouseId\].*reservations\[warehouseId\].*commitments\[warehouseId\]/);

@@ -64,9 +64,9 @@
     // persistence.js se carga antes de auth.js; esperar la sesión confirmada
     // evita una descarga inicial sin perfil y mantiene la caché aislada por usuario.
     if (!enabled || !root.BioAuth?.user?.()) return false;
-    if (status.hydrated && root.localStorage.getItem(activeWorkspaceKey()) === workspace()) return true;
+    if (status.hydrated && root.localStorage.getItem(activeWorkspaceKey()) === workspace()) return { changed: false };
     if (bootstrapPromise) return bootstrapPromise;
-    bootstrapPromise = (async () => { try {
+    bootstrapPromise = (async () => { let changed = false; try {
       // localStorage contiene únicamente el espacio actualmente activo. No se
       // reutiliza la firma de otro espacio porque podría validar datos de
       // capacitación mientras el navegador aún conserva datos operativos.
@@ -86,18 +86,18 @@
         if (workspace() === 'operational' && Object.keys(state).length) { status.migrating = true; await request('POST', '/api/import-local', { state, actor: 'Migración inicial del navegador' }, workspaceHeaders()); status.migrating = false; }
       } else {
         writableKeys = new Set(Array.isArray(response.allowedKeys) ? response.allowedKeys : []);
-        (response.removedKeys || []).filter(key => KEYS.includes(key)).forEach(key => nativeSet.call(root.localStorage, key, JSON.stringify(emptyPayload(key))));
+        (response.removedKeys || []).filter(key => KEYS.includes(key)).forEach(key => { const serialized = JSON.stringify(emptyPayload(key)); if (root.localStorage.getItem(key) !== serialized) changed = true; nativeSet.call(root.localStorage, key, serialized); });
         Object.entries(response.state || {}).forEach(([key, payload]) => {
           if (!KEYS.includes(key)) return;
           if (key === 'nexo-access-v1') { const localAccess = parse(root.localStorage.getItem(key)) || {}; payload = { ...payload, currentUserId: root.BioAuth?.user?.()?.id || localAccess.currentUserId || 'USR-001', workspace: localAccess.workspace || payload.workspace }; }
           if (key === 'nexo-fx-v1') payload = { ...payload, banxicoToken: parse(root.localStorage.getItem(key))?.banxicoToken || '' };
-          nativeSet.call(root.localStorage, key, JSON.stringify(payload));
+          const serialized = JSON.stringify(payload); if (root.localStorage.getItem(key) !== serialized) changed = true; nativeSet.call(root.localStorage, key, serialized);
         });
         if (response.etag) saveBootstrapMeta({ etag: response.etag, allowedKeys: [...writableKeys], readableKeys: Array.isArray(response.readableKeys) ? response.readableKeys : KEYS, revisions: response.revisions || {}, storedAt: new Date().toISOString() });
       }
       nativeSet.call(root.localStorage, activeWorkspaceKey(), workspace());
       status.hydrated = true; status.lastSync = new Date().toISOString();
-      status.error = null; notify(); return true;
+      status.error = null; notify(); return { changed };
     } catch (error) { status.error = error.message; status.connected = false; status.migrating = false; notify(); return false; }
     finally { bootstrapPromise = null; } })();
     return bootstrapPromise;
@@ -186,6 +186,19 @@
     const payload = parse(serialized); if (payload === null) return; pending.set(key, payload); clearTimeout(timer); timer = setTimeout(flush, 80);
   }
 
+  function clearLocalState(options = {}) {
+    const keepAccess = options.keepAccess !== false;
+    suspendedWrites += 1;
+    try {
+      KEYS.forEach(key => { if (!keepAccess || key !== 'nexo-access-v1') nativeRemove.call(root.localStorage, key); });
+      for (let index = root.localStorage.length - 1; index >= 0; index -= 1) {
+        const key = root.localStorage.key(index);
+        if (key?.startsWith('nexo-bootstrap-cache-v2:') || key?.startsWith('nexo-bootstrap-active-workspace-v1:')) nativeRemove.call(root.localStorage, key);
+      }
+      pending.clear(); clearTimeout(timer); timer = null; status.hydrated = false;
+    } finally { suspendedWrites = Math.max(0, suspendedWrites - 1); }
+  }
+
   bootstrap();
   root.addEventListener?.('bio:auth-ready', bootstrap);
   if (enabled) {
@@ -201,6 +214,6 @@
     Storage.prototype.removeItem = function (key) { nativeRemove.call(this, key); };
   }
   const suspendWrites = callback => { suspendedWrites += 1; try { return callback?.(); } finally { suspendedWrites = Math.max(0, suspendedWrites - 1); } };
-  root.BioPersistence = { keys: KEYS, status: () => ({ ...status, pending: pending.size }), flush, bootstrap, suspendWrites };
+  root.BioPersistence = { keys: KEYS, status: () => ({ ...status, pending: pending.size }), flush, bootstrap, suspendWrites, clearLocalState };
   root.addEventListener('DOMContentLoaded', notify);
 })(window);

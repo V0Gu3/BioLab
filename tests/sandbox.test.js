@@ -84,6 +84,6 @@ test('el arranque retira el service worker anterior antes de validar la sesión'
   assert.match(cleanup, /key\.startsWith\('probiolab-'\)/);
   assert.doesNotMatch(app, /serviceWorker\.register/);
   assert.match(login, /service-worker-cleanup\.js\?v=20261107-1/);
-  assert.match(login, /auth\.js\?v=20261107-1/);
+  assert.match(login, /auth\.js\?v=20261116-1/);
   assert.match(vercel, /"source": "\/login\.html"[\s\S]*?"value": "no-store/);
 });

@@ -56,7 +56,7 @@ test('el login recupera en forma local el modo del último usuario identificado'
   assert.match(loginCss, /\.bio-login-page\{margin:0;font-family:Manrope,Arial,sans-serif/);
   assert.match(loginCss, /\.bio-login-card input\{border-color:#359bd3;background:#fdfefe;color:#181a1f/);
   assert.match(loginHtml, /login\.css\?v=20260927-1/);
-  assert.match(loginHtml, /auth\.js\?v=20261107-1/);
+  assert.match(loginHtml, /auth\.js\?v=20261116-1/);
   assert.match(auth, /placeholder="nombre@empresa\.com"/);
   assert.doesNotMatch(auth, /<img src="assets\/probiolab-logo-transparent\.png" alt="" \/>PROBIOLAB/);
 });

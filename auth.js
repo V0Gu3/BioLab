@@ -63,7 +63,12 @@
       // plano y conserva la caché local si la red o la base tardan en responder.
       if (isLoginPage()) { openApplication(); return; }
       revealApplication();
-      Promise.resolve(root.BioPersistence?.bootstrap?.()).finally(() => root.dispatchEvent(new CustomEvent('bio:auth-ready', { detail: session })));
+      Promise.resolve(root.BioPersistence?.bootstrap?.()).then(result => {
+        const reloadKey = 'bio-hydration-reload-v1';
+        if (result?.changed && !root.sessionStorage.getItem(reloadKey)) { root.sessionStorage.setItem(reloadKey, 'true'); root.location.reload(); return; }
+        root.sessionStorage.removeItem(reloadKey);
+        root.dispatchEvent(new CustomEvent('bio:auth-ready', { detail: session }));
+      }).catch(() => root.dispatchEvent(new CustomEvent('bio:auth-ready', { detail: session })));
     }
     catch (error) { root.localStorage.removeItem('bio-authenticated'); promptLogin(Boolean(error.setupReady)); }
   }
