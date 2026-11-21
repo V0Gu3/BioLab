@@ -179,7 +179,13 @@
     const dialog = document.createElement('dialog'); dialog.className = 'system-dialog access-user-dialog';
     dialog.innerHTML = `<form><div class="modal-title"><div class="modal-heading"><span class="modal-icon"><i data-lucide="trash-2"></i></span><div><p class="eyebrow">ELIMINACIÓN DE USUARIO</p><h2>Eliminar usuario</h2></div></div><button type="button" class="close" aria-label="Cerrar"><i data-lucide="x"></i></button></div><div class="modal-body"><p class="subtitle">Esta acción elimina el acceso, contraseña y sesiones activas del usuario. No se puede deshacer.</p><p class="confirm-note">${escapeHtml(user.name)} · ${escapeHtml(user.email)}</p><label class="field wide"><span>Justificación <em>obligatoria</em></span><textarea required rows="3" placeholder="Indica el motivo de la eliminación"></textarea></label></div><div class="modal-actions"><button type="button" class="cancel">Cancelar</button><button class="submit danger" type="submit">Eliminar usuario <i data-lucide="trash-2"></i></button></div></form>`;
     document.body.append(dialog); const close = () => { dialog.close(); dialog.remove(); }; dialog.querySelectorAll('.close,.cancel').forEach(button => button.addEventListener('click', close));
-    dialog.querySelector('form').addEventListener('submit', async event => { event.preventDefault(); const reason = dialog.querySelector('textarea').value.trim(); if (!reason) return toast('La justificación es obligatoria.'); try { await window.BioAuth?.deleteUser(user.id, reason); const result = access.deleteUser(user.id, reason); if (!result.ok) throw new Error(result.message); await window.BioPersistence?.flush({ throwOnError: true }); close(); toast(`${user.name} fue eliminado correctamente.`); } catch (error) { toast(error.message || 'No fue posible eliminar el usuario.'); } });
+    dialog.querySelector('form').addEventListener('submit', async event => { event.preventDefault(); const reason = dialog.querySelector('textarea').value.trim(); if (!reason) return toast('La justificación es obligatoria.'); try {
+      // Las cuentas creadas dentro de Pruebas existen solo en el estado aislado:
+      // no deben invocar la baja de autenticación compartida (que respondería 409).
+      if (window.__BIO_TRAINING__ !== true) await window.BioAuth?.deleteUser(user.id, reason);
+      const result = access.deleteUser(user.id, reason); if (!result.ok) throw new Error(result.message);
+      await window.BioPersistence?.flush({ throwOnError: true }); close(); toast(`${user.name} fue eliminado correctamente.`);
+    } catch (error) { toast(error.message || 'No fue posible eliminar el usuario.'); } });
     dialog.showModal(); window.lucide?.createIcons(); dialog.querySelector('textarea').focus();
   }
 

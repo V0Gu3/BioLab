@@ -97,6 +97,12 @@ test('entregas usa una bandeja paginada, consulta remisiones bajo demanda y cons
   assert.match(styles, /\.delivery-quick-panel/);
 });
 
+test('la eliminación de cuentas de Pruebas no invoca la autenticación compartida', () => {
+  const settings = fs.readFileSync(require.resolve('../settings.js'), 'utf8');
+  assert.match(settings, /if \(window\.__BIO_TRAINING__ !== true\) await window\.BioAuth\?\.deleteUser/);
+  assert.match(settings, /const result = access\.deleteUser\(user\.id, reason\)/);
+});
+
 test('seguimiento y entregas conservan el pedido seleccionado al cambiar de bandeja', () => {
   const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
   assert.match(orders, /function openTrackingWorkbench\(requestId\)/);
