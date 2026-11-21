@@ -158,6 +158,7 @@ test('cancelar un avance, recepción o remisión regresa al expediente de origen
   assert.match(orders, /const restoreProgressOrigin/);
   assert.match(orders, /dialog\.dataset\.originRequestId/);
   assert.match(orders, /renderOrderDetail\(requestId, tab\)/);
+  assert.match(orders, /renderOrderDashboard\(\);\s*renderDeliveries\(\);\s*renderOrderDetail\(requestId, 'summary'\)/);
   assert.match(orders, /rememberProgressOrigin\(\);q\('#orderDetailDialog'\)\.close\(\);openTotalReceiptProgress/);
   assert.match(orders, /q\('#orderProgressDialog'\)\.addEventListener\('cancel'.*restoreProgressOrigin/);
 });

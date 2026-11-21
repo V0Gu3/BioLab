@@ -132,6 +132,7 @@
     // los renderizados evita que un expediente grande prolongue la espera visual.
     const refreshDossier = () => {
       renderOrderDashboard();
+      renderDeliveries();
       renderOrderDetail(requestId, 'summary');
       const refreshGlobal = () => { if (typeof render === 'function') render(); };
       if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(refreshGlobal, { timeout: 350 });
