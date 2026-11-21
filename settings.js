@@ -10,7 +10,7 @@
   const viewPermissions = {
     inventarioView: 'inventory_view', movimientosView: 'inventory_view', conteosView: 'inventory_manage', reportesView: 'reports',
     productosView: 'catalog_view', proveedoresView: 'supplier_view', preciosView: 'supplier_manage', clientesView: 'client_view', quotationSummaryView: 'quotation_view', cotizacionesView: 'quotation_view', newQuotationView: 'quotation_manage',
-    salesOrdersView: 'client_order_view', ordersView: 'client_order_view', supplierOrdersView: 'supplier_order_view', auditView: 'audit', sandboxView: 'sandbox'
+    salesOrdersView: 'client_order_view', ordersView: 'client_order_view', deliveriesView: 'deliver', supplierOrdersView: 'supplier_order_view', auditView: 'audit', sandboxView: 'sandbox'
   };
   const actionPermissions = [
     ['#newProduct, #newCatalogProduct, [data-open="entrada"], [data-open="salida"], [data-open="traspaso"], [data-open="merma"], #applyCount', 'inventory_manage'],

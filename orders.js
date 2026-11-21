@@ -40,6 +40,9 @@
   let importSimulation = null;
   let activeRequestId = null;
   let activeDossierTab = 'summary';
+  let trackingPage = 1;
+  let trackingPageSize = 25;
+  let trackingSelectedRequestId = null;
   let orderDraftLines = [];
   let processedOperationNotice = null;
   const saveStore = nextStore => {
@@ -847,9 +850,45 @@
 
   const isOperationalRequest = request => request?.source !== 'quotation_client_order' || request?.clientOrderStatus === 'active';
 
+  const trackingStage = ({ request, progress }) => {
+    if (request.status === 'cancelled') return { id: 'cancelled', label: 'Cancelado', next: 'Sin acción pendiente' };
+    if (progress.purchased < progress.purchaseRequired) return { id: 'purchase', label: 'Pendiente de comprar', next: 'Completar compra a proveedor' };
+    if (progress.received < progress.purchased) return { id: 'receive', label: 'Pendiente de recibir', next: 'Registrar recepción de proveedor' };
+    if (request.type === 'customer_order' && progress.delivered < progress.requested) return { id: 'deliver', label: 'Pendiente de entregar', next: 'Generar remisión al cliente' };
+    if (request.type === 'customer_order' && progress.invoiced < progress.requested) return { id: 'invoice', label: 'Pendiente de facturar', next: 'Registrar facturación al cliente' };
+    return { id: 'complete', label: 'Al día', next: 'Validar cierre administrativo' };
+  };
+
+  function trackingRecords() {
+    return store.requisitions.filter(isOperationalRequest).map(request => {
+      const progress = requestProgress(request);
+      return { request, progress, stage: trackingStage({ request, progress }), search: linkedText(request) };
+    });
+  }
+
+  function renderTrackingQuickPanel(record) {
+    const panel = q('#orderTrackingQuickPanel'); if (!panel) return;
+    if (!record) {
+      panel.innerHTML = '<div class="tracking-quick-empty"><i data-lucide="mouse-pointer-2"></i><strong>Selecciona un pedido</strong><span>Verás la siguiente acción, el avance y los documentos relacionados sin abrir todo el expediente.</span></div>';
+      return;
+    }
+    const { request, progress, stage } = record, canReceive = stage.id === 'receive' && can('receive'), canDeliver = stage.id === 'deliver' && can('deliver');
+    const action = canReceive ? `<button class="tracking-quick-primary" data-tracking-formal-total-receipt="${escapeHtml(request.id)}"><i data-lucide="package-check"></i> Registrar recepción</button>` : canDeliver ? `<button class="tracking-quick-primary" data-tracking-formal-total-delivery="${escapeHtml(request.id)}"><i data-lucide="truck-check"></i> Generar remisión</button>` : '';
+    panel.innerHTML = `<div class="tracking-quick-head"><small>PEDIDO SELECCIONADO</small><strong>${escapeHtml(request.id)}</strong><span>${escapeHtml(request.customerName || 'Abastecimiento interno')}</span></div><div class="tracking-quick-next"><small>PRÓXIMA ACCIÓN</small><strong>${escapeHtml(stage.next)}</strong><span class="order-status-badge ${stage.id === 'complete' ? 'active' : stage.id === 'cancelled' ? 'cancelled' : 'warning'}">${escapeHtml(stage.label)}</span></div><dl class="tracking-quick-metrics"><div><dt>Comprado</dt><dd>${progress.purchased} / ${progress.purchaseRequired}</dd></div><div><dt>Recibido</dt><dd>${progress.received} / ${progress.purchaseRequired}</dd></div><div><dt>Entregado</dt><dd>${progress.delivered} / ${progress.requested}</dd></div><div><dt>Partidas</dt><dd>${progress.lines.length}</dd></div></dl>${action}<button class="tracking-quick-secondary" data-order-detail="${escapeHtml(request.id)}"><i data-lucide="folder-open"></i> Ver expediente completo</button>`;
+  }
+
+  function openQuickReceipt(requestId) {
+    const supplierOrderId = store.supplierOrderLines.find(link => {
+      const line = store.orderLines.find(item => item.id === link.orderLineId);
+      return line?.requisitionId === requestId && core.supplierOrderLinePending({ supplierOrderId: link.supplierOrderId, link, receipts: store.receipts }) > 0;
+    })?.supplierOrderId;
+    if (!supplierOrderId) return notify('No hay una recepción pendiente para este pedido.');
+    rememberProgressOrigin(requestId, 'summary'); openTotalReceiptProgress(supplierOrderId, requestId);
+  }
+
   function renderOrderDashboard() {
     populateOrderFilters();
-    const states = store.requisitions.filter(isOperationalRequest).map(request => ({ request, progress: requestProgress(request) }));
+    const states = trackingRecords();
     // El seguimiento se cierra logísticamente al remitir todas las partidas. No dependemos
     // sólo del estado almacenado, pues pedidos históricos pueden conservar "activo".
     q('#trackingSummaryOpen').textContent = states.filter(({ request, progress }) => request.status !== 'cancelled' && progress.delivered < progress.requested).length;
@@ -863,18 +902,26 @@
     const term = searchKey(q('#orderSearch').value), status = q('#orderStatusFilter').value, stageFilter = q('#orderStageFilter').value, responsible = q('#orderResponsibleFilter').value;
     const from = q('#orderDateFrom').value, to = q('#orderDateTo').value;
     const stageMatches = ({ request, progress }) => !stageFilter || (stageFilter === 'purchase' && request.status !== 'cancelled' && progress.purchased < progress.purchaseRequired) || (stageFilter === 'receive' && request.status !== 'cancelled' && progress.received < progress.purchased) || (stageFilter === 'deliver' && request.type === 'customer_order' && request.status !== 'cancelled' && progress.delivered < progress.requested) || (stageFilter === 'invoice' && request.type === 'customer_order' && request.status !== 'cancelled' && progress.invoiced < progress.requested);
-    const matches = states.filter(state => stageMatches(state) && (!term || linkedText(state.request).includes(term)) && (!status || state.request.status === status) && (!responsible || state.request.responsible === responsible) && (!from || state.request.requestDate >= from) && (!to || state.request.requestDate <= to)).map(state => state.request);
-    q('#orderTrackingList').innerHTML = matches.map(request => {
-      const progress = requestProgress(request), overdue = request.requestDate && request.status !== 'closed' && request.status !== 'cancelled' && (Date.now() - new Date(`${request.requestDate}T12:00:00`).getTime()) > 30 * 86400000;
-      const stage = (value, max, label, extra = '') => {
+    const matches = states.filter(state => stageMatches(state) && (!term || state.search.includes(term)) && (!status || state.request.status === status) && (!responsible || state.request.responsible === responsible) && (!from || state.request.requestDate >= from) && (!to || state.request.requestDate <= to));
+    const pageSize = Math.max(1, Number(q('#orderTrackingPageSize')?.value || trackingPageSize)); trackingPageSize = pageSize;
+    const totalPages = Math.max(1, Math.ceil(matches.length / pageSize)); trackingPage = Math.min(Math.max(1, trackingPage), totalPages);
+    const start = (trackingPage - 1) * pageSize, visible = matches.slice(start, start + pageSize);
+    q('#orderTrackingResultCount').textContent = matches.length ? `${start + 1}–${Math.min(start + pageSize, matches.length)} de ${matches.length} pedidos` : 'Sin pedidos para los filtros actuales';
+    const selected = matches.find(item => item.request.id === trackingSelectedRequestId) || visible[0] || null;
+    trackingSelectedRequestId = selected?.request.id || null;
+    q('#orderTrackingList').innerHTML = visible.map(record => {
+      const { request, progress, stage } = record, overdue = request.requestDate && request.status !== 'closed' && request.status !== 'cancelled' && (Date.now() - new Date(`${request.requestDate}T12:00:00`).getTime()) > 30 * 86400000;
+      const stageDisplay = (value, max, label, extra = '') => {
         if (max <= 0) {
           const detail = label === 'compradas' ? 'Sin compra externa' : label === 'recibidas' ? 'Sin recepción externa' : label;
           return `<div class="order-stage-progress not-applicable"><strong>Surtido desde almacén</strong><small>${detail}</small></div>`;
         }
         return `<div class="order-stage-progress ${overdue && value < max ? 'overdue' : ''}"><strong>${value} / ${max}</strong><small>${label}${extra}</small></div>`;
       };
-      return `<article class="order-tracking-row"><div class="order-request"><strong>${escapeHtml(request.id)} · ${escapeHtml(request.customerName || 'Abastecimiento interno')}</strong><small>${formatDate(request.requestDate)} · ${escapeHtml(request.responsible || 'Sin responsable')}</small><small class="order-request-type">${request.type === 'internal_stock' ? 'STOCK INTERNO' : 'PEDIDO DE CLIENTE'}</small></div><div><div class="order-progress-bar"><i style="width:${Math.max(progress.purchasePercent, progress.receivePercent, progress.deliverPercent, progress.invoicePercent)}%"></i></div><small style="display:block;margin-top:5px;color:#879189;font-size:7px">${progress.lines.length} partida${progress.lines.length === 1 ? '' : 's'} · ${progress.requested} autorizadas · ${progress.reserved} reservadas</small></div>${stage(progress.purchased, progress.purchaseRequired, 'compradas')}${stage(progress.received, progress.purchaseRequired, 'recibidas')}${stage(progress.delivered, progress.requested, request.type === 'internal_stock' ? 'a stock' : 'entregadas')}<span class="order-status-badge ${requestStatusClass(request.status)}">${escapeHtml(core.STATUS_LABELS[request.status] || request.status)}</span><button class="order-row-action" data-order-detail="${escapeHtml(request.id)}" title="Abrir expediente"><i data-lucide="arrow-up-right"></i></button></article>`;
+      return `<article class="order-tracking-row ${request.id === trackingSelectedRequestId ? 'selected' : ''}" data-tracking-select="${escapeHtml(request.id)}"><div class="order-request"><strong>${escapeHtml(request.id)} · ${escapeHtml(request.customerName || 'Abastecimiento interno')}</strong><small>${formatDate(request.requestDate)} · ${escapeHtml(request.responsible || 'Sin responsable')}</small><small class="order-request-type">${request.type === 'internal_stock' ? 'STOCK INTERNO' : 'PEDIDO DE CLIENTE'}</small></div><div><div class="order-progress-bar"><i style="width:${Math.max(progress.purchasePercent, progress.receivePercent, progress.deliverPercent, progress.invoicePercent)}%"></i></div><small style="display:block;margin-top:5px;color:#879189;font-size:7px">${progress.lines.length} partida${progress.lines.length === 1 ? '' : 's'} · ${progress.requested} autorizadas · ${progress.reserved} reservadas</small></div>${stageDisplay(progress.purchased, progress.purchaseRequired, 'compradas')}${stageDisplay(progress.received, progress.purchaseRequired, 'recibidas')}${stageDisplay(progress.delivered, progress.requested, request.type === 'internal_stock' ? 'a stock' : 'entregadas')}<span class="order-status-badge ${stage.id === 'complete' ? 'active' : stage.id === 'cancelled' ? 'cancelled' : 'warning'}">${escapeHtml(stage.label)}</span><button class="order-row-action" data-order-detail="${escapeHtml(request.id)}" title="Abrir expediente"><i data-lucide="arrow-up-right"></i></button></article>`;
     }).join('') || '<div class="order-tracking-empty"><i data-lucide="route-off"></i><strong>No hay órdenes que coincidan</strong><span>Activa un pedido interno derivado de cotización o cambia los filtros.</span></div>';
+    q('#orderTrackingPagination').innerHTML = matches.length > pageSize ? `<button type="button" data-tracking-page="${trackingPage - 1}" ${trackingPage === 1 ? 'disabled' : ''}>Anterior</button><span>Página ${trackingPage} de ${totalPages}</span><button type="button" data-tracking-page="${trackingPage + 1}" ${trackingPage === totalPages ? 'disabled' : ''}>Siguiente</button>` : '';
+    renderTrackingQuickPanel(selected);
     window.lucide?.createIcons();
   }
 
@@ -1424,9 +1471,9 @@
   makeMetricInteractive('supplierOrderMissingCount', 'supplierOrdersView', 'supplierOrderStatusFilter', '', () => setTimeout(() => q('#supplierOrderIssues')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 160));
 
   q('#backToOrders').addEventListener('click', () => document.querySelector('.orders-group [data-view="ordersView"]')?.click());
-  ['orderSearch', 'orderDateFrom', 'orderDateTo'].forEach(id => q(`#${id}`).addEventListener('input', renderOrderDashboard));
-  ['orderStatusFilter', 'orderStageFilter', 'orderResponsibleFilter'].forEach(id => q(`#${id}`).addEventListener('change', renderOrderDashboard));
-  q('#orderFilterReset').addEventListener('click', () => { ['orderSearch', 'orderStatusFilter', 'orderStageFilter', 'orderResponsibleFilter', 'orderDateFrom', 'orderDateTo'].forEach(id => { q(`#${id}`).value = ''; }); renderOrderDashboard(); });
+  ['orderSearch', 'orderDateFrom', 'orderDateTo'].forEach(id => q(`#${id}`).addEventListener('input', () => { trackingPage = 1; renderOrderDashboard(); }));
+  ['orderStatusFilter', 'orderStageFilter', 'orderResponsibleFilter'].forEach(id => q(`#${id}`).addEventListener('change', () => { trackingPage = 1; renderOrderDashboard(); }));
+  q('#orderFilterReset').addEventListener('click', () => { ['orderSearch', 'orderStatusFilter', 'orderStageFilter', 'orderResponsibleFilter', 'orderDateFrom', 'orderDateTo'].forEach(id => { q(`#${id}`).value = ''; }); trackingPage = 1; renderOrderDashboard(); });
   q('#supplierOrderSearch').addEventListener('input', renderSupplierPurchaseOrders);
   q('#supplierOrderStatusFilter').addEventListener('change', renderSupplierPurchaseOrders);
   q('#supplierOrderIssues').addEventListener('click', event => {
@@ -1553,7 +1600,10 @@
 
   q('#backToClientOrders').addEventListener('click', () => document.querySelector('[data-view="salesOrdersView"]')?.click());
   window.BioOrders = { ...(window.BioOrders || {}), openSellerOrderTrace: renderSellerOrderTrace };
-  q('#orderTrackingList').addEventListener('click', event => { const button = event.target.closest('[data-order-detail]'), statusBadge = event.target.closest('.order-status-badge'); if (button) renderOrderDetail(button.dataset.orderDetail); if (statusBadge) { const label = statusBadge.textContent.trim(), match = Object.entries(core.STATUS_LABELS).find(([, shown]) => shown === label)?.[0]; if (match) { q('#orderStatusFilter').value = match; renderOrderDashboard(); } } });
+  q('#orderTrackingList').addEventListener('click', event => { const button = event.target.closest('[data-order-detail]'), row = event.target.closest('[data-tracking-select]'), statusBadge = event.target.closest('.order-status-badge'); if (button) { renderOrderDetail(button.dataset.orderDetail); return; } if (row) { trackingSelectedRequestId = row.dataset.trackingSelect; renderOrderDashboard(); return; } if (statusBadge) { const label = statusBadge.textContent.trim(), match = Object.entries(core.STATUS_LABELS).find(([, shown]) => shown === label)?.[0]; if (match) { q('#orderStatusFilter').value = match; renderOrderDashboard(); } } });
+  q('#orderTrackingPagination').addEventListener('click', event => { const button = event.target.closest('[data-tracking-page]'); if (!button || button.disabled) return; trackingPage = Number(button.dataset.trackingPage); renderOrderDashboard(); });
+  q('#orderTrackingPageSize').addEventListener('change', event => { trackingPageSize = Number(event.target.value) || 25; trackingPage = 1; renderOrderDashboard(); });
+  q('#orderTrackingQuickPanel').addEventListener('click', event => { const detail = event.target.closest('[data-order-detail]'), receipt = event.target.closest('[data-tracking-formal-total-receipt]'), delivery = event.target.closest('[data-tracking-formal-total-delivery]'); if (detail) return renderOrderDetail(detail.dataset.orderDetail); if (receipt) return openQuickReceipt(receipt.dataset.trackingFormalTotalReceipt); if (delivery) return openTotalDeliveryProgress(delivery.dataset.trackingFormalTotalDelivery); });
   q('#deliverySearch').addEventListener('input', renderDeliveries);
   q('#deliveryStatusFilter').addEventListener('change', renderDeliveries);
   q('#deliveryTrackingList').addEventListener('click', event => { const detail = event.target.closest('[data-order-detail]'), documentButton = event.target.closest('[data-delivery-document]'), statusBadge = event.target.closest('.order-status-badge'); if (detail) renderOrderDetail(detail.dataset.orderDetail); if (documentButton) downloadShipmentDocument(documentButton.dataset.deliveryDocument, true); if (statusBadge) { const label = statusBadge.textContent.trim(), match = label.includes('completa') ? 'completed' : label.includes('parcial') ? 'partial' : 'pending'; q('#deliveryStatusFilter').value = match; renderDeliveries(); } });

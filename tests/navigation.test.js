@@ -67,6 +67,22 @@ test('los filtros visibles actualizan resultados y los estados permiten profundi
   for (const stage of ['purchase', 'receive', 'deliver', 'invoice']) assert.match(orders, new RegExp(`stageFilter === '${stage}'`));
 });
 
+test('seguimiento integral usa bandeja paginada y muestra una acción recomendada sin abrir el expediente', () => {
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  const styles = fs.readFileSync(require.resolve('../orders.css'), 'utf8');
+  const settings = fs.readFileSync(require.resolve('../settings.js'), 'utf8');
+  for (const id of ['orderTrackingResultCount', 'orderTrackingPageSize', 'orderTrackingPagination', 'orderTrackingQuickPanel']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(orders, /function trackingRecords\(\)/);
+  assert.match(orders, /const trackingStage\s*=/);
+  assert.match(orders, /function renderTrackingQuickPanel/);
+  assert.match(orders, /openQuickReceipt/);
+  assert.match(orders, /data-tracking-page/);
+  assert.match(styles, /\.tracking-workbench/);
+  assert.match(styles, /\.tracking-quick-panel/);
+  assert.match(settings, /deliveriesView: 'deliver'/);
+});
+
 test('cotizaciones y OC de clientes separan los totales por moneda y comparten acciones comerciales', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
