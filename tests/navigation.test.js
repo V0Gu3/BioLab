@@ -97,6 +97,17 @@ test('entregas usa una bandeja paginada, consulta remisiones bajo demanda y cons
   assert.match(styles, /\.delivery-quick-panel/);
 });
 
+test('seguimiento y entregas conservan el pedido seleccionado al cambiar de bandeja', () => {
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  assert.match(orders, /function openTrackingWorkbench\(requestId\)/);
+  assert.match(orders, /function openDeliveryWorkbench\(requestId\)/);
+  assert.match(orders, /data-open-delivery-workbench/);
+  assert.match(orders, /data-open-tracking-workbench/);
+  assert.match(orders, /link\.hidden\) return notify\('Tu perfil no tiene acceso/);
+  assert.match(orders, /openDeliveryWorkbench\(workbench\.dataset\.openDeliveryWorkbench\)/);
+  assert.match(orders, /openTrackingWorkbench\(workbench\.dataset\.openTrackingWorkbench\)/);
+});
+
 test('cotizaciones y OC de clientes separan los totales por moneda y comparten acciones comerciales', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
