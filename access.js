@@ -49,7 +49,10 @@
           let next = 1;
           return () => { while (used.has(next)) next += 1; used.add(next); return `V-${String(next++).padStart(3, '0')}`; };
         })();
-        parsed.users.forEach(user => { if (user.role === 'seller' && !user.sellerNumber) user.sellerNumber = sellerSequence(); });
+        parsed.users.forEach(user => {
+          if (user.role === 'seller' && !user.sellerNumber) user.sellerNumber = sellerSequence();
+          if (user.role !== 'seller' && user.sellerNumber) delete user.sellerNumber;
+        });
         parsed.version = 4;
         parsed.roleOverrides = parsed.roleOverrides && typeof parsed.roleOverrides === 'object' ? parsed.roleOverrides : {};
         parsed.workspace = parsed.workspace && typeof parsed.workspace === 'object' ? parsed.workspace : {};
@@ -146,10 +149,12 @@
       let next = 1; while (used.has(next)) next += 1; return `V-${String(next).padStart(3, '0')}`;
     };
     const requestedSellerNumber = String(input.sellerNumber || '').trim().toUpperCase();
-    const sellerNumber = role === 'seller' ? (existing?.sellerNumber || (/^V-\d{3,}$/.test(requestedSellerNumber) ? requestedSellerNumber : nextSellerNumber())) : (existing?.sellerNumber || '');
+    const sellerNumber = role === 'seller' ? (existing?.role === 'seller' && existing.sellerNumber ? existing.sellerNumber : (/^V-\d{3,}$/.test(requestedSellerNumber) ? requestedSellerNumber : nextSellerNumber())) : '';
     if (sellerNumber && state.users.some(user => user.id !== input.id && user.sellerNumber === sellerNumber)) return { ok: false, message: 'El número de vendedor ya está asignado a otro usuario.' };
-    if (existing) Object.assign(existing, { name, email, role, sellerNumber, status: input.status || 'active', permissionGrants, permissionDenials, updatedAt: new Date().toISOString() });
-    else state.users.push({ id: `USR-${String(state.users.length + 1).padStart(3, '0')}`, name, email, role, sellerNumber, status: input.status || 'active', permissionGrants, permissionDenials, createdAt: new Date().toISOString() });
+    if (existing) {
+      Object.assign(existing, { name, email, role, status: input.status || 'active', permissionGrants, permissionDenials, updatedAt: new Date().toISOString() });
+      if (role === 'seller') existing.sellerNumber = sellerNumber; else delete existing.sellerNumber;
+    } else state.users.push({ id: `USR-${String(state.users.length + 1).padStart(3, '0')}`, name, email, role, ...(role === 'seller' ? { sellerNumber } : {}), status: input.status || 'active', permissionGrants, permissionDenials, createdAt: new Date().toISOString() });
     persist({ type: existing ? 'user_updated' : 'user_created', entityId: existing?.id || state.users.at(-1).id, before, after: existing ? { ...existing } : { ...state.users.at(-1) }, reason: String(input.reason || '').trim() || undefined });
     return { ok: true };
   };

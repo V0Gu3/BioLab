@@ -39,6 +39,17 @@ test('solo el administrador gestiona usuarios y siempre queda uno activo', () =>
   assert.equal(access.saveUser({ name: 'Sin permiso', email: 'x@probiolab.mx', role: 'seller', status: 'active' }).ok, false);
 });
 
+test('asigna número comercial solo al perfil vendedor y lo elimina al cambiar de perfil', () => {
+  const access = loadAccess();
+  assert.equal(access.saveUser({ name: 'Administración Dos', email: 'admin2@probiolab.mx', role: 'administrator', status: 'active' }).ok, true);
+  assert.equal(access.getState().users.find(user => user.email === 'admin2@probiolab.mx').sellerNumber, undefined);
+  assert.equal(access.saveUser({ name: 'Vendedor Dos', email: 'ventas2@probiolab.mx', role: 'seller', status: 'active' }).ok, true);
+  const seller = access.getState().users.find(user => user.email === 'ventas2@probiolab.mx');
+  assert.match(seller.sellerNumber, /^V-\d{3,}$/);
+  assert.equal(access.saveUser({ ...seller, role: 'supervisor' }).ok, true);
+  assert.equal(access.getState().users.find(user => user.id === seller.id).sellerNumber, undefined);
+});
+
 test('el área de pruebas permite simular otro perfil sin cambiar la sesión real', () => {
   const access = loadAccess({ __BIO_TRAINING__: true, BioAuth: { user: () => ({ id: 'USR-001' }) } });
   assert.equal(access.setCurrentUser('USR-003'), true);
