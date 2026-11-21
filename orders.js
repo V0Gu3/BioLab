@@ -43,6 +43,9 @@
   let trackingPage = 1;
   let trackingPageSize = 25;
   let trackingSelectedRequestId = null;
+  let deliveryPage = 1;
+  let deliveryPageSize = 25;
+  let deliverySelectedRequestId = null;
   let orderDraftLines = [];
   let processedOperationNotice = null;
   const saveStore = nextStore => {
@@ -925,24 +928,48 @@
     window.lucide?.createIcons();
   }
 
+  const deliveryState = progress => progress.delivered <= 0 ? 'pending' : progress.delivered < progress.requested ? 'partial' : 'completed';
+  const deliveryStateLabel = state => ({ pending: 'Pendiente de entrega', partial: 'Entrega parcial', completed: 'Entrega completa' }[state] || 'Por revisar');
+  function deliveryAvailability(progress) {
+    const pending = progress.lines.map(line => ({ line, quantity: Math.max(0, core.numberValue(line.quantityRequested) - core.numberValue(line.quantityCancelled) - core.numberValue(line.quantityDelivered)) })).filter(item => item.quantity > 0);
+    const available = pending.reduce((total, { line }) => total + Math.max(0, core.numberValue(line.reservedQuantity) - core.numberValue(line.quantityDelivered) + core.numberValue(line.quantityAvailableReceived == null ? line.quantityReceived : line.quantityAvailableReceived)), 0);
+    return { pending, available, requested: pending.reduce((total, item) => total + item.quantity, 0), ready: Boolean(pending.length) && pending.every(({ line, quantity }) => core.numberValue(line.reservedQuantity) - core.numberValue(line.quantityDelivered) + core.numberValue(line.quantityAvailableReceived == null ? line.quantityReceived : line.quantityAvailableReceived) >= quantity) };
+  }
+  function deliveryRecords() {
+    return store.requisitions.filter(request => request.type === 'customer_order' && request.status !== 'cancelled' && isOperationalRequest(request)).map(request => {
+      const progress = requestProgress(request), shipments = store.shipments.filter(item => item.requisitionId === request.id), state = deliveryState(progress);
+      return { request, progress, shipments, state, availability: deliveryAvailability(progress), search: linkedText(request) };
+    });
+  }
+  function renderDeliveryQuickPanel(record) {
+    const panel = q('#deliveryQuickPanel'); if (!panel) return;
+    if (!record) { panel.innerHTML = '<div class="delivery-quick-empty"><i data-lucide="truck"></i><strong>Selecciona un pedido</strong><span>Consulta la disponibilidad, la siguiente salida y sus remisiones sin abrir todo el expediente.</span></div>'; return; }
+    const { request, progress, shipments, state, availability } = record, latest = [...shipments].sort((a, b) => String(b.deliveredAt || b.date).localeCompare(String(a.deliveredAt || a.date)))[0];
+    const documents = shipments.slice().sort((a, b) => String(b.deliveredAt || b.date).localeCompare(String(a.deliveredAt || a.date))).slice(0, 3).map(shipment => `<button class="delivery-document" data-delivery-document="${escapeHtml(shipment.id)}"><i data-lucide="file-text"></i>${escapeHtml(shipment.folio || 'Remisión')}</button>`).join('') || '<small class="delivery-no-document">Aún no hay remisiones emitidas.</small>';
+    const action = state !== 'completed' && availability.ready && can('deliver') ? `<button class="delivery-quick-primary" data-delivery-formal-total="${escapeHtml(request.id)}"><i data-lucide="truck-check"></i> Generar remisión total</button>` : '';
+    const readiness = state === 'completed' ? 'Entrega completa; conserva sus documentos y acuse.' : availability.ready ? `${availability.requested} unidad(es) disponibles para la salida pendiente.` : `${availability.available} de ${availability.requested} unidad(es) disponibles; abre el expediente para una entrega parcial.`;
+    panel.innerHTML = `<div class="delivery-quick-head"><small>PEDIDO SELECCIONADO</small><strong>${escapeHtml(request.clientOrderId || request.id)}</strong><span>${escapeHtml(request.customerName || 'Cliente')}</span></div><div class="delivery-quick-next"><small>SITUACIÓN DE ENTREGA</small><strong>${escapeHtml(readiness)}</strong><span class="order-status-badge ${state === 'completed' ? 'active' : state === 'partial' ? 'warning' : ''}">${deliveryStateLabel(state)}</span></div><dl class="delivery-quick-metrics"><div><dt>Entregado</dt><dd>${progress.delivered} / ${progress.requested}</dd></div><div><dt>Pendiente</dt><dd>${availability.requested}</dd></div><div><dt>Remisiones</dt><dd>${shipments.length}</dd></div><div><dt>Última salida</dt><dd>${escapeHtml(latest?.folio || 'Sin emitir')}</dd></div></dl><div class="delivery-quick-documents"><small>DOCUMENTOS RECIENTES</small><div>${documents}</div></div>${action}<button class="delivery-quick-secondary" data-order-detail="${escapeHtml(request.id)}"><i data-lucide="folder-open"></i> Ver expediente completo</button>`;
+  }
   function renderDeliveries() {
-    const requests = store.requisitions.filter(request => request.type === 'customer_order' && request.status !== 'cancelled' && isOperationalRequest(request));
-    const states = requests.map(request => ({ request, progress: requestProgress(request), shipments: store.shipments.filter(item => item.requisitionId === request.id) }));
-    const deliveryState = progress => progress.delivered <= 0 ? 'pending' : progress.delivered < progress.requested ? 'partial' : 'completed';
-    q('#deliveryMetricPending').textContent = states.filter(({ progress }) => deliveryState(progress) === 'pending').length;
-    q('#deliveryMetricPartial').textContent = states.filter(({ progress }) => deliveryState(progress) === 'partial').length;
-    q('#deliveryMetricCompleted').textContent = states.filter(({ progress }) => deliveryState(progress) === 'completed').length;
-    q('#deliveryMetricDocuments').textContent = store.shipments.length;
+    const states = deliveryRecords();
+    q('#deliveryMetricPending').textContent = states.filter(({ state }) => state === 'pending').length;
+    q('#deliveryMetricPartial').textContent = states.filter(({ state }) => state === 'partial').length;
+    q('#deliveryMetricCompleted').textContent = states.filter(({ state }) => state === 'completed').length;
+    q('#deliveryMetricDocuments').textContent = states.reduce((total, record) => total + record.shipments.length, 0);
     const term = searchKey(q('#deliverySearch').value), status = q('#deliveryStatusFilter').value;
-    const matches = states.filter(({ request, progress }) => (!term || linkedText(request).includes(term)) && (!status || deliveryState(progress) === status));
-    q('#deliveryResultCount').textContent = `${matches.length} de ${states.length}`;
-    q('#deliveryTrackingList').innerHTML = matches.map(({ request, progress, shipments }) => {
-      const state = deliveryState(progress), latest = [...shipments].sort((a, b) => String(b.deliveredAt || b.date).localeCompare(String(a.deliveredAt || a.date)))[0];
-      const label = state === 'completed' ? 'Entrega completa' : state === 'partial' ? 'Entrega parcial' : 'Pendiente de entrega';
-      const documents = shipments.map(shipment => `<button class="delivery-document" data-delivery-document="${escapeHtml(shipment.id)}" title="Previsualizar ${escapeHtml(shipment.folio || 'remisión')}"><i data-lucide="file-text"></i>${escapeHtml(shipment.folio || 'Remisión')}</button>`).join('') || '<small class="delivery-no-document">Sin remisión</small>';
-      return `<article class="delivery-tracking-row"><div class="order-request"><strong>${escapeHtml(request.clientOrderId || request.id)} · ${escapeHtml(request.customerName || 'Cliente')}</strong><small>${progress.lines.length} partida${progress.lines.length === 1 ? '' : 's'} · ${progress.requested} ${progress.requested === 1 ? 'unidad' : 'unidades'}</small></div><div class="delivery-progress"><div class="order-progress-bar"><i style="width:${progress.deliverPercent}%"></i></div><small>${progress.delivered} de ${progress.requested} ${progress.requested === 1 ? 'entregada' : 'entregadas'}</small></div><div class="delivery-latest"><strong>${escapeHtml(latest?.folio || 'Sin remisión')}</strong><small>${latest ? formatDate(latest.date || String(latest.deliveredAt || '').slice(0, 10)) : 'Aún no emitida'}</small></div><span class="order-status-badge ${state === 'completed' ? 'active' : state === 'partial' ? 'warning' : ''}">${label}</span><div class="delivery-documents">${documents}</div><button class="order-row-action" data-order-detail="${escapeHtml(request.id)}" title="Abrir expediente"><i data-lucide="arrow-up-right"></i></button></article>`;
+    const matches = states.filter(record => (!term || record.search.includes(term)) && (!status || record.state === status));
+    const pageSize = Math.max(1, Number(q('#deliveryPageSize')?.value || deliveryPageSize)); deliveryPageSize = pageSize;
+    const totalPages = Math.max(1, Math.ceil(matches.length / pageSize)); deliveryPage = Math.min(Math.max(1, deliveryPage), totalPages);
+    const start = (deliveryPage - 1) * pageSize, visible = matches.slice(start, start + pageSize);
+    q('#deliveryResultCount').textContent = matches.length ? `${start + 1}–${Math.min(start + pageSize, matches.length)} de ${matches.length} pedidos` : 'Sin entregas para los filtros actuales';
+    const selected = matches.find(item => item.request.id === deliverySelectedRequestId) || visible[0] || null; deliverySelectedRequestId = selected?.request.id || null;
+    q('#deliveryTrackingList').innerHTML = visible.map(record => {
+      const { request, progress, shipments, state } = record, latest = [...shipments].sort((a, b) => String(b.deliveredAt || b.date).localeCompare(String(a.deliveredAt || a.date)))[0];
+      const documents = latest ? `<button class="delivery-document" data-delivery-document="${escapeHtml(latest.id)}" title="Previsualizar ${escapeHtml(latest.folio || 'remisión')}"><i data-lucide="file-text"></i>${escapeHtml(latest.folio || 'Remisión')}</button>${shipments.length > 1 ? `<small>+${shipments.length - 1}</small>` : ''}` : '<small class="delivery-no-document">Sin remisión</small>';
+      return `<article class="delivery-tracking-row ${request.id === deliverySelectedRequestId ? 'selected' : ''}" data-delivery-select="${escapeHtml(request.id)}"><div class="order-request"><strong>${escapeHtml(request.clientOrderId || request.id)} · ${escapeHtml(request.customerName || 'Cliente')}</strong><small>${progress.lines.length} partida${progress.lines.length === 1 ? '' : 's'} · ${progress.requested} ${progress.requested === 1 ? 'unidad' : 'unidades'}</small></div><div class="delivery-progress"><div class="order-progress-bar"><i style="width:${progress.deliverPercent}%"></i></div><small>${progress.delivered} de ${progress.requested} ${progress.requested === 1 ? 'entregada' : 'entregadas'}</small></div><div class="delivery-latest"><strong>${escapeHtml(latest?.folio || 'Sin remisión')}</strong><small>${latest ? formatDate(latest.date || String(latest.deliveredAt || '').slice(0, 10)) : 'Aún no emitida'}</small></div><span class="order-status-badge ${state === 'completed' ? 'active' : state === 'partial' ? 'warning' : ''}">${deliveryStateLabel(state)}</span><div class="delivery-documents">${documents}</div><button class="order-row-action" data-order-detail="${escapeHtml(request.id)}" title="Abrir expediente"><i data-lucide="arrow-up-right"></i></button></article>`;
     }).join('') || '<div class="order-tracking-empty"><i data-lucide="package-search"></i><strong>No hay entregas que coincidan</strong><span>Cambia el filtro o activa un pedido interno para iniciar el seguimiento.</span></div>';
-    window.lucide?.createIcons();
+    q('#deliveryPagination').innerHTML = matches.length > pageSize ? `<button type="button" data-delivery-page="${deliveryPage - 1}" ${deliveryPage === 1 ? 'disabled' : ''}>Anterior</button><span>Página ${deliveryPage} de ${totalPages}</span><button type="button" data-delivery-page="${deliveryPage + 1}" ${deliveryPage === totalPages ? 'disabled' : ''}>Siguiente</button>` : '';
+    renderDeliveryQuickPanel(selected); window.lucide?.createIcons();
   }
 
   function renderLegacyOrderDetail(requestId) {
@@ -1604,9 +1631,12 @@
   q('#orderTrackingPagination').addEventListener('click', event => { const button = event.target.closest('[data-tracking-page]'); if (!button || button.disabled) return; trackingPage = Number(button.dataset.trackingPage); renderOrderDashboard(); });
   q('#orderTrackingPageSize').addEventListener('change', event => { trackingPageSize = Number(event.target.value) || 25; trackingPage = 1; renderOrderDashboard(); });
   q('#orderTrackingQuickPanel').addEventListener('click', event => { const detail = event.target.closest('[data-order-detail]'), receipt = event.target.closest('[data-tracking-formal-total-receipt]'), delivery = event.target.closest('[data-tracking-formal-total-delivery]'); if (detail) return renderOrderDetail(detail.dataset.orderDetail); if (receipt) return openQuickReceipt(receipt.dataset.trackingFormalTotalReceipt); if (delivery) return openTotalDeliveryProgress(delivery.dataset.trackingFormalTotalDelivery); });
-  q('#deliverySearch').addEventListener('input', renderDeliveries);
-  q('#deliveryStatusFilter').addEventListener('change', renderDeliveries);
-  q('#deliveryTrackingList').addEventListener('click', event => { const detail = event.target.closest('[data-order-detail]'), documentButton = event.target.closest('[data-delivery-document]'), statusBadge = event.target.closest('.order-status-badge'); if (detail) renderOrderDetail(detail.dataset.orderDetail); if (documentButton) downloadShipmentDocument(documentButton.dataset.deliveryDocument, true); if (statusBadge) { const label = statusBadge.textContent.trim(), match = label.includes('completa') ? 'completed' : label.includes('parcial') ? 'partial' : 'pending'; q('#deliveryStatusFilter').value = match; renderDeliveries(); } });
+  q('#deliverySearch').addEventListener('input', () => { deliveryPage = 1; renderDeliveries(); });
+  q('#deliveryStatusFilter').addEventListener('change', () => { deliveryPage = 1; renderDeliveries(); });
+  q('#deliveryPageSize').addEventListener('change', event => { deliveryPageSize = Number(event.target.value) || 25; deliveryPage = 1; renderDeliveries(); });
+  q('#deliveryPagination').addEventListener('click', event => { const button = event.target.closest('[data-delivery-page]'); if (!button || button.disabled) return; deliveryPage = Number(button.dataset.deliveryPage); renderDeliveries(); });
+  q('#deliveryTrackingList').addEventListener('click', event => { const detail = event.target.closest('[data-order-detail]'), documentButton = event.target.closest('[data-delivery-document]'), row = event.target.closest('[data-delivery-select]'); if (detail) return renderOrderDetail(detail.dataset.orderDetail); if (documentButton) return downloadShipmentDocument(documentButton.dataset.deliveryDocument, true); if (row) { deliverySelectedRequestId = row.dataset.deliverySelect; renderDeliveries(); } });
+  q('#deliveryQuickPanel').addEventListener('click', event => { const detail = event.target.closest('[data-order-detail]'), documentButton = event.target.closest('[data-delivery-document]'), delivery = event.target.closest('[data-delivery-formal-total]'); if (detail) return renderOrderDetail(detail.dataset.orderDetail); if (documentButton) return downloadShipmentDocument(documentButton.dataset.deliveryDocument, true); if (delivery) { activeRequestId = delivery.dataset.deliveryFormalTotal; activeDossierTab = 'summary'; return openTotalDeliveryProgress(delivery.dataset.deliveryFormalTotal); } });
   const rememberProgressOrigin = (requestId = activeRequestId, tab = activeDossierTab) => {
     const dialog = q('#orderProgressDialog');
     if (!dialog || !requestId) return;

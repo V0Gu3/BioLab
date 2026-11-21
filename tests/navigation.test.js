@@ -83,6 +83,20 @@ test('seguimiento integral usa bandeja paginada y muestra una acción recomendad
   assert.match(settings, /deliveriesView: 'deliver'/);
 });
 
+test('entregas usa una bandeja paginada, consulta remisiones bajo demanda y conserva la operación formal', () => {
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  const orders = fs.readFileSync(require.resolve('../orders.js'), 'utf8');
+  const styles = fs.readFileSync(require.resolve('../orders.css'), 'utf8');
+  for (const id of ['deliveryPageSize', 'deliveryPagination', 'deliveryQuickPanel']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(orders, /function deliveryRecords\(\)/);
+  assert.match(orders, /function deliveryAvailability\(progress\)/);
+  assert.match(orders, /function renderDeliveryQuickPanel\(record\)/);
+  assert.match(orders, /data-delivery-formal-total/);
+  assert.match(orders, /downloadShipmentDocument\(documentButton\.dataset\.deliveryDocument, true\)/);
+  assert.match(styles, /\.delivery-workbench/);
+  assert.match(styles, /\.delivery-quick-panel/);
+});
+
 test('cotizaciones y OC de clientes separan los totales por moneda y comparten acciones comerciales', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
