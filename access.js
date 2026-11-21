@@ -31,13 +31,27 @@
     workspace: { sandboxEnabled: true, modes: {} },
     audit: []
   });
+  const nextUserId = users => {
+    const used = new Set((users || []).map(user => String(user?.id || '').trim()).filter(Boolean));
+    let next = Math.max(0, ...(users || []).map(user => Number(String(user?.id || '').match(/\d+/)?.[0]) || 0)) + 1;
+    let candidate = `USR-${String(next).padStart(3, '0')}`;
+    while (used.has(candidate)) candidate = `USR-${String(++next).padStart(3, '0')}`;
+    return candidate;
+  };
+  const normalizeUserIds = users => {
+    const used = new Set();
+    (users || []).forEach(user => {
+      const id = String(user?.id || '').trim();
+      if (!id || used.has(id)) user.id = nextUserId([...used].map(value => ({ id: value })));
+      used.add(user.id);
+    });
+  };
   const load = () => {
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if ([1, 2, 3, 4].includes(parsed?.version) && Array.isArray(parsed.users)) {
         if (!parsed.users.some(user => user.role === 'auditor')) {
-          const next = Math.max(0, ...parsed.users.map(user => Number(String(user.id || '').match(/\d+/)?.[0]) || 0)) + 1;
-          parsed.users.push({ id: `USR-${String(next).padStart(3, '0')}`, name: 'Usuario Auditor', email: 'auditoria@probiolab.mx', role: 'auditor', status: 'active', createdAt: new Date().toISOString() });
+          parsed.users.push({ id: nextUserId(parsed.users), name: 'Usuario Auditor', email: 'auditoria@probiolab.mx', role: 'auditor', status: 'active', createdAt: new Date().toISOString() });
           localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
         }
         const sellerSequence = (() => {
@@ -53,6 +67,9 @@
           if (user.role === 'seller' && !user.sellerNumber) user.sellerNumber = sellerSequence();
           if (user.role !== 'seller' && user.sellerNumber) delete user.sellerNumber;
         });
+        // Las cuentas locales pueden sobrevivir a un restablecimiento parcial. Nunca
+        // permitimos que un alta reutilice un identificador ya visible en el selector.
+        normalizeUserIds(parsed.users);
         parsed.version = 4;
         parsed.roleOverrides = parsed.roleOverrides && typeof parsed.roleOverrides === 'object' ? parsed.roleOverrides : {};
         parsed.workspace = parsed.workspace && typeof parsed.workspace === 'object' ? parsed.workspace : {};
@@ -154,7 +171,7 @@
     if (existing) {
       Object.assign(existing, { name, email, role, status: input.status || 'active', permissionGrants, permissionDenials, updatedAt: new Date().toISOString() });
       if (role === 'seller') existing.sellerNumber = sellerNumber; else delete existing.sellerNumber;
-    } else state.users.push({ id: `USR-${String(state.users.length + 1).padStart(3, '0')}`, name, email, role, ...(role === 'seller' ? { sellerNumber } : {}), status: input.status || 'active', permissionGrants, permissionDenials, createdAt: new Date().toISOString() });
+    } else state.users.push({ id: nextUserId(state.users), name, email, role, ...(role === 'seller' ? { sellerNumber } : {}), status: input.status || 'active', permissionGrants, permissionDenials, createdAt: new Date().toISOString() });
     persist({ type: existing ? 'user_updated' : 'user_created', entityId: existing?.id || state.users.at(-1).id, before, after: existing ? { ...existing } : { ...state.users.at(-1) }, reason: String(input.reason || '').trim() || undefined });
     return { ok: true };
   };

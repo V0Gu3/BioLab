@@ -50,6 +50,18 @@ test('asigna número comercial solo al perfil vendedor y lo elimina al cambiar d
   assert.equal(access.getState().users.find(user => user.id === seller.id).sellerNumber, undefined);
 });
 
+test('las altas no reutilizan identificadores después de eliminar una cuenta', () => {
+  const access = loadAccess();
+  assert.equal(access.saveUser({ name: 'Temporal Uno', email: 'temporal1@probiolab.mx', role: 'supervisor', status: 'active' }).ok, true);
+  assert.equal(access.saveUser({ name: 'Temporal Dos', email: 'temporal2@probiolab.mx', role: 'seller', status: 'active' }).ok, true);
+  const first = access.getState().users.find(user => user.email === 'temporal1@probiolab.mx');
+  assert.equal(access.deleteUser(first.id, 'Prueba de consecutivo').ok, true);
+  assert.equal(access.saveUser({ name: 'Temporal Tres', email: 'temporal3@probiolab.mx', role: 'auditor', status: 'active' }).ok, true);
+  const users = access.getState().users;
+  assert.equal(new Set(users.map(user => user.id)).size, users.length);
+  assert.equal(users.find(user => user.email === 'temporal3@probiolab.mx').id, 'USR-007');
+});
+
 test('el área de pruebas permite simular otro perfil sin cambiar la sesión real', () => {
   const access = loadAccess({ __BIO_TRAINING__: true, BioAuth: { user: () => ({ id: 'USR-001' }) } });
   assert.equal(access.setCurrentUser('USR-003'), true);
