@@ -179,6 +179,8 @@ test('Ciclo 5 punto 17 presenta estados, recepciones y folios operativos legible
   assert.match(orders, /supplier_remission:'Remisión del proveedor'/);
   assert.match(orders, /supplier_invoice:'Factura del proveedor'/);
   assert.match(orders, /const receiptTypeLabel/);
+  assert.match(orders, /const movementTypeLabel/);
+  assert.match(orders, /const reservationStatusLabel/);
   assert.match(orders, /receiptAction=rejectedTotal>0\?'receipt_partial':'receipt_total'/);
   assert.match(orders, /acceptedQuantity>0\)next\.inventoryMovements\.push/);
   assert.match(orders, /Sin entrada de almacén/);
