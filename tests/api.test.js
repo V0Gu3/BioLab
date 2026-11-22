@@ -20,7 +20,9 @@ test('identifica el último USD publicado en el historial del Diario Oficial', (
 
 test('Vercel dirige el tablero ejecutivo a una función existente', () => {
   const config = JSON.parse(fs.readFileSync(require.resolve('../vercel.json'), 'utf8'));
+  const faviconRewrite = config.rewrites.find((item) => item.source === '/favicon.ico');
   const rewrite = config.rewrites.find((item) => item.source === '/api/dashboard/executive');
+  assert.equal(faviconRewrite?.destination, '/assets/favicon.svg');
   assert.equal(rewrite?.destination, '/api/internal-orders-handler?__forward_path=dashboard/executive');
 });
 

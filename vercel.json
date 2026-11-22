@@ -8,6 +8,7 @@
     "api/fx/dof-usd.js": { "maxDuration": 30 }
   },
   "rewrites": [
+    { "source": "/favicon.ico", "destination": "/assets/favicon.svg" },
     { "source": "/api/system/reset", "destination": "/api/auth/login?__system=reset" },
     { "source": "/api/auth/passkey/login/options", "destination": "/api/auth/login?__passkey=login-options" },
     { "source": "/api/auth/passkey/login/verify", "destination": "/api/auth/login?__passkey=login-verify" },
