@@ -22,7 +22,7 @@ test('Vercel dirige el tablero ejecutivo a una función existente', () => {
   const config = JSON.parse(fs.readFileSync(require.resolve('../vercel.json'), 'utf8'));
   const faviconRewrite = config.rewrites.find((item) => item.source === '/favicon.ico');
   const rewrite = config.rewrites.find((item) => item.source === '/api/dashboard/executive');
-  assert.equal(faviconRewrite?.destination, '/assets/favicon.svg');
+  assert.equal(faviconRewrite?.destination, '/assets/probiolab-logo-transparent.png');
   assert.equal(rewrite?.destination, '/api/internal-orders-handler?__forward_path=dashboard/executive');
 });
 
@@ -71,7 +71,7 @@ test('expone la API REST sobre PostgreSQL', async () => {
     assert.equal(anonymousHome.status, 302); assert.equal(anonymousHome.headers.get('location'), '/login.html');
     assert.match(await (await fetch(`${base}/login.html`)).text(), /ACCESO RESTRINGIDO|auth\.js/);
     const favicon = await fetch(`${base}/favicon.ico`);
-    assert.equal(favicon.status, 200); assert.equal(favicon.headers.get('content-type'), 'image/svg+xml');
+    assert.equal(favicon.status, 200); assert.equal(favicon.headers.get('content-type'), 'image/png');
     assert.equal((await fetch(`${base}/api/bootstrap`)).status, 401);
     const bootstrapHeaders = { 'Content-Type': 'application/json', 'x-bio-bootstrap-token': bootstrapToken };
     assert.equal((await fetch(`${base}/api/bootstrap`, { headers: bootstrapHeaders }).then(response => response.json())).empty, true);

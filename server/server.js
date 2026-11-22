@@ -619,10 +619,10 @@ async function createApp(options = {}) {
         return response.end();
       }
       // Algunos navegadores solicitan /favicon.ico aunque el HTML ya declare
-      // un icono SVG. Responder el icono ligero evita 404 y transferencias grandes.
+      // un icono PNG. Se sirve el logotipo corporativo para evitar 404.
       if (pathname === '/favicon.ico') {
-        const favicon = path.join(ROOT, 'assets', 'favicon.svg');
-        response.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400, immutable' });
+        const favicon = path.join(ROOT, 'assets', 'probiolab-logo-transparent.png');
+        response.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400, immutable' });
         return request.method === 'HEAD' ? response.end() : response.end(fs.readFileSync(favicon));
       }
       const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, ''), file = path.resolve(ROOT, relative);
