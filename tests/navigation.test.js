@@ -91,8 +91,9 @@ test('entregas usa una bandeja paginada, consulta remisiones bajo demanda y cons
   assert.match(orders, /function deliveryRecords\(\)/);
   assert.match(orders, /function deliveryAvailability\(progress\)/);
   assert.match(orders, /function renderDeliveryQuickPanel\(record\)/);
-  assert.match(orders, /Pendiente de surtir/);
-  assert.match(orders, /Sin existencia disponible\. Primero genera o confirma la compra/);
+  assert.match(orders, /Proveedor pendiente/);
+  assert.match(orders, /No se puede generar la OC: esta partida no tiene una relación activa con proveedor/);
+  assert.match(orders, /data-open-supply-resolution/);
   assert.match(orders, /data-delivery-formal-total/);
   assert.match(orders, /downloadShipmentDocument\(documentButton\.dataset\.deliveryDocument, true\)/);
   assert.match(styles, /\.delivery-workbench/);
