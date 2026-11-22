@@ -151,8 +151,12 @@ test('el expediente Bio concentra la cadena operativa sin duplicar sus registros
   assert.match(orders, /supplierOrderLines\.filter/);
   assert.match(orders, /data-dossier-tab/);
   assert.match(orders, /nextAction: progressMeta\.nextAction/);
+  assert.match(orders, /Recepción total · \$\{escapeHtml\(supplierOrderId\)\}/);
+  assert.match(orders, /dossier-summary-help/);
+  assert.match(orders, /const dossierTotal = data\.currency === 'MULTI'/);
   assert.match(html, /Registrar avance documenta el seguimiento/);
   assert.match(styles, /\.dossier-tabs/);
+  assert.match(styles, /\.dossier-summary-lines/);
   assert.match(styles, /\.dossier-timeline/);
 });
 

@@ -618,6 +618,13 @@ async function createApp(options = {}) {
         response.writeHead(302, { ...SECURITY_HEADERS, Location: '/', 'Cache-Control': 'no-store' });
         return response.end();
       }
+      // Algunos navegadores solicitan /favicon.ico aunque el HTML ya declare
+      // un icono SVG. Responder el icono ligero evita 404 y transferencias grandes.
+      if (pathname === '/favicon.ico') {
+        const favicon = path.join(ROOT, 'assets', 'favicon.svg');
+        response.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400, immutable' });
+        return request.method === 'HEAD' ? response.end() : response.end(fs.readFileSync(favicon));
+      }
       const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, ''), file = path.resolve(ROOT, relative);
       if (!isPublicFile(relative) || !file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return sendJson(response, 404, { ok: false, error: 'Archivo no encontrado.' });
       const staticAsset = /\.(?:js|css|png|jpe?g|svg|ico|webmanifest|pdf|xlsx|mjs)$/i.test(relative);

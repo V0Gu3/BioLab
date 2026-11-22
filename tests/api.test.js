@@ -68,6 +68,8 @@ test('expone la API REST sobre PostgreSQL', async () => {
     const anonymousHome = await fetch(`${base}/`, { redirect: 'manual' });
     assert.equal(anonymousHome.status, 302); assert.equal(anonymousHome.headers.get('location'), '/login.html');
     assert.match(await (await fetch(`${base}/login.html`)).text(), /ACCESO RESTRINGIDO|auth\.js/);
+    const favicon = await fetch(`${base}/favicon.ico`);
+    assert.equal(favicon.status, 200); assert.equal(favicon.headers.get('content-type'), 'image/svg+xml');
     assert.equal((await fetch(`${base}/api/bootstrap`)).status, 401);
     const bootstrapHeaders = { 'Content-Type': 'application/json', 'x-bio-bootstrap-token': bootstrapToken };
     assert.equal((await fetch(`${base}/api/bootstrap`, { headers: bootstrapHeaders }).then(response => response.json())).empty, true);
