@@ -2,7 +2,7 @@
   'use strict';
   const $ = selector => document.querySelector(selector);
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
-  const date = value => value ? new Date(`${String(value).slice(0, 10)}T12:00:00`).toLocaleDateString('es-MX', { dateStyle: 'medium' }) : 'Sin fecha';
+  const date = value => value ? window.BioDeliveryPresentation.format(/^\d{4}-\d{2}-\d{2}$/.test(String(value))?value:window.BioDeliveryPresentation.day(value)) : 'Sin fecha';
   const money = (value, currency = 'MXN') => new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency === 'MULTI' ? 'MXN' : currency, maximumFractionDigits: 2 }).format(Number(value || 0));
   const label = value => ({ draft: 'Borrador', pending: 'Pendiente de activar', active: 'Activo', confirmed: 'Confirmada', purchased: 'Comprada', registered: 'Registrada', total: 'Total', purchasing: 'En compra', partially_purchased: 'Compra parcial', partially_received: 'Recepción parcial', received: 'Recibida', ready_to_deliver: 'Lista para entregar', partially_delivered: 'Entrega parcial', delivered: 'Entregada', closed: 'Finalizado', cancelled: 'Cancelado', none: 'Sin entrega', partial: 'Entrega parcial', complete: 'Entrega completa' }[value] || value || 'Sin estado');
   const className = value => value === 'complete' || ['delivered', 'closed'].includes(value) ? 'ok' : value === 'cancelled' ? 'out' : value === 'partial' ? 'warning' : 'neutral';
@@ -120,7 +120,7 @@
   function reportSheet(rows, name, title, metrics = []) {
     const headers = Object.keys(rows[0] || { Información: 'Sin registros para los filtros seleccionados.' });
     const tableRows = rows.length ? rows.map(row => headers.map(key => /fecha/i.test(key) ? exportDate(row[key]) : row[key] ?? '')) : [['Sin registros para los filtros seleccionados.', ...headers.slice(1).map(() => '')]];
-    const sheet = XLSX.utils.aoa_to_sheet([[title], [exportScope()], [`Generado el ${new Date().toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}`], []]);
+    const sheet = XLSX.utils.aoa_to_sheet([[title], [exportScope()], [`Generado el ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', dateStyle: 'medium', timeStyle: 'short' })}`], []]);
     const metricStart = metrics.length ? 4 : 4, headerRow = metrics.length ? 7 : 4, lastCol = Math.max(0, headers.length - 1), endRow = headerRow + tableRows.length;
     if (metrics.length) { XLSX.utils.sheet_add_aoa(sheet, [metrics.map(metric => metric.label), metrics.map(metric => metric.value), []], { origin: { r: metricStart, c: 0 } }); }
     XLSX.utils.sheet_add_aoa(sheet, [headers, ...tableRows], { origin: { r: headerRow, c: 0 } });
