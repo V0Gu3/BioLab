@@ -167,6 +167,7 @@
     const next = JSON.parse(JSON.stringify(store));let products=[];try{products=JSON.parse(localStorage.getItem('nexo-products')||'[]')}catch{}
     let changed = false;
     clientOrders.forEach((clientOrder, orderIndex) => {
+      if (window.BioCommercialMoney) clientOrder = window.BioCommercialMoney.snapshot(clientOrder, quotations());
       if (!clientOrder?.id || !(clientOrder?.quotationId || clientOrder?.quotationIds?.length)) return;
       const createdAt = clientOrder.createdAtISO || new Date().toISOString();
       let request = next.requisitions.find(item => item.clientOrderId === clientOrder.id || (item.id === clientOrder.id && item.source === 'quotation_client_order'));
@@ -1549,8 +1550,18 @@
   const movementSourceLabel = value => ({ receipt: 'Recepción', shipment: 'Remisión', supplier_order: 'Orden de compra', inventory: 'Movimiento de almacén' })[value] || 'Documento';
   const reconciliationStatusLabel = value => ({ matched: 'Conciliada', pending_invoice: 'Factura pendiente', pending_product_match: 'Producto pendiente de vincular', pending: 'Pendiente de conciliación' })[value] || 'Por revisar';
   const reservationStatusLabel = value => ({ active: 'Activa', consumed: 'Consumida', released: 'Liberada', cancelled: 'Cancelada' })[value] || 'Por revisar';
+  function financialRequestLines(request) {
+    const order = commercialOrders().find(order => order.id === request.clientOrderId || order.id === request.id);
+    const financial = order && window.BioCommercialMoney?.snapshot(order, quotations());
+    return requestLines(request.id).map((line, index) => {
+      const item = financial?.items?.[index];
+      if (!item) return line;
+      const { unitPrice, discount, discountTotal, subtotal, taxable, taxRate, taxAmount, total, currency } = item;
+      return { ...line, unitPrice, discount, discountTotal, subtotal, taxable, taxRate, taxAmount, total, currency };
+    });
+  }
   function dossierData(request) {
-    const lines = requestLines(request.id), lineIds = new Set(lines.map(line => line.id));
+    const lines = financialRequestLines(request), lineIds = new Set(lines.map(line => line.id));
     const supplierLinks = store.supplierOrderLines.filter(link => lineIds.has(link.orderLineId));
     const supplierOrderIds = new Set(supplierLinks.map(link => link.supplierOrderId));
     const supplierOrders = store.supplierOrders.filter(order => supplierOrderIds.has(order.id) || order.requisitionIds?.includes(request.id));
@@ -1635,7 +1646,7 @@
     const requests = store.requisitions.filter(request => clientName && searchKey(request.customerName) === searchKey(clientName)).sort((left, right) => String(right.updatedAt || right.createdAt || '').localeCompare(String(left.updatedAt || left.createdAt || '')));
     activeRequestId = null; activeDossierTab = 'summary'; q('#downloadOrderAudit').hidden = true;
     const records = requests.map(request => {
-      const data = dossierData(request), amount = data.lines.reduce((sum, line) => sum + core.numberValue(line.total), 0);
+      const data = dossierData(request), commercial = commercialOrders().find(order => order.id === request.clientOrderId || order.id === request.id), financial = commercial && window.BioCommercialMoney?.snapshot(commercial, quotations()), amount = financial?.total ?? data.lines.reduce((sum, line) => sum + core.numberValue(line.total), 0);
       const nextAction = data.latest?.nextAction || (data.progress.delivered < data.authorized ? 'Completar surtido y registrar entrega' : 'Validar cierre administrativo');
       return `<article class="dossier-record"><div><strong>${escapeHtml(request.id)} · ${escapeHtml(core.STATUS_LABELS[request.status] || request.status)}</strong><small>${escapeHtml(request.customerReference || request.clientOrderId || request.quotationId || 'Sin referencia comercial')} · ${data.percent}% completado · ${escapeHtml(nextAction)}</small></div><span>${dossierMoney(amount, data.currency)}</span><button type="button" class="order-line-action" data-client-dossier-order="${escapeHtml(request.id)}">Abrir</button></article>`;
     }).join('');

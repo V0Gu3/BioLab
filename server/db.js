@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
+const commercialMoney = require('../commercial-money');
 const { isExpired: quotationIsExpired } = require('../quotation-conversion');
 
 const STATE_KEYS = Object.freeze([
@@ -682,17 +683,7 @@ function quotationTaxRate(quotation) {
   return 16;
 }
 function internalOrderFinancialSnapshot(items, quotations) {
-  const quoteMap = new Map((quotations || []).map(quotation => [String(quotation.id), quotation])), fallbackTaxRate = quotationTaxRate(quotations?.[0]), buckets = new Map();
-  const financialItems = (items || []).map(item => {
-    const sourceQuote = (item.sources || []).map(source => quoteMap.get(String(source.quotationId))).find(Boolean), inheritedTaxRate = sourceQuote ? quotationTaxRate(sourceQuote) : fallbackTaxRate, taxRate = item.taxRate == null || item.taxRate === '' ? inheritedTaxRate : Math.max(0, number(item.taxRate));
-    const quantity = Math.max(0, number(item.quantity)), unitPrice = roundInternalOrderMoney(Math.max(0, number(item.unitPrice))), discount = Math.min(100, Math.max(0, number(item.discount))), subtotal = roundInternalOrderMoney(quantity * unitPrice), explicitDiscount = item.discountTotal ?? item.lineDiscount ?? item.discountAmount, discountTotal = explicitDiscount == null ? roundInternalOrderMoney(subtotal * discount / 100) : roundInternalOrderMoney(Math.min(subtotal, Math.max(0, number(explicitDiscount)))), taxable = roundInternalOrderMoney(subtotal - discountTotal), taxAmount = roundInternalOrderMoney(taxable * taxRate / 100), total = roundInternalOrderMoney(taxable + taxAmount), currency = String(item.currency || 'MXN').toUpperCase();
-    const current = buckets.get(currency) || { currency, subtotal: 0, discountTotal: 0, taxable: 0, taxAmount: 0, total: 0 };
-    for (const [field, value] of Object.entries({ subtotal, discountTotal, taxable, taxAmount, total })) current[field] = roundInternalOrderMoney(current[field] + value);
-    buckets.set(currency, current);
-    return { ...item, currency, discount, taxRate, subtotal, discountTotal, taxable, taxAmount, total, lineTotal: total };
-  });
-  const totalsByCurrency = [...buckets.values()], rates = [...new Set(financialItems.map(item => item.taxRate))], single = totalsByCurrency.length === 1 ? totalsByCurrency[0] : null;
-  return { items: financialItems, totalsByCurrency, currency: totalsByCurrency.length > 1 ? 'MULTI' : (single?.currency || 'MXN'), subtotal: single?.subtotal || 0, discountTotal: single?.discountTotal || 0, taxable: single?.taxable || 0, taxAmount: single?.taxAmount || 0, total: single?.total || 0, taxRate: rates.length === 1 ? rates[0] : null };
+  return commercialMoney.snapshot({ items, quotationIds: quotations.map(quote => quote.id) }, quotations);
 }
 function normalizeInternalOrderItems(items, quotations, products, relations) {
   const quoteMap = new Map(quotations.map(quotation => [String(quotation.id), quotation]));

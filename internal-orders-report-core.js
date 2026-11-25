@@ -1,9 +1,9 @@
 (function (root, factory) {
   'use strict';
-  const api = factory();
+  const api = factory(typeof module === 'object' && module.exports ? require('./commercial-money') : root.BioCommercialMoney);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.BioInternalOrdersReport = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (money) {
   'use strict';
 
 const n = value => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -28,7 +28,7 @@ function buildInternalOrdersReport(state = {}, user, filters = {}) {
   const supplierOrders = Array.isArray(operations.supplierOrders) ? operations.supplierOrders : [];
   const supplierLines = Array.isArray(operations.supplierOrderLines) ? operations.supplierOrderLines : [];
   const shipments = Array.isArray(operations.shipments) ? operations.shipments : [];
-  const clientOrders = Array.isArray(state['nexo-commercial-orders']) ? state['nexo-commercial-orders'] : [];
+  const clientOrders = (Array.isArray(state['nexo-commercial-orders']) ? state['nexo-commercial-orders'] : []).map(order => order.items?.length && money ? money.snapshot(order, state['nexo-sales-quotations'] || []) : order);
   const clients = Array.isArray(state['nexo-clients']) ? state['nexo-clients'] : [];
   const clientById = new Map(clientOrders.map(order => [String(order.id), order]));
   const supplierById = new Map(supplierOrders.map(order => [String(order.id), order]));
@@ -57,8 +57,9 @@ function buildInternalOrdersReport(state = {}, user, filters = {}) {
       const requested = Math.max(0, n(line.quantityRequested) - n(line.quantityCancelled));
       const delivered = deliveredByLine.get(String(line.id)) || 0;
       const purchaseRequired = Math.max(0, requested - n(line.reservedQuantity)), purchased = Math.min(purchaseRequired, Math.max(purchasedByLine.get(String(line.id)) || 0, n(line.quantityPurchased), n(line.quantityReceived), Math.max(0, delivered - n(line.reservedQuantity))));
-      const unitPrice = round(line.unitPrice), subtotal = round(line.subtotal == null ? requested * unitPrice : line.subtotal), taxRate = n(line.taxRate), taxAmount = round(line.taxAmount == null ? subtotal * taxRate / 100 : line.taxAmount), total = round(line.total == null ? subtotal + taxAmount : line.total);
-      return { lineId: line.id, productId: line.productId || null, sku: line.catalog || line.sku || '', product: line.description || 'Producto sin descripción', unit: line.unit || 'unidad', currency: String(line.currency || reportCurrency || 'MXN').toUpperCase(), unitPrice, subtotal, taxRate, taxAmount, total, requested, purchased, delivered, pending: Math.max(0, requested - delivered), overDelivery: Math.max(0, delivered - requested), deliveryStatus: deliveryStatus(requested, delivered, cancelled(request)) };
+      const financialLine = clientOrder.items?.[requestLines.indexOf(line)] || line;
+      const unitPrice = round(financialLine.unitPrice), subtotal = round(financialLine.subtotal == null ? requested * unitPrice : financialLine.subtotal), taxRate = n(financialLine.taxRate), taxAmount = round(financialLine.taxAmount == null ? subtotal * taxRate / 100 : financialLine.taxAmount), total = round(financialLine.total == null ? subtotal + taxAmount : financialLine.total);
+      return { lineId: line.id, productId: line.productId || null, sku: line.catalog || line.sku || '', product: line.description || 'Producto sin descripción', unit: line.unit || 'unidad', currency: String(line.currency || reportCurrency || 'MXN').toUpperCase(), unitPrice, subtotal, discount: n(financialLine.discount), discountTotal: round(financialLine.discountTotal), taxRate, taxAmount, total, requested, purchased, delivered, pending: Math.max(0, requested - delivered), overDelivery: Math.max(0, delivered - requested), deliveryStatus: deliveryStatus(requested, delivered, cancelled(request)) };
     });
     const supplierOrderIds = [...new Set(relatedSupplierLines.map(link => String(link.supplierOrderId)))];
     const purchaseOrders = supplierOrderIds.map(id => {
