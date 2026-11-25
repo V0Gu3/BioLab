@@ -197,7 +197,7 @@ test('Ciclo 5 punto 18 sincroniza contadores y corrige textos comerciales', () =
   assert.match(internalOrders, /state\.quotations = availableQuotationsFor\(client\)/);
   assert.doesNotMatch(internalOrders, /fetch\(`\/api\/internal-orders\/clients\/\$\{encodeURIComponent\(client\.id\)\}\/quotations/);
   assert.match(orders, /dossierTab\('timeline','Línea de tiempo',timelineEntries\.length/);
-  assert.match(app, /differenceCount===1\?'la 1 diferencia detectada'/);
+  assert.match(app, /differenceCount===1\?'la diferencia detectada'/);
   assert.match(app, /showToast\.lastMessage===message/);
   assert.match(formValidation, /El descuento\$\{product \? ` de \$\{product\}` : ''\} no puede superar el/);
   assert.doesNotMatch(internalOrders, /`\$\{currency\} \$\{total\.toLocaleString/);

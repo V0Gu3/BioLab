@@ -10,7 +10,7 @@
     const raw = text(value), dateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (dateOnly) return { date: `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`, time: 'Sin hora' };
     const parsed = new Date(raw); if (Number.isNaN(parsed.getTime()) || parsed.getFullYear() <= 1970) return { date: 'Registro histórico', time: 'Sin fecha exacta' };
-    return { date: parsed.toLocaleDateString('es-MX'), time: parsed.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) };
+    return { date: parsed.toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' }), time: parsed.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit' }) };
   };
   const labels = { document: 'Documento', movement: 'Movimiento', operation: 'Operación', currency: 'Divisas', access: 'Acceso' };
   const icons = { document: 'file-check-2', movement: 'arrow-right-left', operation: 'workflow', currency: 'landmark', access: 'key-round' };
@@ -28,7 +28,7 @@
 
   function collect() {
     const operational = read('nexo-order-operations-v1', {}), rows = [];
-    (operational.auditLog || []).forEach(item => rows.push(record('operation', 'Flujo operativo', item, { reference: item.reference || item.entityId })));
+    (operational.auditLog || []).forEach(item => rows.push(record('operation', 'Flujo operativo', item, { title: root.BioOrderLabels?.auditActionLabel(item.action) || item.action, reference: item.reference || item.entityId })));
     (operational.inventoryMovements || []).forEach(item => rows.push(record('movement', 'Inventario operativo', item, { title: `${item.type === 'entry' ? 'Entrada' : 'Salida'} de almacén`, reference: item.sourceDocumentId || item.requisitionId, detail: `${item.catalog || 'Producto'} · ${item.quantity || 0} uds. · ${item.reason || ''}`, downloadKind: 'inventory', downloadId: item.id })));
     (read('nexo-movements', []) || []).forEach(item => rows.push(record('movement', 'Movimientos', item, { reference: item.detail, detail: `${item.title || item.type || 'Movimiento'}${item.evidence?.length ? ` · ${item.evidence.length} evidencia${item.evidence.length === 1 ? '' : 's'} con huella SHA-256` : ''}` })));
 

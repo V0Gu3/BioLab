@@ -9,7 +9,8 @@
     title?.querySelectorAll('em').forEach(hint => hint.remove());
     return title?.textContent?.replace(/\*/g, '').replace(/obligatori[oa]/ig, '').trim() || field.getAttribute('aria-label') || field.name || 'Este campo';
   };
-  const errorId = field => `field-error-${escapeId(field.id || field.name || Math.random().toString(36).slice(2))}`;
+  const fieldIds = new WeakMap(); let fieldSequence = 0;
+  const errorId = field => { if (!fieldIds.has(field)) fieldIds.set(field, `field-error-${escapeId(field.id || field.name || `control-${++fieldSequence}`)}`); return fieldIds.get(field); };
   const contactKind = field => field?.type === 'email' || /(?:email|correo|mail)/i.test(`${field?.id || ''} ${field?.name || ''}`) ? 'email' : (field?.type === 'tel' || /(?:phone|telefono|teléfono|celular|móvil|movil)/i.test(`${field?.id || ''} ${field?.name || ''}`) ? 'phone' : '');
   const validEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(value);
   const validPhone = value => { const raw = String(value || '').trim(), digits = raw.replace(/\D/g, ''); return (digits.length === 10) || (digits.length === 12 && digits.startsWith('52')) || (/^\+/.test(raw) && digits.length >= 8 && digits.length <= 15); };
@@ -29,7 +30,7 @@
     }
     if (field.validity.rangeOverflow) {
       if (field.dataset.field === 'discount' || /descuento/i.test(`${field.id || ''} ${field.name || ''} ${field.getAttribute('aria-label') || ''}`)) {
-        const product = String(field.getAttribute('aria-label') || '').replace(/^descuento\s+de\s+/i, '').trim();
+        const raw = String(field.getAttribute('aria-label') || '').trim(), product = /^descuento\s+de\s+/i.test(raw) ? raw.replace(/^descuento\s+de\s+/i, '').trim() : '';
         return `El descuento${product ? ` de ${product}` : ''} no puede superar el ${field.max || 100}%.`;
       }
       return `${fieldName(field)} supera el máximo permitido.`;
@@ -41,11 +42,16 @@
     if (!field) return;
     const label = labelFor(field), message = label?.querySelector(`#${CSS.escape(errorId(field))}`);
     field.classList.remove('field-invalid'); field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); label?.classList.remove('field-has-error'); message?.remove();
+    const form = field.form || field.closest('form');
+    if (form && !form.querySelector('.field-invalid')) form.querySelector('.form-validation-notice')?.remove();
+    const toast = document.querySelector('#toast'); if (toast?.dataset.validationFor === errorId(field)) { toast.classList.remove('show'); delete toast.dataset.validationFor; }
   }
   function setFieldError(field, message) {
     if (!field) return false;
     const label = labelFor(field); if (!label) return false;
-    const id = errorId(field); clearFieldError(field);
+    const id = errorId(field), existing = label.querySelector(`#${CSS.escape(id)}`);
+    if (existing?.textContent === (message || messageFor(field))) return false;
+    clearFieldError(field);
     field.classList.add('field-invalid'); field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', id); label.classList.add('field-has-error');
     const help = document.createElement('small'), icon = document.createElement('i'); help.id = id; help.className = 'field-error-message'; help.setAttribute('role', 'alert'); icon.dataset.lucide = 'triangle-alert'; help.append(icon, document.createTextNode(message || messageFor(field))); label.append(help); window.lucide?.createIcons(); return false;
   }
@@ -66,7 +72,7 @@
     invalid.forEach(field => { for (let parent = field.parentElement; parent && parent !== form; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true; });
     const banner = document.createElement('div'); banner.className = 'form-validation-notice'; banner.setAttribute('role', 'alert'); banner.innerHTML = '<i data-lucide="triangle-alert"></i>Revisa los campos obligatorios marcados en rojo.'; form.querySelector('.modal-body, .order-dialog-body, .quotation-builder')?.prepend(banner); window.lucide?.createIcons();
     if (focus) { invalid[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); invalid[0].focus({ preventScroll: true }); }
-    if (typeof window.showToast === 'function') window.showToast(messageFor(invalid[0]), 'error');
+    if (typeof window.showToast === 'function') { window.showToast(messageFor(invalid[0]), 'error'); const toast=document.querySelector('#toast'); if(toast)toast.dataset.validationFor=errorId(invalid[0]); }
     return false;
   }
   function hydrate(form) {
@@ -80,9 +86,10 @@
   }
   document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('form').forEach(hydrate));
   document.addEventListener('invalid', event => { if (event.target.matches?.(controlSelector)) { event.preventDefault(); setFieldError(event.target, messageFor(event.target)); } }, true);
-  document.addEventListener('blur', event => { if (event.target.matches?.(requiredControlSelector) || contactKind(event.target)) validateField(event.target); }, true);
-  document.addEventListener('input', event => { const field = event.target; if (!field.matches?.(controlSelector)) return; if (field.dataset.phoneDigits === '10') field.value = field.value.replace(/\D/g, '').slice(0, 10); if (field.classList.contains('field-invalid')) validateField(field); });
-  document.addEventListener('change', event => { if (event.target.matches?.(controlSelector)) validateField(event.target); });
+  document.addEventListener('blur', event => { const field=event.target; if(field.dataset?.validationTouched==='true' && (field.matches?.(requiredControlSelector) || contactKind(field))) validateField(field); }, true);
+  document.addEventListener('input', event => { const field = event.target; if (!field.matches?.(controlSelector)) return; field.dataset.validationTouched='true'; if (field.dataset.phoneDigits === '10') field.value = field.value.replace(/\D/g, '').slice(0, 10); if (field.classList.contains('field-invalid')) validateField(field); },true);
+  document.addEventListener('change', event => { const field=event.target; if(field.matches?.(controlSelector)&&(field.value||field.dataset.validationTouched==='true'||field.classList.contains('field-invalid'))) { field.dataset.validationTouched='true'; validateField(field); } });
+  document.addEventListener('reset',event=>{const form=event.target;form.querySelectorAll(controlSelector).forEach(field=>{clearFieldError(field);delete field.dataset.validationTouched});form.querySelector('.form-validation-notice')?.remove();},true);
   document.addEventListener('submit', event => { const form = event.target; if (!(form instanceof HTMLFormElement)) return; hydrate(form); if (!validateForm(form)) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
   window.BioFormValidation = { markRequired, validateField, validateForm, setFieldError, clearFieldError, hydrate, validEmail, validPhone };
 })();
