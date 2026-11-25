@@ -103,7 +103,22 @@
     return bootstrapPromise;
   }
 
+  let flushPromise = null;
   async function flush(options = {}) {
+    if (flushPromise) {
+      const result = await flushPromise;
+      if (!result && options.throwOnError) throw new Error(status.error || 'No fue posible sincronizar los cambios.');
+      return result && (flushPromise || pending.size) ? flush(options) : result;
+    }
+    clearTimeout(timer);
+    const operation = flushPending(options);
+    flushPromise = operation;
+    let result;
+    try { result = await operation; }
+    finally { if (flushPromise === operation) flushPromise = null; }
+    return result && pending.size ? flush(options) : result;
+  }
+  async function flushPending(options = {}) {
     const throwOnError = options.throwOnError === true;
     timer = null;
     if (!status.connected) {

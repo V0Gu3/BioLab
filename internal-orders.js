@@ -143,7 +143,8 @@
   function reflectQuotationConversion(order, required = false) {
     const ids = new Set((order.quotationIds || [order.quotationId]).filter(Boolean).map(String)), saved = quotations(), at = new Date().toISOString();
     const next = saved.map(quote => ids.has(String(quote.id)) ? { ...quote, commercialOrderId: order.id, internalOrderId: order.id, convertedAt: quote.convertedAt || at, ...(required ? { status: 'required', locked: true, requiredAtISO: quote.requiredAtISO || at } : {}) } : quote);
-    localStorage.setItem('nexo-sales-quotations', JSON.stringify(next));
+    const reflect = () => localStorage.setItem('nexo-sales-quotations', JSON.stringify(next));
+    if (window.BioPersistence?.suspendWrites) window.BioPersistence.suspendWrites(reflect); else reflect();
     window.dispatchEvent(new CustomEvent('bio:quotation-converted', { detail: { orderId: order.id, quotationIds: [...ids], required, at } }));
   }
   function reflectSavedOrder(order) {
@@ -176,6 +177,7 @@
     const controls = [$('#saveInternalOrderDraft'), $('#activateInternalOrder')]; controls.forEach(button => { button.disabled = true; });
     const request = state.id ? { url: `/api/internal-orders/${encodeURIComponent(state.id)}`, method: 'PUT' } : { url: '/api/internal-orders', method: 'POST' };
     try {
+      await window.BioPersistence?.flush?.({ throwOnError: true });
       let response = await fetch(request.url, { method: request.method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload(varianceAcknowledgement)) });
       let body = await response.json(); if (!response.ok) throw new Error(body.error || 'No fue posible guardar el borrador.'); state.id = body.data.id; reflectSavedOrder(body.data); reflectQuotationConversion(body.data);
       if (!activate) { const savedId = state.id; reset(); toast(`Borrador ${savedId} guardado correctamente. Nuevo pedido interno quedó listo para una captura nueva.`); return; }
@@ -189,6 +191,7 @@
     if (state.submitting) return;
     state.submitting = true;
     try {
+      await window.BioPersistence?.flush?.({ throwOnError: true });
       const response = await fetch(`/api/internal-orders/${encodeURIComponent(orderId)}/activate`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acceptance: { type: 'customer_po', reference: acceptanceReference } }) });
       const body = await response.json(); if (!response.ok) throw new Error(body.error || 'No fue posible activar el pedido.'); await continueAfterActivation(body.data);
     } catch (error) { toast(error.message); }
