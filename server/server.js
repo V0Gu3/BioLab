@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const inventoryProof = require('../inventory-proof');
+const clientReadiness = require('../client-readiness');
 const { openDatabase, readState, readStateKeys, stateEgressDiagnostics, saveState, saveStates, importSnapshot, resetOperationalData, emptyTrainingState, listResource, listAudit, createApproval, listApprovals, decideApproval, executiveDashboard, operationalAlerts, listClientQuotations, createInternalOrder, updateInternalOrder, activateInternalOrder, STATE_KEYS } = require('./db');
 const { assess: assessQuotationConversion } = require('../quotation-conversion');
 const { currentUser, login, createSessionForUser, setupReady, setupAdministrator, setPassword, sessionCookie, clearSession, clearUserSessions, verifyUserPassword } = require('./auth');
@@ -252,6 +253,7 @@ async function readPermissionState(db) {
 async function readWriteContext(db, stateKeys, workspace = 'operational') {
   const keys = [...new Set((stateKeys || []).filter(key => STATE_KEYS.includes(key)))];
   const workspaceKeys = keys.filter(key => key !== 'nexo-access-v1');
+  if(keys.includes('nexo-sales-quotations')&&!workspaceKeys.includes('nexo-clients'))workspaceKeys.push('nexo-clients');
   const [permissionState, workspaceState] = await Promise.all([
     readPermissionState(db),
     workspaceKeys.length ? readStateKeys(db, workspaceKeys, workspace) : Promise.resolve({})
@@ -464,6 +466,7 @@ async function createApp(options = {}) {
         const workspace = requestedWorkspace(request), body = await readJson(request), entries = Object.entries(body.state || {});
         if (!entries.length || entries.length > STATE_KEYS.length || entries.some(([key]) => !STATE_KEYS.includes(key))) return sendJson(response, 400, { ok: false, error: 'El lote de cambios no es válido.' });
         const { permissionState, currentState } = await readWriteContext(db, entries.map(([key]) => key), workspace), prepared = [];
+        const submittedClients=entries.find(([key])=>key==='nexo-clients')?.[1],proposedClients=submittedClients?(authenticated.role==='seller'?mergeSellerPortfolio(currentState['nexo-clients'],submittedClients,authenticated,'nexo-clients'):submittedClients):(currentState['nexo-clients']||[]);
         for (const [stateKey, candidate] of entries) {
           const permission = STATE_PERMISSIONS[stateKey];
           if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: `Tu perfil no tiene permiso para modificar ${stateKey}.` });
@@ -472,6 +475,7 @@ async function createApp(options = {}) {
           if (stateKey === 'nexo-movements') inventoryProof.assertNewMovements(currentState[stateKey] || [], candidate);
           const payload = authenticated.role === 'seller' && SELLER_WRITE_OWNED_KEYS.has(stateKey) ? mergeSellerPortfolio(currentState[stateKey], candidate, authenticated, stateKey) : candidate;
           if (stateKey === 'nexo-sales-quotations') enforceRequiredQuotationLock(currentState, payload);
+          if (stateKey === 'nexo-sales-quotations') clientReadiness.assertNewQuotations(currentState[stateKey]||[],payload,proposedClients,permissionState['nexo-access-v1']?.users||[]);
           if (stateKey === 'nexo-commercial-orders') enforceActivatedOrderLock(currentState, payload);
           prepared.push([stateKey, payload]);
         }
@@ -489,6 +493,7 @@ async function createApp(options = {}) {
         if (stateKey === 'nexo-movements') inventoryProof.assertNewMovements(currentState[stateKey] || [], body.payload);
         const payload = authenticated.role === 'seller' && SELLER_WRITE_OWNED_KEYS.has(stateKey) ? mergeSellerPortfolio(currentState[stateKey], body.payload, authenticated, stateKey) : body.payload;
         if (stateKey === 'nexo-sales-quotations') enforceRequiredQuotationLock(currentState, payload);
+        if (stateKey === 'nexo-sales-quotations') clientReadiness.assertNewQuotations(currentState[stateKey]||[],payload,currentState['nexo-clients']||[],permissionState['nexo-access-v1']?.users||[]);
         if (stateKey === 'nexo-commercial-orders') enforceActivatedOrderLock(currentState, payload);
         const revision = await saveState(db, stateKey, payload, authenticated.name, authenticated.id, workspace);
         if (stateKey === 'nexo-access-v1') for (const user of payload.users || []) if (user.status !== 'active') await clearUserSessions(db, user.id);

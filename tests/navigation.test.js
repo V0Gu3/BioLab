@@ -236,9 +236,10 @@ test('Nuevo cliente usa un modal completo y no una captura emergente', () => {
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
   const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
   assert.match(html, /id="newClientDialog"/);
-  for (const id of ['newClientName', 'newClientContact', 'newClientPhone', 'newClientEmail', 'newClientAddress', 'newClientRfc']) {
+  for (const id of ['newClientName', 'newClientContact', 'newClientPhone', 'newClientEmail', 'newClientAddress']) {
     assert.match(html, new RegExp(`id="${id}"[^>]*required`));
   }
+  assert.doesNotMatch(html, /id="newClientRfc"[^>]*required/);
   assert.match(app, /\$\('#newClientDialog'\)\.showModal\(\)/);
   assert.match(app, /\$\('#newClientForm'\)\.addEventListener\('submit'/);
   assert.match(app, /address,location:address,rfc/);

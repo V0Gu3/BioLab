@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { createApp, parseDofUsdIndicator, dofUsdHistoryUrl, dofPublicationMetadata, enforceActivatedOrderLock, enforceRequiredQuotationLock, assertDocumentHistoryStable } = require('../server/server');
 const { createTestDatabase } = require('./helpers/postgres');
+const { saveState } = require('../server/db');
 
 test('identifica el USD y la fecha publicados por el Diario Oficial', () => {
   const result = parseDofUsdIndicator('<section>Tipo de Cambio y Tasas al 15/10/2026 <span class="texto">DOLAR</span> <br /> 18.4888</section>');
@@ -133,6 +134,14 @@ test('expone la API REST sobre PostgreSQL', async () => {
       { id: 'CLI-SELLER', name: 'Cartera vendedor', ownerId: 'USR-005', ownerName: 'Nuevo usuario' }
     ];
     assert.equal((await fetch(`${base}/api/state/nexo-clients`, { method: 'PUT', headers, body: JSON.stringify({ payload: clientPortfolio }) })).status, 200);
+    assert.equal((await fetch(`${base}/api/state/nexo-sales-quotations`, { method: 'PUT', headers, body: JSON.stringify({ payload: [{ id: 'COT-BLOCKED', client: 'Cartera administración' }] }) })).status, 409);
+    // El histórico sigue visible aunque su responsable anterior sea administrador.
+    await saveState(db, 'nexo-sales-quotations', [{ id: 'COT-ADMIN', client: 'Cartera administración', ownerId: 'USR-001' }]);
+    const pendingTrainingClient={id:'CLI-PENDING',name:'Cliente pendiente',rfc:''};
+    assert.equal((await fetch(`${base}/api/state/nexo-clients`,{method:'PUT',headers:trainingHeaders,body:JSON.stringify({payload:[pendingTrainingClient]})})).status,200);
+    const newTrainingQuote={id:'COT-TRAINING',clientId:pendingTrainingClient.id,client:pendingTrainingClient.name};
+    assert.equal((await fetch(`${base}/api/state/nexo-sales-quotations`,{method:'PUT',headers:trainingHeaders,body:JSON.stringify({payload:[newTrainingQuote]})})).status,409);
+    assert.equal((await fetch(`${base}/api/state-batch`,{method:'PUT',headers:trainingHeaders,body:JSON.stringify({state:{'nexo-clients':[{...pendingTrainingClient,ownerId:'USR-005'}],'nexo-sales-quotations':[newTrainingQuote]}})})).status,200);
     assert.equal((await fetch(`${base}/api/state/nexo-sales-quotations`, { method: 'PUT', headers, body: JSON.stringify({ payload: [{ id: 'COT-ADMIN', client: 'Cartera administración', ownerId: 'USR-001' }, { id: 'COT-SELLER', client: 'Cartera vendedor', ownerId: 'USR-005' }] }) })).status, 200);
     const receiverLogin = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'recepcion@probiolab.test', password: 'Contraseña-recepcion-123' }) });
     const receiverHeaders = { Cookie: receiverLogin.headers.get('set-cookie'), 'Content-Type': 'application/json' }, receiverBootstrapResponse = await fetch(`${base}/api/bootstrap`, { headers: receiverHeaders }), receiverBootstrapEtag = receiverBootstrapResponse.headers.get('etag'), receiverBootstrap = await receiverBootstrapResponse.json();
