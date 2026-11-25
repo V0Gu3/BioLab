@@ -1043,6 +1043,29 @@
   const trackingTypes = { follow_up: 'Seguimiento realizado', status_change: 'Cambio de estado', commitment: 'Compromiso o próxima acción', document: 'Documento recibido', incident: 'Incidencia o bloqueo', other: 'Otro' };
   const formalTypes = { receipt: 'Registrar recepción', delivery: 'Generar remisión', invoice: 'Registrar factura', cancel: 'Cancelar partida' };
   const formField = id => q(`#${id}`)?.closest('.field');
+  const trackingFieldSlots = new Map();
+  function showRequiredTrackingFields(mode) {
+    const optional = q('#trackingOptionalFields'), grid = q('.order-progress-grid');
+    if (!optional || !grid) return;
+    let visible = q('#trackingRequiredFields');
+    if (!visible) {
+      visible = document.createElement('section'); visible.id = 'trackingRequiredFields'; visible.className = 'receipt-extra-fields wide';
+      visible.innerHTML = '<div class="receipt-extra-heading"><strong>Datos obligatorios del seguimiento</strong></div><div class="receipt-extra-grid"></div>';
+      optional.before(visible);
+    }
+    trackingFieldSlots.forEach((slot, field) => slot.after(field));
+    if (mode === 'tracking') optional.querySelectorAll('input[required],select[required],textarea[required]').forEach(input => {
+      const field = input.closest('.field'); if (!field || field.hidden) return;
+      if (!trackingFieldSlots.has(field)) { const slot = document.createComment('Ubicación del campo opcional'); field.before(slot); trackingFieldSlots.set(field, slot); }
+      visible.querySelector('.receipt-extra-grid').append(field);
+    });
+    visible.hidden = mode !== 'tracking' || !visible.querySelector('input,select,textarea');
+    ['orderProgressNotes','orderProgressBlockers'].forEach(id => {
+      const input = q(`#${id}`), label = formField(id)?.querySelector('span'); if (!input || !label) return;
+      const name = id === 'orderProgressNotes' ? 'Descripción del avance' : 'Bloqueos u observaciones';
+      label.innerHTML = `${name} <em>${input.required ? 'obligatorio' : 'opcional'}</em>`;
+    });
+  }
   const toggleReceiptFields = () => {
     const storedMode=q('#orderProgressForm').dataset.mode||'tracking',mode=storedMode.startsWith('formal-total-')?'formal':storedMode,totalReceipt=storedMode==='formal-total-receipt',type = q('#orderProgressType').value, receipt = mode === 'formal' && type === 'receipt', delivery = mode === 'formal' && type === 'delivery';
     q('#receiptExtraFields').hidden = !receipt; q('#deliveryExtraFields').hidden = !delivery; q('#deliveryRecipient').required = delivery; q('#trackingExtraFields').hidden = mode === 'formal'; q('#trackingOptionalFields').hidden = mode === 'formal';
@@ -1056,6 +1079,7 @@
     const validation = window.BioFormValidation; const mark = (id, required) => { const field = q(`#${id}`); if (!field) return; validation?.markRequired(field, required); if (!required) validation?.clearFieldError(field); };
     mark('orderProgressNotes', mode === 'tracking'); mark('orderProgressNextAction', mode === 'tracking' && type === 'commitment'); mark('orderProgressCommitmentDate', mode === 'tracking' && type === 'commitment'); mark('orderProgressBlockers', mode === 'tracking' && type === 'incident'); mark('orderProgressAssignee', mode === 'tracking' && ['commitment', 'incident'].includes(type)); mark('orderProgressEvidence', mode === 'tracking' && ['document', 'incident'].includes(type)); mark('orderProgressStatus', mode === 'tracking' && needsStatus); mark('orderProgressQuantity', mode === 'formal' && !totalReceipt); mark('orderProgressReference', mode === 'formal' && ['receipt', 'invoice', 'account_charge'].includes(type));
     mark('receiptEvidence', receipt); mark('receiptShortageResolution', !q('#receiptShortageField').hidden); mark('receiptShortageCommitment', !q('#receiptShortageField').hidden); mark('receiptShortageNotes', !q('#receiptShortageField').hidden && ['other_supplier', 'substitution', 'supplier_unavailable', 'authorized_cancellation'].includes(q('#receiptShortageResolution').value)); mark('deliveryRecipient', mode === 'formal' && type === 'delivery'); mark('deliveryEvidence', mode === 'formal' && type === 'delivery');
+    showRequiredTrackingFields(mode);
     q('#orderProgressReferenceLabel').textContent = ({ receipt: 'Remisión del proveedor', delivery: 'Folio de remisión generado por PROBIOLAB', invoice: 'Folio de factura', cancel: 'Motivo / autorización' })[type] || 'Documento / referencia';
     q('#orderProgressReference').placeholder = ({ receipt: 'Captura el folio impreso en la remisión del proveedor', delivery: 'Se genera automáticamente al emitir la remisión', invoice: 'Folio de factura', account_charge: 'Referencia de manejo de cuenta', cancel: 'Motivo o autorización' })[type] || 'Documento o referencia';
     q('#orderProgressReference').readOnly = mode === 'formal' && type === 'delivery';
@@ -1076,7 +1100,7 @@
     const typeLabel = formField('orderProgressType')?.querySelector('span');
     if (typeLabel && !typeLabel.dataset.tooltip) { typeLabel.classList.add('progress-field-help'); typeLabel.dataset.tooltip = 'Selecciona el tipo de actualización que estás registrando en el pedido.'; typeLabel.tabIndex = 0; }
     if (grid && tracking && !q('#trackingOptionalFields')) {
-      const details = document.createElement('details'); details.id = 'trackingOptionalFields'; details.className = 'order-progress-optional wide'; details.innerHTML = '<summary>Más opciones: responsable, resultado y evidencia</summary>';
+      const details = document.createElement('details'); details.id = 'trackingOptionalFields'; details.className = 'order-progress-optional wide'; details.innerHTML = '<summary>Más opciones de seguimiento</summary>';
       tracking.parentNode.insertBefore(details, tracking); details.append(tracking);
       const blockers = formField('orderProgressBlockers'); if (blockers) details.append(blockers);
     }

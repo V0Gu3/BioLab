@@ -4,7 +4,11 @@
   const requiredControlSelector = 'input[required], select[required], textarea[required]';
   const escapeId = value => String(value || '').replace(/[^a-zA-Z0-9_-]/g, '-');
   const labelFor = field => field.closest('label.field, label') || field.closest('.field') || field.parentElement;
-  const fieldName = field => labelFor(field)?.querySelector('span, .field-label')?.textContent?.replace(/\*/g, '').replace(/obligatorio/ig, '').trim() || field.getAttribute('aria-label') || field.name || 'Este campo';
+  const fieldName = field => {
+    const title = labelFor(field)?.querySelector('span, .field-label')?.cloneNode(true);
+    title?.querySelectorAll('em').forEach(hint => hint.remove());
+    return title?.textContent?.replace(/\*/g, '').replace(/obligatori[oa]/ig, '').trim() || field.getAttribute('aria-label') || field.name || 'Este campo';
+  };
   const errorId = field => `field-error-${escapeId(field.id || field.name || Math.random().toString(36).slice(2))}`;
   const contactKind = field => field?.type === 'email' || /(?:email|correo|mail)/i.test(`${field?.id || ''} ${field?.name || ''}`) ? 'email' : (field?.type === 'tel' || /(?:phone|telefono|teléfono|celular|móvil|movil)/i.test(`${field?.id || ''} ${field?.name || ''}`) ? 'phone' : '');
   const validEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(value);
@@ -17,7 +21,7 @@
     if (title) title.classList.toggle('field-required', Boolean(required));
   }
   function messageFor(field) {
-    if (field.validity.valueMissing) return `${fieldName(field)} es obligatorio.`;
+    if (field.validity.valueMissing) return field.type === 'file' ? 'Adjunta al menos un archivo de evidencia.' : `Completa el campo «${fieldName(field)}».`;
     if (field.validity.typeMismatch) return field.type === 'email' ? 'Captura un correo válido.' : `${fieldName(field)} no tiene un formato válido.`;
     if (field.validity.rangeUnderflow) {
       if (field.type === 'date') return 'Selecciona una fecha de hoy o posterior.';
@@ -51,7 +55,7 @@
     if (kind === 'email' && value) { field.value = value.toLowerCase(); if (!validEmail(field.value)) return setFieldError(field, 'Captura un correo válido, por ejemplo: nombre@empresa.com.'); }
     if (kind === 'phone' && value && field.dataset.phoneDigits === '10' && !/^\d{10}$/.test(value)) return setFieldError(field, 'Captura exactamente 10 dígitos numéricos para el teléfono.');
     if (kind === 'phone' && value && !validPhone(value)) return setFieldError(field, 'Captura un teléfono válido: 10 dígitos en México o formato internacional con +.');
-    if (field.required && typeof field.value === 'string' && !field.value.trim()) return setFieldError(field, `${fieldName(field)} es obligatorio.`);
+    if (field.required && typeof field.value === 'string' && !field.value.trim()) return setFieldError(field, field.type === 'file' ? 'Adjunta al menos un archivo de evidencia.' : `Completa el campo «${fieldName(field)}».`);
     if (!field.checkValidity()) return setFieldError(field, messageFor(field)); clearFieldError(field); return true;
   }
   function validateForm(form, focus = true) {
@@ -59,9 +63,10 @@
     const invalid = fields.filter(field => !validateField(field));
     const notice = form.querySelector('.form-validation-notice'); notice?.remove();
     if (!invalid.length) return true;
+    invalid.forEach(field => { for (let parent = field.parentElement; parent && parent !== form; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true; });
     const banner = document.createElement('div'); banner.className = 'form-validation-notice'; banner.setAttribute('role', 'alert'); banner.innerHTML = '<i data-lucide="triangle-alert"></i>Revisa los campos obligatorios marcados en rojo.'; form.querySelector('.modal-body, .order-dialog-body, .quotation-builder')?.prepend(banner); window.lucide?.createIcons();
     if (focus) { invalid[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); invalid[0].focus({ preventScroll: true }); }
-    if (typeof window.showToast === 'function') window.showToast(messageFor(invalid[0]));
+    if (typeof window.showToast === 'function') window.showToast(messageFor(invalid[0]), 'error');
     return false;
   }
   function hydrate(form) {
