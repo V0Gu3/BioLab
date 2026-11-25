@@ -3,6 +3,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const inventoryProof = require('../inventory-proof');
 const { openDatabase, readState, readStateKeys, stateEgressDiagnostics, saveState, saveStates, importSnapshot, resetOperationalData, emptyTrainingState, listResource, listAudit, createApproval, listApprovals, decideApproval, executiveDashboard, operationalAlerts, listClientQuotations, createInternalOrder, updateInternalOrder, activateInternalOrder, STATE_KEYS } = require('./db');
 const { assess: assessQuotationConversion } = require('../quotation-conversion');
 const { currentUser, login, createSessionForUser, setupReady, setupAdministrator, setPassword, sessionCookie, clearSession, clearUserSessions, verifyUserPassword } = require('./auth');
@@ -468,6 +469,7 @@ async function createApp(options = {}) {
           if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: `Tu perfil no tiene permiso para modificar ${stateKey}.` });
           if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], candidate, authenticated, permissionState);
           if (stateKey === 'nexo-access-v1') enforceAccessStatePolicy(currentState, candidate, authenticated);
+          if (stateKey === 'nexo-movements') inventoryProof.assertNewMovements(currentState[stateKey] || [], candidate);
           const payload = authenticated.role === 'seller' && SELLER_WRITE_OWNED_KEYS.has(stateKey) ? mergeSellerPortfolio(currentState[stateKey], candidate, authenticated, stateKey) : candidate;
           if (stateKey === 'nexo-sales-quotations') enforceRequiredQuotationLock(currentState, payload);
           if (stateKey === 'nexo-commercial-orders') enforceActivatedOrderLock(currentState, payload);
@@ -484,6 +486,7 @@ async function createApp(options = {}) {
         const body = await readJson(request);
         if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], body.payload, authenticated, permissionState);
         if (stateKey === 'nexo-access-v1') enforceAccessStatePolicy(currentState, body.payload, authenticated);
+        if (stateKey === 'nexo-movements') inventoryProof.assertNewMovements(currentState[stateKey] || [], body.payload);
         const payload = authenticated.role === 'seller' && SELLER_WRITE_OWNED_KEYS.has(stateKey) ? mergeSellerPortfolio(currentState[stateKey], body.payload, authenticated, stateKey) : body.payload;
         if (stateKey === 'nexo-sales-quotations') enforceRequiredQuotationLock(currentState, payload);
         if (stateKey === 'nexo-commercial-orders') enforceActivatedOrderLock(currentState, payload);
