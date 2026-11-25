@@ -33,7 +33,7 @@
         const raw = String(field.getAttribute('aria-label') || '').trim(), product = /^descuento\s+de\s+/i.test(raw) ? raw.replace(/^descuento\s+de\s+/i, '').trim() : '';
         return `El descuento${product ? ` de ${product}` : ''} no puede superar el ${field.max || 100}%.`;
       }
-      return `${fieldName(field)} supera el máximo permitido.`;
+      return `${fieldName(field)} supera el máximo permitido: ${field.max}${field.type==='number'&&/vigencia/i.test(`${field.id} ${fieldName(field)}`)?' días':''}.`;
     }
     if (field.validity.stepMismatch || field.validity.badInput) return `Captura un valor válido para ${fieldName(field).toLowerCase()}.`;
     return field.validationMessage || `${fieldName(field)} requiere revisión.`;

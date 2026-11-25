@@ -21,7 +21,7 @@
     id: text(item.id || item.folio || `${origin}-${dateOf(item)}`), category, origin,
     title: text(options.title || item.action || item.event || item.title || item.folio || item.id || origin),
     reference: text(options.reference || item.reference || item.sourceDocumentId || item.quotationId || item.clientOrderId || item.requisitionId || item.entityId || 'Sin referencia'),
-    user: text(options.user || item.userName || item.user || item.createdBy || item.confirmedBy || item.actorId || 'Sistema'),
+    user: text(options.user || item.userName || item.user || item.createdBy || item.updatedBy || item.by || item.confirmedBy || item.actorId || (item.eventKind==='system_reconciliation'?'Sistema':'Responsable no registrado')),
     at: dateOf(item), detail: text(options.detail || item.detail || item.notes || item.observations || item.reason || item.source || origin),
     downloadKind: options.downloadKind || '', downloadId: text(options.downloadId || item.id || item.folio || '')
   });
@@ -29,8 +29,9 @@
   function collect() {
     const operational = read('nexo-order-operations-v1', {}), rows = [];
     (operational.auditLog || []).forEach(item => rows.push(record('operation', 'Flujo operativo', item, { title: root.BioOrderLabels?.auditActionLabel(item.action) || item.action, reference: item.reference || item.entityId })));
-    (operational.inventoryMovements || []).forEach(item => rows.push(record('movement', 'Inventario operativo', item, { title: `${item.type === 'entry' ? 'Entrada' : 'Salida'} de almacén`, reference: item.sourceDocumentId || item.requisitionId, detail: `${item.catalog || 'Producto'} · ${item.quantity || 0} uds. · ${item.reason || ''}`, downloadKind: 'inventory', downloadId: item.id })));
-    (read('nexo-movements', []) || []).forEach(item => rows.push(record('movement', 'Movimientos', item, { reference: item.detail, detail: `${item.title || item.type || 'Movimiento'}${item.evidence?.length ? ` · ${item.evidence.length} evidencia${item.evidence.length === 1 ? '' : 's'} con huella SHA-256` : ''}` })));
+    const manual=read('nexo-movements',[])||[],manualIds=new Set(manual.map(item=>String(item.id)));
+    (operational.inventoryMovements || []).filter(item=>!manualIds.has(String(item.id))&&!manualIds.has(String(item.folio))).forEach(item => rows.push(record('movement', 'Inventario operativo', item, { title: `${item.type === 'entry' ? 'Entrada' : 'Salida'} de almacén`, reference: item.sourceDocumentId || item.requisitionId, detail: `${item.catalog || 'Producto'} · ${item.quantity || 0} uds. · ${item.reason || ''}`, downloadKind: 'inventory', downloadId: item.id })));
+    manual.forEach(item => rows.push(record(['entrada','salida','traspaso','merma'].includes(String(item.type).toLowerCase())?'movement':'operation', 'Movimientos', item, { reference: item.detail, detail: `${item.title || item.type || 'Movimiento'}${item.evidence?.length ? ` · ${item.evidence.length} evidencia${item.evidence.length === 1 ? '' : 's'} con huella SHA-256` : ''}` })));
 
     const documentSources = [
       ['nexo-sales-quotations', 'Cotizaciones', 'Cotización', 'quotation'],

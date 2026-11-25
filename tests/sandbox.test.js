@@ -28,7 +28,7 @@ test('la interfaz identifica claramente el entorno de entrenamiento', () => {
   assert.match(workspace, /removeAttribute\('aria-busy'\)/);
   assert.match(html, /id="trainingWorkspaceNotice"/);
   assert.doesNotMatch(html, /class="nav-item sandbox-nav"/);
-  assert.match(html, /Nada se registra en la operación ni en auditoría/);
+  assert.match(html, /Las acciones quedan en la bitácora de Pruebas y no modifican la operación/);
 });
 
 test('el selector mantiene el control de habilitación únicamente para el administrador', () => {

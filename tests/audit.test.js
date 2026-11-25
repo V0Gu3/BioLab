@@ -32,6 +32,14 @@ test('la API conserva la comprobación del permiso de auditoría', () => {
   assert.match(fs.readFileSync(require.resolve('../audit.js'), 'utf8'), /BioAccess\?\.can\('audit'\)/);
 });
 
+test('separa cambios de catálogo de movimientos físicos y evita duplicados por folio',()=>{
+  const audit=loadAudit({'nexo-movements':[{id:'SAL-1',type:'salida',user:'Andrés Torres'},{id:'EDIT-1',type:'precio',title:'Producto editado',updatedBy:'Andrés Torres'}],'nexo-order-operations-v1':{inventoryMovements:[{id:'TECH-1',folio:'SAL-1',type:'exit'}]}});
+  const rows=audit.collect();
+  assert.equal(rows.filter(row=>row.category==='movement').length,1);
+  assert.equal(rows.find(row=>row.id==='EDIT-1').category,'operation');
+  assert.equal(rows.find(row=>row.id==='EDIT-1').user,'Andrés Torres');
+});
+
 test('la vista de auditoría pagina los registros filtrados sin limitar la exportación', () => {
   const source = fs.readFileSync(require.resolve('../audit.js'), 'utf8');
   const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');

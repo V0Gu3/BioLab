@@ -15,6 +15,8 @@ test('un campo anónimo conserva el identificador de error y el descuento muestr
   assert.equal(context.idFor(field),context.idFor(field));
   assert.notEqual(context.idFor(field),context.idFor({...field}));
   assert.equal(context.messageFor(field),'El descuento no puede superar el 100%.');
+  context.fieldName=()=> 'Vigencia';
+  assert.equal(context.messageFor({...field,id:'quotationValidity',dataset:{},max:'365',type:'number',getAttribute:()=> 'Vigencia'}),'Vigencia supera el máximo permitido: 365 días.');
 });
 test('la auditoría usa el mismo nombre español que el expediente',()=>{
   const source=fs.readFileSync(require.resolve('../orders.js'),'utf8'),start=source.indexOf('  const auditActionLabel ='),end=source.indexOf('  window.BioOrderLabels',start),context=vm.createContext({});

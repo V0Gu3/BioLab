@@ -6,9 +6,9 @@ const app = fs.readFileSync(require.resolve('../app.js'), 'utf8');
 const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
 const server = fs.readFileSync(require.resolve('../server/server.js'), 'utf8');
 
-test('la cotización calcula el precio final desde el precio de venta y la protección', () => {
+test('la referencia en la misma moneda conserva el precio de venta sin protección cambiaria', () => {
   assert.match(app, /function quotationProtectedPrice\(salePrice\)/);
-  assert.match(app, /base\*\(1\+protectionPercent\/100\)/);
+  assert.match(app, /protectionPercent:0,price:roundQuotationMoney\(base\)/);
   assert.match(app, /quotationProtectedPrice\(salePrice\)/);
   assert.doesNotMatch(app, /quotationProtectedPrice\(entry\.price\)/);
   assert.match(app, /finalQuotedPrice:line\.unitPrice/);
@@ -97,8 +97,8 @@ test('el color del precio compara la referencia ya convertida cuando cambia la m
   assert.match(app, /quotationProductPrice\(\{\.\.\.item,sourceCurrency:source,sourcePrice\},target\)/);
 });
 
-test('la conversión de la cotización conserva el precio unitario a tres decimales', () => {
-  assert.match(app, /const quotedPrice=Number\(Number\(conversion\.unitPrice\)\.toFixed\(3\)\)/);
+test('la conversión de la cotización fija el precio unitario a dos decimales', () => {
+  assert.match(app, /const quotedPrice=Number\(Number\(conversion\.unitPrice\)\.toFixed\(2\)\)/);
   assert.match(app, /unitPrice:quotedPrice,finalQuotedPrice:quotedPrice/);
 });
 
@@ -122,9 +122,9 @@ test('los precios manuales rechazan ceros iniciales y separadores ambiguos', () 
   assert.match(app, /\['catalogPrice','productEditPrice','productEditSalePrice'\]/);
 });
 
-test('la captura muestra precios de cotización a dos decimales sin perder precisión interna', () => {
+test('la captura y el precio convertido comparten la precisión comercial de dos decimales', () => {
   assert.match(app, /formatQuotationUnitPrice=value=>[\s\S]*minimumFractionDigits:2,maximumFractionDigits:2/);
-  assert.match(app, /const quotedPrice=Number\(Number\(conversion\.unitPrice\)\.toFixed\(3\)\)/);
+  assert.match(app, /const quotedPrice=Number\(Number\(conversion\.unitPrice\)\.toFixed\(2\)\)/);
 });
 
 test('cancelar un movimiento iniciado desde producto restaura la edición y sus cambios', () => {
