@@ -454,8 +454,21 @@ async function materializeOperationsIncrementally(db, state) {
   await removeMissing('documents', documentIds, "source_key='nexo-order-operations-v1'");
 }
 
+async function materializeAccessIncrementally(db, access) {
+  const existing = new Map((await db.query('SELECT id,payload_json FROM users')).rows.map(row => [String(row.id), parseJson(row.payload_json)]));
+  for (const item of access.users || []) {
+    if (canonicalJson(existing.get(String(item.id))) === canonicalJson(item)) continue;
+    await upsert(db, 'users', { id: String(item.id), name: String(item.name || ''), email: String(item.email || ''), role: String(item.role || 'seller'), status: String(item.status || 'active'), seller_number: item.sellerNumber || null, payload_json: item, updated_at: item.updatedAt || item.createdAt || timestamp() });
+  }
+  const auditIds = new Set((await db.query("SELECT id FROM audit_events WHERE source_key='nexo-access-v1'")).rows.map(row => String(row.id)));
+  for (const [index, item] of (access.audit || []).entries()) {
+    const row = auditRow('nexo-access-v1', 'access', item, index);
+    if (!auditIds.has(String(row.id))) { await insert(db, 'audit_events', row); auditIds.add(String(row.id)); }
+  }
+}
+
 async function materializeChangedStates(db, stateKeys) {
-  const keys = new Set(stateKeys), supported = new Set(['nexo-products', 'nexo-product-supplier-relations', 'nexo-order-operations-v1']);
+  const keys = new Set(stateKeys), supported = new Set(['nexo-access-v1', 'nexo-products', 'nexo-product-supplier-relations', 'nexo-order-operations-v1']);
   if (![...keys].every(key => supported.has(key))) return false;
   await lockMaterialized(db);
   // No descargar todo app_state para una remisión. Las listas de precios y sus
@@ -467,6 +480,7 @@ async function materializeChangedStates(db, stateKeys) {
     ['nexo-products', 'nexo-sales-quotations', 'nexo-commercial-orders', 'nexo-suppliers'].forEach(key => requiredKeys.add(key));
   }
   const state = await readStateKeys(db, [...requiredKeys]);
+  if (keys.has('nexo-access-v1')) await materializeAccessIncrementally(db, state['nexo-access-v1'] || {});
   if (keys.has('nexo-products')) await materializeProductsIncrementally(db, state);
   if (keys.has('nexo-product-supplier-relations')) await materializeRelationsIncrementally(db, state);
   if (keys.has('nexo-order-operations-v1')) await materializeOperationsIncrementally(db, state);
@@ -511,8 +525,13 @@ async function saveStates(db, entries, actor = 'Sistema', actorId = null, worksp
   return transaction(db, async client => {
     const revisions = {};
     for (const [stateKey, payload] of normalized) revisions[stateKey] = await writeState(client, stateKey, payload, actor, actorId, workspace);
-    // Pruebas es una partición central aislada. Nunca reconstruye ni altera
-    // las tablas materializadas de la operación real.
+    // Los usuarios son compartidos entre espacios; sus credenciales necesitan
+    // el directorio central incluso al dar de alta desde Pruebas. No reconstruir
+    // por ello inventario, pedidos ni otros datos de la operación real.
+    if (workspace === 'training') {
+      const access = normalized.find(([key]) => key === 'nexo-access-v1');
+      if (access) { await lockMaterialized(client); await materializeAccessIncrementally(client, access[1]); }
+    }
     if (workspace !== 'training') {
       if (normalized.length === 1 && normalized[0][0] === 'nexo-fx-v1') await rebuildFxMaterialized(client, normalized[0][1]);
       else if (!await materializeChangedStates(client, normalized.map(([key]) => key))) await rebuildMaterialized(client);

@@ -231,7 +231,38 @@
   document.addEventListener('click', event => { if (!q('#sidebarProfile')?.contains(event.target)) closeProfileMenu(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeProfileMenu(); });
   q('#systemUserRole').addEventListener('change', () => { const isSeller = q('#systemUserRole').value === 'seller'; q('#systemUserSellerNumberField').hidden = !isSeller; q('#systemUserSellerNumber').disabled = !isSeller; q('#systemUserSellerNumber').value = isSeller ? (access.getState().users.find(user => user.id === q('#systemUserId').value && user.role === 'seller')?.sellerNumber || 'Se asignará automáticamente al guardar') : ''; renderUserPermissionEditor(); });
-  q('#systemUserForm').addEventListener('submit', async event => { event.preventDefault(); const role = q('#systemUserRole').value, baseline = new Set(access.rolePermissions(role)), checked = new Set([...q('#systemUserPermissions').querySelectorAll('input:checked')].map(input => input.value)), permissionGrants = [...checked].filter(permission => !baseline.has(permission)), permissionDenials = [...baseline].filter(permission => !checked.has(permission)), email = q('#systemUserEmail').value.trim().toLowerCase(), password = q('#systemUserPassword').value, originalId = q('#systemUserId').value || null; const result = access.saveUser({ id: originalId, name: q('#systemUserName').value, email, role, sellerNumber: q('#systemUserSellerNumber').value, status: q('#systemUserStatus').value, permissionGrants, permissionDenials }); if (!result.ok) return toast(result.message); const user = access.getState().users.find(item => item.email.toLowerCase() === email); try { if (password) { await window.BioPersistence?.flush({ throwOnError: true }); await window.BioAuth?.setPassword(user?.id, password); } } catch (error) { return toast(error.message || 'No fue posible guardar el usuario en la base central.'); } q('#systemUserDialog').close(); toast(password ? `Usuario ${originalId ? 'actualizado' : 'creado'} y contraseña asignada correctamente.` : 'Usuario y permisos actualizados correctamente.'); });
+  let systemUserSaving = false;
+  async function saveSystemUser(event) {
+    event.preventDefault();
+    if (systemUserSaving) return;
+    const form = q('#systemUserForm'), dialog = q('#systemUserDialog'), button = form.querySelector('[type="submit"]');
+    const role = q('#systemUserRole').value, baseline = new Set(access.rolePermissions(role));
+    const checked = new Set([...q('#systemUserPermissions').querySelectorAll('input:checked')].map(input => input.value));
+    const permissionGrants = [...checked].filter(permission => !baseline.has(permission)), permissionDenials = [...baseline].filter(permission => !checked.has(permission));
+    const email = q('#systemUserEmail').value.trim().toLowerCase(), password = q('#systemUserPassword').value, originalId = q('#systemUserId').value || null;
+    const result = access.saveUser({ id: originalId, name: q('#systemUserName').value, email, role, sellerNumber: q('#systemUserSellerNumber').value, status: q('#systemUserStatus').value, permissionGrants, permissionDenials });
+    if (!result.ok) return toast(result.message);
+    const user = access.getState().users.find(item => item.email.toLowerCase() === email);
+    // Un fallo posterior no debe convertir el siguiente intento en otra alta.
+    q('#systemUserId').value = user.id;
+    systemUserSaving = true;
+    button.disabled = true;
+    form.setAttribute('aria-busy', 'true');
+    try {
+      await window.BioPersistence.flush({ throwOnError: true });
+      if (password) await window.BioAuth.setPassword(user.id, password);
+      q('#systemUserPassword').value = '';
+      dialog.close();
+      toast(password ? `Usuario ${originalId ? 'actualizado' : 'creado'} y contraseña asignada correctamente.` : 'Usuario y permisos actualizados correctamente.');
+    } catch (error) {
+      toast(error.message || 'No fue posible guardar el usuario en la base central.');
+    } finally {
+      systemUserSaving = false;
+      button.disabled = false;
+      form.removeAttribute('aria-busy');
+    }
+  }
+  q('#systemUserForm').addEventListener('submit', saveSystemUser);
   document.querySelectorAll('.access-dialog-close').forEach(button => button.addEventListener('click', () => q('#systemUserDialog').close()));
   window.addEventListener('bio:access-changed', () => { updateSidebarProfile(); applyNavigationAccess(); renderSettings(); setSettingsSection(activeSettingsSection); });
   updateSidebarProfile(); applyNavigationAccess(); renderSettings(); setSettingsSection(activeSettingsSection);
