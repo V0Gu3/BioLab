@@ -1,6 +1,18 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
 const core = require('../orders-core');
 
+test('listar pedidos sin aplicar anticipo no cambia documentos activos ni bloquea la siguiente cotización', () => {
+  const { enforceActivatedOrderLock } = require('../server/server');
+  const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const line = source.split('\n').find(line => line.startsWith('const baseRenderCommercialOrders='));
+  const order = { id: 'PI-QA', status: 'active', total: 100, currency: 'MXN' };
+  let writes = 0;
+  const context = vm.createContext({ commercialOrders: [structuredClone(order)], renderCommercialOrders() {}, applyClientAdvancesToOrder: () => ({ applied: 0 }), save() { writes++; } });
+  vm.runInContext(line, context); context.renderCommercialOrders(); context.renderCommercialOrders();
+  assert.doesNotThrow(() => enforceActivatedOrderLock({ 'nexo-commercial-orders': [order] }, context.commercialOrders));
+  assert.equal(writes, 0);
+});
+
 function receiptHarness(admin = true) {
   const store = core.createEmptyStore();
   store.requisitions.push({ id: 'PI-QA', type: 'customer_order', clientOrderStatus: 'active', responsible: 'QA' });
