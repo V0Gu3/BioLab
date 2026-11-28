@@ -15,6 +15,19 @@ function harness() {
   return { pending, operations, flush: context.flush };
 }
 
+test('reconciliar un 409 no confirma escrituras rechazadas ni permite continuar después', async () => {
+  const source = fs.readFileSync(require.resolve('../persistence.js'), 'utf8');
+  const code = source.slice(source.indexOf('  async function flushPending('), source.indexOf('  function queue('));
+  const pending = new Map([['quotes', []], ['orders', []]]), status = { connected: true, error: null };
+  let requests = 0, reconciliations = 0;
+  const context = vm.createContext({ pending, status, timer: null, actor: () => 'QA', workspaceHeaders: () => ({}), safePayload: (_key, value) => value, writableKeys: new Set(), notify() {}, bootstrapMeta: () => null, saveBootstrapMeta() {}, bootstrap: async () => { reconciliations++; status.error = null; }, console: { warn() {} }, fetch: async () => { requests++; return { ok: false, status: 409, json: async () => ({ error: 'El pedido está protegido' }) }; } });
+  vm.runInContext(code, context);
+  await assert.rejects(context.flushPending({ throwOnError: true }), /pedido está protegido/);
+  assert.equal(requests, 1); assert.equal(reconciliations, 1);
+  await assert.rejects(context.flushPending({ throwOnError: true }), /pedido está protegido/);
+  assert.equal(requests, 1);
+});
+
 test('guardar pedido espera la sincronización en curso y los cambios recibidos durante ella', async () => {
   const h = harness();
   h.pending.set('quotations', ['COT-1']);

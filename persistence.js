@@ -126,7 +126,10 @@
       if (throwOnError) throw error;
       return false;
     }
-    if (!pending.size) return true;
+    if (!pending.size) {
+      if (status.error && throwOnError) throw new Error(status.error);
+      return !status.error;
+    }
     let entries = [...pending.entries()], lastError = null, needsReconciliation = false, deferRetry = false; pending.clear();
     // Las escrituras ya confirmadas no deben repetirse cuando una sola petición
     // transitoria falla; repetir el lote completo provoca sincronizaciones

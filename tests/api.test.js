@@ -66,6 +66,15 @@ test('el bloqueo compara valores y conserva protección aunque PostgreSQL reorde
   assert.throws(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [original] }, [{ ...reordered, items: [{ unitPrice: 11, quantity: 1 }] }]), error => error.status === 409);
 });
 
+test('un lote con cotización nueva conserva la bitácora central de las cotizaciones bloqueadas', () => {
+  const original = { id: 'Q1', status: 'required', locked: true, total: 100, internalOrderId: 'PI-1', lockedAtISO: '2026-11-28T18:00:00Z', lockedBy: 'QA', statusHistory: [{ status: 'required', at: '2026-11-28T18:00:00Z' }] };
+  const local = { id: 'Q1', status: 'required', locked: true, total: 100, internalOrderId: 'PI-1', lockedAtISO: '2026-11-28T18:01:00Z', statusHistory: [] };
+  enforceRequiredQuotationLock({ 'nexo-sales-quotations': [original] }, [local, { id: 'Q2', status: 'sent' }]);
+  assert.deepEqual(local, original);
+  assert.throws(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [original] }, [{ ...local, total: 1 }]), error => error.status === 409);
+  assert.throws(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [original] }, [{ ...local, internalOrderId: 'PI-2' }]), error => error.status === 409);
+});
+
 test('expone la API REST sobre PostgreSQL', async () => {
   const db = await createTestDatabase(), bootstrapToken = 'bootstrap-test-token', server = await createApp({ db, bootstrapToken, deltaBootstrapRoles: 'administrator,developer,supervisor,seller,auditor' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

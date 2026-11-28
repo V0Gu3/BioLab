@@ -181,7 +181,18 @@ function enforceRequiredQuotationLock(currentState, nextQuotations) {
   const submitted = new Map(after.map(quotation => [String(quotation?.id || ''), quotation]));
   for (const quotation of before.filter(item => item?.locked || String(item?.status || '').toLowerCase() === 'required')) {
     const proposed = submitted.get(String(quotation.id));
-    if (!proposed || !sameLockedBusinessData(proposed, quotation)) throw Object.assign(new Error(`La cotización ${quotation.id} está requerida para compras y ya no puede editarse.`), { status: 409 });
+    // Estas marcas las asigna el endpoint de activación, nunca la pantalla.
+    // Mantenerlas intactas sin rechazar una cotización nueva por una copia local
+    // aproximada de fechas o bitácora. El contenido comercial sigue bloqueado.
+    const metadata = ['lockedAtISO', 'lockedBy', 'lockedReason', 'requiredAtISO', 'requiredBy', 'convertedAt', 'statusHistory'];
+    const candidate = proposed && { ...proposed };
+    if (candidate) for (const key of metadata) {
+      if (Object.hasOwn(quotation, key)) candidate[key] = quotation[key]; else delete candidate[key];
+    }
+    if (!candidate || !sameLockedBusinessData(candidate, quotation)) throw Object.assign(new Error(`La cotización ${quotation.id} está requerida para compras y ya no puede editarse.`), { status: 409 });
+    for (const key of metadata) {
+      if (Object.hasOwn(quotation, key)) proposed[key] = quotation[key]; else delete proposed[key];
+    }
   }
 }
 
