@@ -163,6 +163,7 @@
           // una sola vez la verdad central evita regresiones y tráfico repetido.
           if (error.status === 409) {
             needsReconciliation = true;
+            lastError = error;
             continue;
           }
           // Un timeout de la función ya consumió 30 segundos y puede conservar
@@ -180,6 +181,13 @@
       // recibir sólo las claves en conflicto, no otro bootstrap completo.
       status.hydrated = false;
       await bootstrap();
+      // Recuperar la verdad central no confirma las escrituras rechazadas.
+      // El pedido debe detenerse y mostrar la causa real del conflicto.
+      status.error = lastError?.message || 'Los cambios entraron en conflicto con la versión central.';
+      notify();
+      console.warn('Sincronización rechazada:', status.error);
+      if (throwOnError) throw new Error(status.error);
+      return false;
     }
     if (entries.length) {
       entries.forEach(([key, payload]) => pending.set(key, payload));
