@@ -59,6 +59,13 @@ test('remisiones y órdenes históricas conservan folio, relación y fecha', () 
   assert.throws(() => assertDocumentHistoryStable({ shipments: [], supplierOrders: [] }, { shipments: [{ id: 'DEL-2', folio: 'REM-261108-0004', requisitionId: 'PI-1', date: '2026-11-09' }], supplierOrders: [] }), error => error.status === 400);
 });
 
+test('el bloqueo compara valores y conserva protección aunque PostgreSQL reordene las claves JSON', () => {
+  const original = { id: 'Q', status: 'required', locked: true, items: [{ quantity: 1, unitPrice: 10 }] };
+  const reordered = { items: [{ unitPrice: 10, quantity: 1 }], locked: true, status: 'required', id: 'Q' };
+  assert.doesNotThrow(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [original] }, [reordered]));
+  assert.throws(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [original] }, [{ ...reordered, items: [{ unitPrice: 11, quantity: 1 }] }]), error => error.status === 409);
+});
+
 test('expone la API REST sobre PostgreSQL', async () => {
   const db = await createTestDatabase(), bootstrapToken = 'bootstrap-test-token', server = await createApp({ db, bootstrapToken, deltaBootstrapRoles: 'administrator,developer,supervisor,seller,auditor' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

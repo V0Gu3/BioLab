@@ -162,6 +162,9 @@
     reflectSavedOrder(order);
     reflectQuotationConversion(order, true);
     await window.BioPersistence?.bootstrap?.();
+    // El endpoint asigna las fechas y la bitácora definitivas del bloqueo.
+    // Reemplazar la copia aproximada evita reenviarla al emitir otra cotización.
+    window.dispatchEvent(new CustomEvent('bio:quotation-converted', { detail: { quotations: quotations() } }));
     window.dispatchEvent(new CustomEvent('bio:client-order-activated', { detail: { orderId: order.id } }));
     const destination = window.BioAccess?.can?.('supplier_order_manage') ? 'supplierOrdersView' : 'salesOrdersView';
     reset();

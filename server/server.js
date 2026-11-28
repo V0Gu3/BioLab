@@ -172,7 +172,8 @@ function lockedBusinessSnapshot(record) {
   return Object.fromEntries(Object.entries(record || {}).filter(([key]) => !LOCKED_IDENTITY_FIELDS.has(key)));
 }
 function sameLockedBusinessData(before, after) {
-  return JSON.stringify(lockedBusinessSnapshot(before)) === JSON.stringify(lockedBusinessSnapshot(after));
+  const stable = value => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
+  return stable(lockedBusinessSnapshot(before)) === stable(lockedBusinessSnapshot(after));
 }
 
 function enforceRequiredQuotationLock(currentState, nextQuotations) {

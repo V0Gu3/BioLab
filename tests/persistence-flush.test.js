@@ -41,3 +41,18 @@ test('un fallo de guardado en segundo plano impide continuar con el pedido', asy
   assert.equal(await background, false);
   await rejection;
 });
+
+test('después de activar, otra cotización conserva el bloqueo exacto confirmado por el servidor', () => {
+  const { enforceRequiredQuotationLock } = require('../server/server');
+  const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const listener = source.split('\n').find(line => line.startsWith("window.addEventListener('bio:quotation-converted'"));
+  let receive;
+  const confirmed = { id: 'Q1', status: 'required', locked: true, lockedAtISO: '2026-11-28T18:00:00Z', lockedBy: 'QA', requiredAtISO: '2026-11-28T18:00:00Z', statusHistory: [{ status: 'required', at: '2026-11-28T18:00:00Z' }] };
+  const context = vm.createContext({ quotations: [{ id: 'Q1', status: 'required', locked: true }], window: { addEventListener: (_type, fn) => { receive = fn; } }, structuredClone, renderQuotationHistory() {}, $: () => ({ value: '' }) });
+  vm.runInContext(listener, context);
+  receive({ detail: { quotations: [confirmed] } });
+  const next = [...context.quotations, { id: 'Q2', status: 'sent', items: [] }];
+  assert.doesNotThrow(() => enforceRequiredQuotationLock({ 'nexo-sales-quotations': [confirmed] }, next));
+  assert.equal(next[0].lockedBy, 'QA');
+  assert.notEqual(next[0], confirmed);
+});
