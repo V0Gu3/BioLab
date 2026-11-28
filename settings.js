@@ -123,6 +123,11 @@
   }
 
   function openUserDialog(userId) {
+    if (!q('#sharedAccessNotice')) {
+      const notice = document.createElement('p'); notice.id = 'sharedAccessNotice'; notice.className = 'subtitle';
+      notice.textContent = 'Las cuentas de acceso son compartidas entre Pruebas y Operativo. El cliente, las cotizaciones y los pedidos de prueba permanecen aislados.';
+      q('#systemUserForm .form-grid').before(notice);
+    }
     if (!access.can('user_manage')) return toast('Solo el administrador puede modificar usuarios y perfiles.');
     const user = access.getState().users.find(item => item.id === userId);
     let password = q('#systemUserPassword');

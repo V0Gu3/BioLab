@@ -122,9 +122,10 @@ test('expone la API REST sobre PostgreSQL', async () => {
     assert.equal((await fetch(`${base}/api/bootstrap`, { headers }).then(response => response.json())).state['nexo-products'][0].price, 18);
     const accessState = (await fetch(`${base}/api/bootstrap`, { headers }).then(response => response.json())).state['nexo-access-v1'];
     accessState.users.push({ id: 'USR-005', name: 'Nuevo usuario', email: 'nuevo@probiolab.test', role: 'seller', status: 'active' }, { id: 'USR-006', name: 'Auditor', email: 'auditor@probiolab.test', role: 'auditor', status: 'active' }, { id: 'USR-007', name: 'Recepción limitada', email: 'recepcion@probiolab.test', role: 'supervisor', permissionDenials: ['supplier_order_manage', 'deliver', 'cancel'], status: 'active' });
-    const savedUser = await fetch(`${base}/api/state/nexo-access-v1`, { method: 'PUT', headers, body: JSON.stringify({ payload: accessState }) });
+    assert.ok(firstTraining.allowedKeys.includes('nexo-access-v1'));
+    const savedUser = await fetch(`${base}/api/state/nexo-access-v1`, { method: 'PUT', headers: trainingHeaders, body: JSON.stringify({ payload: accessState }) });
     assert.equal(savedUser.status, 200);
-    const password = await fetch(`${base}/api/auth/users/USR-005/password`, { method: 'POST', headers, body: JSON.stringify({ password: 'Contraseña-nueva-123' }) });
+    const password = await fetch(`${base}/api/auth/users/USR-005/password`, { method: 'POST', headers: trainingHeaders, body: JSON.stringify({ password: 'Contraseña-nueva-123' }) });
     assert.equal(password.status, 200);
     assert.equal((await fetch(`${base}/api/auth/users/USR-006/password`, { method: 'POST', headers, body: JSON.stringify({ password: 'Contraseña-auditor-123' }) })).status, 200);
     assert.equal((await fetch(`${base}/api/auth/users/USR-007/password`, { method: 'POST', headers, body: JSON.stringify({ password: 'Contraseña-recepcion-123' }) })).status, 200);

@@ -151,6 +151,35 @@ test('una cotización vencida no se ofrece ni permite crear o activar un pedido 
   } finally { await db.end(); }
 });
 
+test('dos cotizaciones en monedas distintas y una partida manual conservan importes al activar en Pruebas', async () => {
+  const db = await createTestDatabase();
+  try {
+    const actor = { id: 'USR-001', name: 'Administrador', role: 'administrator' };
+    const state = fixture();
+    state['nexo-clients'] = [{ id: 'CLI-MULTI', name: 'QA Multimoneda' }];
+    state['nexo-sales-quotations'] = [
+      { id: 'COT-QA-MXN', clientId: 'CLI-MULTI', client: 'QA Multimoneda', status: 'sent', taxRate: 16, currency: 'MXN', expiresAtISO: '2099-12-31', items: [{ productId: 1, quantity: 2, unitPrice: 100, discount: 10, currency: 'MXN' }] },
+      { id: 'COT-QA-USD', clientId: 'CLI-MULTI', client: 'QA Multimoneda', status: 'sent', taxRate: 0, currency: 'USD', expiresAtISO: '2099-12-31', items: [{ productId: 1, quantity: 1, unitPrice: 84.27, currency: 'USD' }] }
+    ];
+    for (const [key, value] of Object.entries(state)) if (key !== 'nexo-access-v1') await saveState(db, key, value, actor.name, actor.id, 'training');
+    const items = [
+      { productId: 1, quantity: 2, unitPrice: 100, currency: 'MXN', sources: [{ quotationId: 'COT-QA-MXN', quotationLineNo: 1 }] },
+      { productId: 1, quantity: 1, unitPrice: 84.27, currency: 'USD', sources: [{ quotationId: 'COT-QA-USD', quotationLineNo: 1 }] },
+      { productId: 1, name: 'Partida manual QA', quantity: 1, unitPrice: 25, currency: 'MXN' }
+    ];
+    const order = await createInternalOrder(db, { clientId: 'CLI-MULTI', quotationIds: ['COT-QA-MXN', 'COT-QA-USD'], items }, actor, 'training');
+    assert.equal(order.currency, 'MULTI');
+    assert.equal(order.totalsByCurrency.find(row => row.currency === 'MXN').total, 237.8);
+    assert.equal(order.totalsByCurrency.find(row => row.currency === 'USD').total, 84.27);
+    assert.equal(order.items[2].sourceType, 'manual');
+    const active = await activateInternalOrder(db, order.id, { acceptance: { reference: 'QA-MULTI-ACEPT' } }, actor, 'training');
+    assert.deepEqual(active.totalsByCurrency, order.totalsByCurrency);
+    assert.equal(active.status, 'active');
+    assert.equal((await readState(db, 'training'))['nexo-sales-quotations'].filter(q => q.locked).length, 2);
+    assert.equal((await readState(db))['nexo-commercial-orders'], undefined);
+  } finally { await db.end(); }
+});
+
 test('pedidos internos de capacitación se guardan aislados y no materializan la operación', async () => {
   const db = await createTestDatabase();
   try {

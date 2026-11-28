@@ -427,7 +427,7 @@ async function createApp(options = {}) {
       // Estas rutas consultan o actualizan tablas materializadas de la operación.
       // En capacitación sólo se permite el estado particionado; bloquearlas aquí
       // evita una fuga incluso si se agrega una pantalla que las invoque.
-      if (authenticated && requestedWorkspace(request) === 'training' && (/^\/api\/(?:search\/internal-orders|reports\/internal-orders|dashboard\/|alerts$|audit$|approvals|system\/reset|auth\/users\/)/.test(pathname) || ['products', 'suppliers', 'movements', 'quotations', 'client-orders', 'requisitions', 'supplier-orders', 'receipts', 'shipments', 'documents'].includes(pathname.slice('/api/'.length)))) return sendJson(response, 409, { ok: false, error: 'Esta consulta pertenece al espacio operativo. En Pruebas usa únicamente los datos de capacitación.' });
+      if (authenticated && requestedWorkspace(request) === 'training' && (/^\/api\/(?:search\/internal-orders|reports\/internal-orders|dashboard\/|alerts$|audit$|approvals|system\/reset|auth\/users\/[^/]+$)/.test(pathname) || ['products', 'suppliers', 'movements', 'quotations', 'client-orders', 'requisitions', 'supplier-orders', 'receipts', 'shipments', 'documents'].includes(pathname.slice('/api/'.length)))) return sendJson(response, 409, { ok: false, error: 'Esta consulta pertenece al espacio operativo. En Pruebas usa únicamente los datos de capacitación.' });
       if (request.method === 'GET' && pathname === '/api/bootstrap') {
         const workspace = requestedWorkspace(request);
         // Una revalidación no debe descargar el estado completo desde la base.
@@ -435,7 +435,7 @@ async function createApp(options = {}) {
         // 304 sin mover los JSON operativos hacia la función ni al navegador.
         const accessState = authenticated ? await readStateKeys(db, ['nexo-access-v1']) : rawState;
         const permissionState = authenticated ? { 'nexo-access-v1': accessState['nexo-access-v1'] || {} } : (rawState || {});
-        const allowedKeys = authenticated ? STATE_KEYS.filter(key => (workspace !== 'training' || key !== 'nexo-access-v1') && canWriteState(authenticated, permissionState, key)) : initialBootstrap ? STATE_KEYS : [];
+        const allowedKeys = authenticated ? STATE_KEYS.filter(key => canWriteState(authenticated, permissionState, key)) : initialBootstrap ? STATE_KEYS : [];
         const readableKeys = authenticated ? STATE_KEYS.filter(key => canReadState(authenticated, permissionState, key)) : STATE_KEYS;
         const effectiveReadableKeys = [...new Set([...readableKeys, 'nexo-access-v1'])];
         const revisionRows = await db.query(workspace === 'training' ? "SELECT state_key,revision,updated_at,updated_by FROM app_state WHERE state_key LIKE 'training:%' OR state_key='nexo-access-v1'" : "SELECT state_key,revision,updated_at,updated_by FROM app_state WHERE state_key NOT LIKE 'training:%'");
@@ -469,7 +469,7 @@ async function createApp(options = {}) {
         const submittedClients=entries.find(([key])=>key==='nexo-clients')?.[1],proposedClients=submittedClients?(authenticated.role==='seller'?mergeSellerPortfolio(currentState['nexo-clients'],submittedClients,authenticated,'nexo-clients'):submittedClients):(currentState['nexo-clients']||[]);
         for (const [stateKey, candidate] of entries) {
           const permission = STATE_PERMISSIONS[stateKey];
-          if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: `Tu perfil no tiene permiso para modificar ${stateKey}.` });
+          if (!permission || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: `Tu perfil no tiene permiso para modificar ${stateKey}.` });
           if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], candidate, authenticated, permissionState);
           if (stateKey === 'nexo-access-v1') enforceAccessStatePolicy(currentState, candidate, authenticated);
           if (stateKey === 'nexo-movements') inventoryProof.assertNewMovements(currentState[stateKey] || [], candidate);
@@ -486,7 +486,7 @@ async function createApp(options = {}) {
       if (request.method === 'PUT' && pathname.startsWith('/api/state/')) {
         if (!authenticated) return sendJson(response, 401, { ok: false, error: 'Inicia sesión para guardar cambios.' });
         const workspace = requestedWorkspace(request), stateKey = pathname.slice('/api/state/'.length), permission = STATE_PERMISSIONS[stateKey], { permissionState, currentState } = await readWriteContext(db, [stateKey], workspace);
-        if (!permission || (workspace === 'training' && stateKey === 'nexo-access-v1') || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para modificar esta información.' });
+        if (!permission || !canWriteState(authenticated, permissionState, stateKey)) return sendJson(response, 403, { ok: false, error: 'Tu perfil no tiene permiso para modificar esta información.' });
         const body = await readJson(request);
         if (stateKey === 'nexo-order-operations-v1') assertOperationalWriteAllowed(currentState[stateKey], body.payload, authenticated, permissionState);
         if (stateKey === 'nexo-access-v1') enforceAccessStatePolicy(currentState, body.payload, authenticated);
