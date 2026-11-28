@@ -165,7 +165,7 @@ test('dos cotizaciones en monedas distintas y una partida manual conservan impor
     const items = [
       { productId: 1, quantity: 2, unitPrice: 100, currency: 'MXN', sources: [{ quotationId: 'COT-QA-MXN', quotationLineNo: 1 }] },
       { productId: 1, quantity: 1, unitPrice: 84.27, currency: 'USD', sources: [{ quotationId: 'COT-QA-USD', quotationLineNo: 1 }] },
-      { productId: 1, name: 'Partida manual QA', quantity: 1, unitPrice: 25, currency: 'MXN' }
+      { productId: 1, name: 'Partida manual QA', quantity: 1, unitPrice: 25, currency: 'MXN', sourceType: 'manual', sources: [{ sourceType: 'manual', quotationId: null, quotationLineNo: null }] }
     ];
     const order = await createInternalOrder(db, { clientId: 'CLI-MULTI', quotationIds: ['COT-QA-MXN', 'COT-QA-USD'], items }, actor, 'training');
     assert.equal(order.currency, 'MULTI');

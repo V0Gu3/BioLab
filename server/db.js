@@ -708,7 +708,7 @@ function normalizeInternalOrderItems(items, quotations, products, relations) {
   const quoteMap = new Map(quotations.map(quotation => [String(quotation.id), quotation]));
   return (Array.isArray(items) ? items : []).map((item, index) => {
     const product = products.find(candidate => String(candidate.id) === String(item.productId)) || products.find(candidate => String(candidate.sku || '') === String(item.sku || '')) || null;
-    const sources = (Array.isArray(item.sources) ? item.sources : []).map(source => {
+    const sources = (Array.isArray(item.sources) ? item.sources : []).filter(source => !(source.sourceType === 'manual' && !source.quotationId && source.quotationLineNo == null)).map(source => {
       const quote = quoteMap.get(String(source.quotationId)), sourceLine = quote?.items?.[Number(source.quotationLineNo) - 1];
       if (!quote || !sourceLine) throw Object.assign(new Error('Una partida referencia una cotización o renglón que no fue seleccionado.'), { status: 400 });
       return { sourceType: 'quotation', quotationId: quote.id, quotationLineNo: Number(source.quotationLineNo), originalQuantity: number(sourceLine.quantity), originalUnitPrice: roundInternalOrderMoney(sourceLine.unitPrice), discount: Math.max(0, number(sourceLine.discount)), discountTotal: sourceLine.discountTotal ?? sourceLine.lineDiscount ?? sourceLine.discountAmount ?? null, taxRate: quotationTaxRate(quote), currency: sourceLine.currency || quote.currency || 'MXN' };
